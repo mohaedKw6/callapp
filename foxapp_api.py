@@ -12,11 +12,27 @@ from flask import Flask, request, jsonify
 log = logging.getLogger("fox-app")
 
 SHARED_SECRET = "FOXCALL_2026_SHARED_SECRET_v1"
-PUBLIC_URL = (
-    os.environ.get("PUBLIC_URL")
-    or (f"https://{os.environ['REPLIT_DEV_DOMAIN']}" if os.environ.get("REPLIT_DEV_DOMAIN") else None)
-    or "http://localhost:5000"
-).rstrip("/")
+REPLIT_API_URL = "https://3bdef2f4-6a1f-4c7d-af7c-73040d9e35ab-00-2dvjd113zga7x.sisko.replit.dev"
+
+def _resolve_public_url() -> str:
+    candidates = []
+    env_url = os.environ.get("PUBLIC_URL", "").rstrip("/")
+    if env_url:
+        candidates.append(env_url)
+    if os.environ.get("REPLIT_DEV_DOMAIN"):
+        candidates.append(f"https://{os.environ['REPLIT_DEV_DOMAIN']}")
+    candidates.append(REPLIT_API_URL)
+    for url in candidates:
+        try:
+            import urllib.request
+            req = urllib.request.urlopen(f"{url}/api/health", timeout=4)
+            if req.status == 200:
+                return url
+        except Exception:
+            pass
+    return candidates[0] if candidates else REPLIT_API_URL
+
+PUBLIC_URL = _resolve_public_url()
 PORT = int(os.environ.get("PORT", "5000"))
 
 
