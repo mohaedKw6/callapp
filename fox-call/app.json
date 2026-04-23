@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "Fox Call",
+    "slug": "fox-call",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "scheme": "foxcall",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0F1F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mohamedqm.foxcall",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "هذا التطبيق يحتاج صلاحية الميكروفون لإجراء المكالمات الصوتية"
+      }
+    },
+    "android": {
+      "package": "com.mohamedqm.foxcall",
+      "versionCode": 3,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B0F1F"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT"
+      ]
+    },
+    "plugins": [
+      "./modules/linphone-call/plugin/app.plugin.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0",
+            "extraMavenRepos": [
+              "https://download.linphone.org/maven_repository"
+            ]
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5c6e8fde-f9c7-4611-a61c-67cec76d3b2d"
+      }
+    },
+    "owner": "moha1122am"
+  }
+}

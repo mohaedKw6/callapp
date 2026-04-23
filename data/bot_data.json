@@ -1,0 +1,29 @@
+{
+  "users": {
+    "962731079": {
+      "first_seen": "2026-03-26 01:38:50",
+      "username": "G_M_A_Q",
+      "first_name": "G_M_A_Q"
+    },
+    "7802084894": {
+      "first_seen": "2026-04-23 02:11:07",
+      "username": "X_llllIx",
+      "first_name": "Fa"
+    }
+  },
+  "premium": {},
+  "banned": {},
+  "stats": {
+    "total_calls": 0,
+    "success_calls": 0
+  },
+  "settings": {
+    "call_cost": 0.2,
+    "default_balance": 5.0
+  },
+  "balances": {
+    "962731079": 100.0,
+    "7802084894": 5.0
+  },
+  "used_accounts": []
+}
