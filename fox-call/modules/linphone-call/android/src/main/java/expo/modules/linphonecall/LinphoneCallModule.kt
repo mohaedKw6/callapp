@@ -111,7 +111,7 @@ class LinphoneCallModule : Module() {
     core = c
 
     val l = object : CoreListenerStub() {
-      override fun onCallStateChanged(core: Core, call: Call, state: Call.State?, message: String?) {
+      override fun onCallStateChanged(core: Core, call: Call, state: Call.State, message: String) {
         Log.d(TAG, "Call state: $state ($message)")
         when (state) {
           Call.State.OutgoingInit -> emit("outgoing_init", message)
@@ -166,8 +166,8 @@ class LinphoneCallModule : Module() {
     params.isRegisterEnabled = true
     if (transport == TransportType.Tls) {
       c.mediaEncryption = MediaEncryption.None
-      c.isVerifyServerCertificates = false
-      c.isVerifyServerCn = false
+      c.verifyServerCertificates(false)
+      c.verifyServerCn(false)
     }
 
     val account = c.createAccount(params)
