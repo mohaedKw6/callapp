@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.mohamedqm.foxcall",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0F1F"
