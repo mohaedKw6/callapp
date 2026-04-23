@@ -14,9 +14,9 @@ log = logging.getLogger("fox-app")
 SHARED_SECRET = "FOXCALL_2026_SHARED_SECRET_v1"
 PUBLIC_URL = (
     os.environ.get("PUBLIC_URL")
-    or (f"https://{os.environ['REPLIT_DEV_DOMAIN']}/api/bot" if os.environ.get("REPLIT_DEV_DOMAIN") else None)
+    or (f"https://{os.environ['REPLIT_DEV_DOMAIN']}" if os.environ.get("REPLIT_DEV_DOMAIN") else None)
     or "http://localhost:5000"
-)
+).rstrip("/")
 PORT = int(os.environ.get("PORT", "5000"))
 
 
