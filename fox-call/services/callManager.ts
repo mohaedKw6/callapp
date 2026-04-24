@@ -44,15 +44,28 @@ export class CallManager {
       res = await this.api.startCall(to);
     } catch (e: any) {
       this.setState('failed');
-      this.listener.onError?.(e.message || 'فشل بدء المكالمة');
+      const errMsg = e?.message || 'فشل بدء المكالمة';
+      // Translate common errors to Arabic
+      const friendly = this.translateError(errMsg);
+      this.listener.onError?.(friendly);
       throw e;
     }
     this.currentCall = res;
 
+    // Check if Linphone native module is available
+    if (!LinphoneCall.isAvailable()) {
+      this.setState('failed');
+      this.listener.onError?.('الوحدة الصوتية غير متاحة - يجب تثبيت نسخة محدثة من التطبيق');
+      throw new Error('Linphone module not available');
+    }
+
     // Subscribe to native call events
     this.nativeUnsub = LinphoneCall.addCallListener((evt: CallEvent) => {
-      if (evt.state === 'ringing') {
+      console.log('[CallManager] Native event:', evt.state, evt.reason);
+      if (evt.state === 'ringing' || evt.state === 'outgoing_progress') {
         this.setState('ringing');
+      } else if (evt.state === 'outgoing_init') {
+        // Still connecting, keep state
       } else if (evt.state === 'connected') {
         this.setState('connected');
         this.startedAt = Date.now();
@@ -60,7 +73,9 @@ export class CallManager {
       } else if (evt.state === 'ended') {
         this.cleanup('ended');
       } else if (evt.state === 'failed') {
-        this.listener.onError?.(evt.reason || 'انقطع الاتصال');
+        const reason = evt.reason || 'فشل الاتصال';
+        console.error('[CallManager] Call failed:', reason);
+        this.listener.onError?.(reason);
         this.cleanup('failed');
       }
     });
@@ -77,11 +92,44 @@ export class CallManager {
       });
       this.setState('ringing');
     } catch (e: any) {
-      this.listener.onError?.(e?.message || 'فشل تشغيل الصوت');
+      const errMsg = e?.message || 'فشل تشغيل الصوت';
+      const friendly = this.translateError(errMsg);
+      console.error('[CallManager] Linphone startCall error:', errMsg);
+      this.listener.onError?.(friendly);
       this.cleanup('failed');
       throw e;
     }
     return res;
+  }
+
+  private translateError(msg: string): string {
+    const lower = msg.toLowerCase();
+    // Network errors
+    if (lower.includes('network') || lower.includes('unreachable') || lower.includes('timeout')) {
+      return 'تعذر الاتصال بالخادم - تحقق من اتصال الإنترنت';
+    }
+    // SIP registration errors
+    if (lower.includes('registration') || lower.includes('reg')) {
+      return 'فشل التسجيل بخادم SIP - حاول مرة أخرى';
+    }
+    // TLS/SSL errors
+    if (lower.includes('tls') || lower.includes('ssl') || lower.includes('certificate')) {
+      return 'مشكلة في الاتصال الآمن - حاول مرة أخرى';
+    }
+    // Not found
+    if (lower.includes('not found') || lower.includes('404')) {
+      return 'الخدمة غير متاحة حالياً - حاول بعد قليل';
+    }
+    // Module errors
+    if (lower.includes('module') || lower.includes('native')) {
+      return 'التطبيق يحتاج تحديث - حمّل النسخة الأحدث';
+    }
+    // Balance
+    if (lower.includes('رصيد') || lower.includes('balance')) {
+      return msg; // Already in Arabic
+    }
+    // Default - return original
+    return msg;
   }
 
   private startTimer() {

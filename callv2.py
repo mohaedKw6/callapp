@@ -1723,45 +1723,14 @@ def create_account():
         return True
     return False
 
-def start_call(phone):
-    """
-    يبدأ مكالمة - يفضل استخدام التوكنات المحملة مسبقاً للسرعة
-    ⚠️ هذه الدالة آمنة للخيوط (thread-safe) — لا تستخدم globals للتوكن
-    """
-    # 🚀 أولاً: نحاول نستخدم توكن جاهز من الكاش (سريع جداً)
-    ready_token = pop_ready_token()
-    call_token = None
-    call_device_id = None
-    email_used = ""
-    
-    if ready_token:
-        call_token = ready_token.get("token")
-        call_device_id = ready_token.get("device_id")
-        email_used = ready_token.get("email", "")
-        print(f"[start_call] ⚡ Using cached token for {email_used}")
-    else:
-        # 🔄 لو مفيش توكنات جاهزة، نستخدم الحسابات العادية
-        if not accounts:
-            print("[start_call] ❌ No accounts available")
-            return None
-        acc = accounts[-1]
-        call_token = acc.get('x-token')
-        call_device_id = acc.get('x-client-device-id')
-        email_used = acc.get('email', '')
-        print(f"[start_call] 📂 Using account from file: {email_used}")
-    
-    if not call_token:
-        print("[start_call] ❌ No token available for call")
-        return None
-    
+def _try_telicall_call(phone, call_token, call_device_id, email_used=""):
+    """محاولة مكالمة واحدة باستخدام توكن محدد"""
     if not phone.startswith('+'): phone = '+' + phone
-    
-    # نستخدم التوكن مباشرة بدل globals (thread-safe)
     headers = get_headers(_token=call_token, _device_id=call_device_id)
     
     try:
         r = requests.post(f"{API_URL}/call/outbound/start", json={'to': phone, 'source': 'numpad'}, headers=headers, timeout=30)
-        print(f"[start_call] 📡 Telicall API response: {r.status_code}")
+        print(f"[start_call] 📡 Telicall API response: {r.status_code} (account: {email_used})")
         if r.status_code == 200 and r.json().get('result'):
             sip = r.json()['result'].get('sip', {})
             return {
@@ -1779,20 +1748,81 @@ def start_call(phone):
         elif r.status_code == 400:
             err_text = r.text.lower()
             if 'balance' in err_text:
-                print(f"[start_call] ❌ No balance on account")
+                print(f"[start_call] ❌ No balance on account {email_used}")
                 return 'no_balance'
             else:
-                print(f"[start_call] ❌ Telicall 400 error: {r.text[:200]}")
+                print(f"[start_call] ❌ Telicall 400: {r.text[:200]}")
                 return {'error': f"telicall_400: {r.text[:200]}"}
         elif r.status_code == 404:
-            print(f"[start_call] ❌ Telicall 404 - endpoint not found")
+            print(f"[start_call] ❌ Telicall 404 for {email_used}")
             return {'error': 'telicall_404'}
         else:
             print(f"[start_call] ❌ Telicall {r.status_code}: {r.text[:200]}")
             return {'error': f"telicall_{r.status_code}"}
     except Exception as e:
-        print(f"[start_call] ❌ Exception: {e}")
+        print(f"[start_call] ❌ Exception for {email_used}: {e}")
         return None
+
+def start_call(phone, max_retries=3):
+    """
+    يبدأ مكالمة - يفضل استخدام التوكنات المحملة مسبقاً للسرعة
+    ⚠️ هذه الدالة آمنة للخيوط (thread-safe) — لا تستخدم globals للتوكن
+    🔄 تكرر مع حسابات مختلفة لو الحساب الحالي فشل
+    """
+    no_balance_count = 0
+    
+    for attempt in range(max_retries):
+        # 🚀 نحاول نستخدم توكن جاهز من الكاش
+        ready_token = pop_ready_token()
+        call_token = None
+        call_device_id = None
+        email_used = ""
+        
+        if ready_token:
+            call_token = ready_token.get("token")
+            call_device_id = ready_token.get("device_id")
+            email_used = ready_token.get("email", "")
+            print(f"[start_call] ⚡ Attempt {attempt+1}/{max_retries}: cached token for {email_used}")
+        elif accounts:
+            acc = accounts[-1]
+            call_token = acc.get('x-token')
+            call_device_id = acc.get('x-client-device-id')
+            email_used = acc.get('email', '')
+            print(f"[start_call] 📂 Attempt {attempt+1}/{max_retries}: account file {email_used}")
+        else:
+            print(f"[start_call] ❌ No accounts available")
+            return None
+        
+        if not call_token:
+            print(f"[start_call] ❌ No token available")
+            return None
+        
+        result = _try_telicall_call(phone, call_token, call_device_id, email_used)
+        
+        if result is None or isinstance(result, dict) and "error" in result:
+            # الفشل بسبب خطأ غير رصيد - نجرب حساب تاني
+            err = result.get("error", "") if isinstance(result, dict) else ""
+            if "404" in err or "400" in err:
+                if attempt < max_retries - 1:
+                    print(f"[start_call] 🔄 Retrying with different account...")
+                    time.sleep(0.5)
+                    continue
+            if result == 'no_balance':
+                no_balance_count += 1
+                if no_balance_count >= 2:
+                    return 'no_balance'
+                if attempt < max_retries - 1:
+                    print(f"[start_call] 🔄 No balance, trying next account...")
+                    time.sleep(0.5)
+                    continue
+                return 'no_balance'
+            # خطأ تاني - ارجع النتيجة
+            return result
+        
+        # نجاح!
+        return result
+    
+    return None
 
 # ============================================================================
 #                         دوال SIP والمكالمات
