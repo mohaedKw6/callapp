@@ -11,7 +11,8 @@ COPY data/ /app/data/
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
-ENV BOT_TOKEN=8383451832:AAFqpcQKsbssGDknsjUR3qJLxcwXq7VsyfY
+# BOT_TOKEN يجب تعيينه كـ Environment Variable في Railway
+# ENV BOT_TOKEN=your_bot_token_here
 ENV PUBLIC_URL=https://eaiupvh6.up.railway.app
 EXPOSE 8080
 

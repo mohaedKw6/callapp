@@ -63,7 +63,7 @@ except ImportError:
     TELEGRAM_AVAILABLE = False
 
 # ─── Config ─────────────────────────────────────────────────────────────────
-BOT_TOKEN   = os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "7762423532:AAEVgxnIZZmk-k1keHrcx-_DIvjQEpEFCl0")
+BOT_TOKEN   = (os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "7762423532:AAEVgxnIZZmk-k1keHrcx-_DIvjQEpEFCl0")).strip('"')
 ADMIN_IDS   = [962731079,7627857345]  # ضع معرفات الأدمن هنا
 SUPPORT_USER = "@G_M_A_Q"   # يوزر الدعم
 
@@ -86,6 +86,7 @@ def _encrypt_accounts(data_str):
     enc  = bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])
     return base64.b64encode(enc)
 RECORDINGS_DIR = os.path.join(SCRIPT_DIR, "recordings")
+os.makedirs(RECORDINGS_DIR, exist_ok=True)
 USERS_DB_FILE   = os.path.join(SCRIPT_DIR, "users_db.json")
 PREMIUM_DB_FILE = os.path.join(SCRIPT_DIR, "premium_db.json")
 BANNED_DB_FILE  = os.path.join(SCRIPT_DIR, "banned_db.json")
@@ -5492,74 +5493,6 @@ def run_bot(token_override: str = ""):
     # ── Start polling ──────────────────────────────────────────────────────────
     print("🤖 البوت شغال...")
     bot.infinity_polling(skip_pending=True)
-
-# ============================================================================
-def _init_tokens_background(accounts_to_init: list):
-    """
-    يشغل الحسابات في الخلفية ويجيب التوكنات ويحفظها
-    علشان تكون جاهزة للاستخدام السريع
-    """
-    print(f"[init_tokens] 🚀 بدء تهيئة {len(accounts_to_init)} حساب...")
-    
-    for acc in accounts_to_init:
-        try:
-            email = acc.get("email", "")
-            device_id = acc.get("device_id") or acc.get("x-client-device-id", "")
-            token = acc.get("token") or acc.get("x-token", "")
-            
-            # لو الحساب عنده توكن خالص نضيفه مباشرة
-            if token and device_id:
-                add_ready_token(email, device_id, token)
-                print(f"[init_tokens] ✅ Token already exists for {email}")
-                continue
-            
-            # لو مفيش توكن، نعمل init session
-            if not device_id:
-                device_id = ''.join(random.choices('0123456789abcdef', k=16))
-            
-            # عمل init session للحصول على توكن جديد
-            h = {
-                "host": "api.telicall.com",
-                "x-request-id": str(uuid.uuid4()),
-                "user-agent": "Dalvik/2.1.0",
-                "x-app-version": "1.2.1",
-                "x-client-device-id": device_id,
-                "x-lang": "en",
-                "x-os": "android",
-                "x-os-version": "11",
-                "x-req-timestamp": str(int(time.time() * 1000)),
-                "x-req-signature": "-1",
-                "content-type": "application/json",
-                "x-token": ""
-            }
-            body = {
-                "countryCode": "eg",
-                "deviceName": "Infinix X698",
-                "notificationToken": "",
-                "oldToken": "",
-                "peerKey": str(random.randint(100, 999)),
-                "timeZone": "Africa/Cairo",
-                "localizationKey": ""
-            }
-            
-            try:
-                r = requests.post(f"{API_URL}/init", json=body, headers=h, timeout=15)
-                if r.status_code == 200 and r.json().get('result', {}).get('token'):
-                    new_token = r.json()['result']['token']
-                    add_ready_token(email, device_id, new_token)
-                    print(f"[init_tokens] ✅ Got new token for {email}")
-                else:
-                    print(f"[init_tokens] ⚠️ Failed to get token for {email}: {r.status_code}")
-            except Exception as e:
-                print(f"[init_tokens] ❌ Error for {email}: {e}")
-                
-            # انتظار قصير بين كل حساب
-            time.sleep(0.5)
-            
-        except Exception as e:
-            print(f"[init_tokens] ❌ Error processing account: {e}")
-    
-    print(f"[init_tokens] ✅ انتهت تهيئة الحسابات. جاهز: {count_ready_tokens()} توكن")
 
 # ============================================================================
 if __name__ == "__main__":
