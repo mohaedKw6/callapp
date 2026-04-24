@@ -63,7 +63,7 @@ except ImportError:
     TELEGRAM_AVAILABLE = False
 
 # ─── Config ─────────────────────────────────────────────────────────────────
-BOT_TOKEN   = (os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "7762423532:AAEVgxnIZZmk-k1keHrcx-_DIvjQEpEFCl0")).strip('"')
+BOT_TOKEN   = (os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "8383451832:AAFqpcQKsbssGDknsjUR3qJLxcwXq7VsyfY")).strip('"')
 ADMIN_IDS   = [962731079,7627857345]  # ضع معرفات الأدمن هنا
 SUPPORT_USER = "@G_M_A_Q"   # يوزر الدعم
 
