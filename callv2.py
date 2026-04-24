@@ -1665,12 +1665,14 @@ def get_otp():
     return None
 
 # دوال TelliCall API
-def get_headers():
-    global device_id
-    if not device_id: device_id = ''.join(random.choices('0123456789abcdef', k=16))
+def get_headers(_token=None, _device_id=None):
+    global token, device_id
+    _t = _token if _token is not None else token
+    _d = _device_id if _device_id is not None else device_id
+    if not _d: _d = ''.join(random.choices('0123456789abcdef', k=16))
     return {"host": "api.telicall.com", "x-request-id": str(uuid.uuid4()), "user-agent": "Dalvik/2.1.0", "x-app-version": "1.2.1",
-            "x-client-device-id": device_id, "x-lang": "en", "x-os": "android", "x-os-version": "11",
-            "x-req-timestamp": str(int(time.time() * 1000)), "x-req-signature": "-1", "content-type": "application/json", "x-token": token or ""}
+            "x-client-device-id": _d, "x-lang": "en", "x-os": "android", "x-os-version": "11",
+            "x-req-timestamp": str(int(time.time() * 1000)), "x-req-signature": "-1", "content-type": "application/json", "x-token": _t or ""}
 
 def init_session():
     global token
@@ -1724,29 +1726,42 @@ def create_account():
 def start_call(phone):
     """
     يبدأ مكالمة - يفضل استخدام التوكنات المحملة مسبقاً للسرعة
+    ⚠️ هذه الدالة آمنة للخيوط (thread-safe) — لا تستخدم globals للتوكن
     """
-    global token, device_id
-    
     # 🚀 أولاً: نحاول نستخدم توكن جاهز من الكاش (سريع جداً)
     ready_token = pop_ready_token()
+    call_token = None
+    call_device_id = None
+    email_used = ""
+    
     if ready_token:
-        token = ready_token.get("token")
-        device_id = ready_token.get("device_id")
+        call_token = ready_token.get("token")
+        call_device_id = ready_token.get("device_id")
         email_used = ready_token.get("email", "")
         print(f"[start_call] ⚡ Using cached token for {email_used}")
     else:
         # 🔄 لو مفيش توكنات جاهزة، نستخدم الحسابات العادية
-        if not accounts: 
+        if not accounts:
+            print("[start_call] ❌ No accounts available")
             return None
         acc = accounts[-1]
-        token = acc.get('x-token')
-        device_id = acc.get('x-client-device-id')
+        call_token = acc.get('x-token')
+        call_device_id = acc.get('x-client-device-id')
         email_used = acc.get('email', '')
         print(f"[start_call] 📂 Using account from file: {email_used}")
     
+    if not call_token:
+        print("[start_call] ❌ No token available for call")
+        return None
+    
     if not phone.startswith('+'): phone = '+' + phone
+    
+    # نستخدم التوكن مباشرة بدل globals (thread-safe)
+    headers = get_headers(_token=call_token, _device_id=call_device_id)
+    
     try:
-        r = requests.post(f"{API_URL}/call/outbound/start", json={'to': phone, 'source': 'numpad'}, headers=get_headers(), timeout=30)
+        r = requests.post(f"{API_URL}/call/outbound/start", json={'to': phone, 'source': 'numpad'}, headers=headers, timeout=30)
+        print(f"[start_call] 📡 Telicall API response: {r.status_code}")
         if r.status_code == 200 and r.json().get('result'):
             sip = r.json()['result'].get('sip', {})
             return {
@@ -1759,12 +1774,25 @@ def start_call(phone):
                 'to': r.json()['result'].get('to', {}).get('msisdn'),
                 'limit': sip.get('callLimit', 60), 
                 'balance': sip.get('balanceLimit', 60),
-                'email_used': email_used  # علشان نعرف إيه الحساب المستخدم
+                'email_used': email_used
             }
-        elif r.status_code == 400 and 'balance' in r.text.lower(): 
-            return 'no_balance'
-    except: pass
-    return None
+        elif r.status_code == 400:
+            err_text = r.text.lower()
+            if 'balance' in err_text:
+                print(f"[start_call] ❌ No balance on account")
+                return 'no_balance'
+            else:
+                print(f"[start_call] ❌ Telicall 400 error: {r.text[:200]}")
+                return {'error': f"telicall_400: {r.text[:200]}"}
+        elif r.status_code == 404:
+            print(f"[start_call] ❌ Telicall 404 - endpoint not found")
+            return {'error': 'telicall_404'}
+        else:
+            print(f"[start_call] ❌ Telicall {r.status_code}: {r.text[:200]}")
+            return {'error': f"telicall_{r.status_code}"}
+    except Exception as e:
+        print(f"[start_call] ❌ Exception: {e}")
+        return None
 
 # ============================================================================
 #                         دوال SIP والمكالمات

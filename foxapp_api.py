@@ -15,22 +15,17 @@ SHARED_SECRET = "FOXCALL_2026_SHARED_SECRET_v1"
 REPLIT_API_URL = "https://3bdef2f4-6a1f-4c7d-af7c-73040d9e35ab-00-2dvjd113zga7x.sisko.replit.dev"
 
 def _resolve_public_url() -> str:
-    candidates = []
+    """Resolve the public URL for token generation.
+    Priority: PUBLIC_URL env var > REPLIT_DEV_DOMAIN > fallback.
+    On Railway, PUBLIC_URL is always set correctly.
+    """
     env_url = os.environ.get("PUBLIC_URL", "").rstrip("/")
     if env_url:
-        candidates.append(env_url)
+        # Trust the env var directly (Railway sets this correctly)
+        return env_url
     if os.environ.get("REPLIT_DEV_DOMAIN"):
-        candidates.append(f"https://{os.environ['REPLIT_DEV_DOMAIN']}")
-    candidates.append(REPLIT_API_URL)
-    for url in candidates:
-        try:
-            import urllib.request
-            req = urllib.request.urlopen(f"{url}/api/health", timeout=4)
-            if req.status == 200:
-                return url
-        except Exception:
-            pass
-    return candidates[0] if candidates else REPLIT_API_URL
+        return f"https://{os.environ['REPLIT_DEV_DOMAIN']}"
+    return REPLIT_API_URL
 
 PUBLIC_URL = _resolve_public_url()
 PORT = int(os.environ.get("PORT", "5000"))
@@ -181,6 +176,15 @@ def api_call_start():
         return jsonify({"error": "لا يوجد حسابات Telicall متاحة أو الحسابات فشلت"}), 502
     if result == "no_balance":
         return jsonify({"error": "الحساب المستخدم لا يحتوي على رصيد"}), 502
+    if isinstance(result, dict) and "error" in result:
+        err_code = result["error"]
+        log.error("Telicall API error: %s", err_code)
+        if "404" in err_code:
+            return jsonify({"error": "خدمة Telicall غير متاحة حالياً. حاول بعد قليل."}), 502
+        elif "400" in err_code:
+            return jsonify({"error": "رقم غير صالح أو خدمة غير متاحة"}), 400
+        else:
+            return jsonify({"error": f"خطأ في خدمة المكالمات: {err_code}"}), 502
 
     cv.deduct_balance(uid, cost)
 

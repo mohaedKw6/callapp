@@ -1,7 +1,5 @@
 import { decodeFoxToken, FoxTokenInfo } from './foxToken';
 
-const FALLBACK_URL = 'https://3bdef2f4-6a1f-4c7d-af7c-73040d9e35ab-00-2dvjd113zga7x.sisko.replit.dev';
-
 export interface UserInfo {
   userId: string;
   username: string;
@@ -69,36 +67,24 @@ export class FoxApi {
   }
 
   private async req<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const urls = [this.serverUrl];
-    const fallback = FALLBACK_URL.replace(/\/+$/, '');
-    if (fallback !== this.serverUrl) urls.push(fallback);
-
+    const baseUrl = this.serverUrl;
     let lastErr: Error = new Error('تعذّر الاتصال بالسيرفر');
 
-    for (const base of urls) {
-      try {
-        const res = await this.fetchOne(base, method, path, body);
-        const text = await res.text();
-        let data: any = {};
-        try { data = text ? JSON.parse(text) : {}; } catch { /* not json */ }
-        if (!res.ok) {
-          const msg = data?.error || `خطأ ${res.status}`;
-          if (res.status >= 500 || res.status === 404) {
-            lastErr = new Error(msg);
-            continue;
-          }
-          throw new Error(msg);
-        }
-        if (base !== this.serverUrl) {
-          this.serverUrl = base;
-        }
-        return data as T;
-      } catch (e: any) {
-        if (e.name === 'AbortError') {
-          lastErr = new Error('انقطع الاتصال بالسيرفر');
-        } else {
-          lastErr = e;
-        }
+    try {
+      const res = await this.fetchOne(baseUrl, method, path, body);
+      const text = await res.text();
+      let data: any = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { /* not json */ }
+      if (!res.ok) {
+        const msg = data?.error || `خطأ ${res.status}`;
+        throw new Error(msg);
+      }
+      return data as T;
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        lastErr = new Error('انقطع الاتصال بالسيرفر');
+      } else {
+        lastErr = e;
       }
     }
     throw lastErr;
