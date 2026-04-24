@@ -10,8 +10,6 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
-import org.linphone.core.Account
-import org.linphone.core.Address
 import org.linphone.core.AudioDevice
 import org.linphone.core.Call
 import org.linphone.core.Core
@@ -156,17 +154,7 @@ class LinphoneCallModule : Module() {
           }
           Call.State.End, Call.State.Released -> emit("ended", message)
           Call.State.Error -> {
-            val reason = when (call.errorInfo?.reason) {
-              org.linphone.core.Reason.NotFound -> "رقم غير موجود أو غير صالح"
-              org.linphone.core.Reason.NotAcceptable -> "الرقم غير مقبول"
-              org.linphone.core.Reason.Busy -> "الرقم مشغول"
-              org.linphone.core.Reason.Declined -> "المكالمة مرفوضة"
-              org.linphone.core.Reason.NoResponse -> "لا يوجد رد من الطرف الآخر"
-              org.linphone.core.Reason.Timeout -> "انتهت مهلة الاتصال"
-              org.linphone.core.Reason.Unreachable -> "الرقم غير متاح"
-              org.linphone.core.Reason.Media -> "مشكلة في الوسائط"
-              else -> message.ifEmpty { "فشل الاتصال - حاول مرة أخرى" }
-            }
+            val reason = message.ifEmpty { "فشل الاتصال - حاول مرة أخرى" }
             Log.e(TAG, "Call error: $reason (raw: $message)")
             emit("failed", reason)
           }
@@ -258,7 +246,6 @@ class LinphoneCallModule : Module() {
     try {
       c.clearAccounts()
       c.clearProxyConfig()
-      c.clearAllAuthInfo()
     } catch (e: Throwable) {
       Log.w(TAG, "Warning clearing accounts: ${e.message}")
     }
@@ -287,11 +274,13 @@ class LinphoneCallModule : Module() {
       throw IllegalStateException("فشل الاتصال بخادم SIP - تأكد من صحة الرقم وحاول مرة أخرى")
     }
 
-    // Create authentication info
-    val authInfo = Factory.instance().createAuthInfo(
-      o.username, null, o.password, null, null, o.domain
-    )
-    c.addAuthInfo(authInfo)
+    // Create authentication info - use Account params instead for Linphone 5.4
+    try {
+      val authInfo = Factory.instance().createAuthInfo(o.username, null, o.password, null, null, o.domain)
+      c.addAuthInfo(authInfo)
+    } catch (e: Throwable) {
+      Log.w(TAG, "createAuthInfo failed: ${e.message}, using params identity instead")
+    }
 
     // Configure account params
     val params = c.createAccountParams()
