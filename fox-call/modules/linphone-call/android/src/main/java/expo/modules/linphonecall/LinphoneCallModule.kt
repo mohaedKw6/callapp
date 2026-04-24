@@ -11,6 +11,7 @@ import expo.modules.kotlin.Promise
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
 import org.linphone.core.AudioDevice
+import org.linphone.core.AuthInfo
 import org.linphone.core.Call
 import org.linphone.core.Core
 import org.linphone.core.CoreListenerStub
@@ -20,14 +21,13 @@ import org.linphone.core.MediaEncryption
 import org.linphone.core.ProxyConfig
 import org.linphone.core.RegistrationState
 import org.linphone.core.TransportType
-import org.linphone.core.AuthInfo
 
 class StartCallOptions : Record {
   @Field var username: String = ""
   @Field var password: String = ""
   @Field var domain: String = ""
   @Field var port: Int = 5060
-  @Field var protocol: String = "tls"
+  @Field var protocol: String = "tcp"
   @Field var destination: String = ""
   @Field var callLimitSec: Int = 0
 }
@@ -38,12 +38,8 @@ class LinphoneCallModule : Module() {
   private var listener: CoreListenerStub? = null
   private val main = Handler(Looper.getMainLooper())
 
-  // Pending call state - wait for registration before dialing
-  private var pendingPromise: Promise? = null
-  private var pendingOpts: StartCallOptions? = null
-  private var regTimeoutRunnable: Runnable? = null
-  private val REG_TIMEOUT_MS = 20_000L // 20 seconds max for SIP registration
-  private var callPlaced = false
+  // Track call state for cleanup
+  private var callActive = false
 
   override fun definition() = ModuleDefinition {
     Name("LinphoneCall")
@@ -52,19 +48,18 @@ class LinphoneCallModule : Module() {
     AsyncFunction("startCall") { options: StartCallOptions, promise: Promise ->
       try {
         ensureCore()
-        registerAndCall(options, promise)
-        // Promise is NOT resolved here — it resolves after SIP registration + call placed
+        directCall(options, promise)
       } catch (e: Throwable) {
         Log.e(TAG, "startCall failed", e)
-        emit("failed", e.message ?: "start failed")
-        clearPending()
+        emit("failed", e.message ?: "فشل بدء المكالمة")
+        callActive = false
         promise.reject("E_START", e.message ?: "start failed", e)
       }
     }
 
     AsyncFunction("hangup") { promise: Promise ->
       try {
-        clearPending()
+        callActive = false
         val currentCall = core?.currentCall
         if (currentCall != null) {
           currentCall.terminate()
@@ -114,14 +109,6 @@ class LinphoneCallModule : Module() {
     OnDestroy { teardown() }
   }
 
-  private fun clearPending() {
-    regTimeoutRunnable?.let { main.removeCallbacks(it) }
-    regTimeoutRunnable = null
-    pendingPromise = null
-    pendingOpts = null
-    callPlaced = false
-  }
-
   private fun ensureCore() {
     if (core != null) return
     val ctx = appContext.reactContext ?: throw IllegalStateException("no context")
@@ -136,6 +123,14 @@ class LinphoneCallModule : Module() {
     c.echoCancellationEnabled = true
     c.echoLimiterEnabled = true
 
+    // Disable TLS certificate verification for self-signed certs
+    try {
+      c.verifyServerCertificates(false)
+      c.verifyServerCn(false)
+    } catch (e: Throwable) {
+      Log.w(TAG, "verifyServerCertificates/Cn not available: ${e.message}")
+    }
+
     c.start()
     core = c
 
@@ -143,18 +138,20 @@ class LinphoneCallModule : Module() {
       override fun onCallStateChanged(core: Core, call: Call, state: Call.State, message: String) {
         Log.d(TAG, "Call state: $state ($message)")
         when (state) {
-          Call.State.OutgoingInit -> emit("outgoing_init", message)
-          Call.State.OutgoingProgress -> emit("outgoing_progress", message)
-          Call.State.OutgoingRinging -> emit("ringing", message)
+          Call.State.OutgoingInit -> emit("outgoing_init", "جاري الاتصال...")
+          Call.State.OutgoingProgress -> emit("outgoing_progress", "جاري الاتصال...")
+          Call.State.OutgoingRinging -> emit("ringing", "يرن...")
           Call.State.Connected, Call.State.StreamsRunning -> {
-            emit("connected", message)
-            // Stop registration timeout since call connected
-            regTimeoutRunnable?.let { main.removeCallbacks(it) }
-            regTimeoutRunnable = null
+            callActive = true
+            emit("connected", "تم الاتصال")
           }
-          Call.State.End, Call.State.Released -> emit("ended", message)
+          Call.State.End, Call.State.Released -> {
+            callActive = false
+            emit("ended", "انتهت المكالمة")
+          }
           Call.State.Error -> {
-            val reason = message.ifEmpty { "فشل الاتصال - حاول مرة أخرى" }
+            callActive = false
+            val reason = parseCallError(message)
             Log.e(TAG, "Call error: $reason (raw: $message)")
             emit("failed", reason)
           }
@@ -163,63 +160,28 @@ class LinphoneCallModule : Module() {
       }
 
       override fun onRegistrationStateChanged(core: Core, cfg: ProxyConfig, state: RegistrationState, message: String) {
-        Log.d(TAG, "Registration state: $state ($message)")
-        when (state) {
-          RegistrationState.Ok -> {
-            Log.i(TAG, "SIP registration successful!")
-            // Registration successful — now place the call
-            main.post {
-              regTimeoutRunnable?.let { main.removeCallbacks(it) }
-              regTimeoutRunnable = null
-              try {
-                placeCall()
-                callPlaced = true
-                pendingPromise?.resolve(null)
-                pendingPromise = null
-              } catch (e: Throwable) {
-                Log.e(TAG, "placeCall after reg failed", e)
-                pendingPromise?.reject("E_CALL", e.message ?: "فشل بدء المكالمة", e)
-                emit("failed", e.message ?: "فشل بدء المكالمة")
-                pendingPromise = null
-                pendingOpts = null
-              }
-            }
-          }
-          RegistrationState.Failed -> {
-            Log.e(TAG, "SIP registration failed: $message")
-            main.post {
-              regTimeoutRunnable?.let { main.removeCallbacks(it) }
-              regTimeoutRunnable = null
-              val errorMsg = parseRegError(message)
-              pendingPromise?.reject("E_REG", "فشل التسجيل: $errorMsg")
-              emit("failed", "فشل التسجيل: $errorMsg")
-              pendingPromise = null
-              pendingOpts = null
-            }
-          }
-          RegistrationState.Cleared -> {
-            // Account removed, ignore
-          }
-          else -> {
-            // Progress, None, etc. — wait
-            Log.d(TAG, "SIP registration in progress: $state")
-          }
-        }
+        // We don't use registration anymore - log only for debugging
+        Log.d(TAG, "Registration state (ignored): $state ($message)")
       }
     }
     listener = l
     c.addListener(l)
   }
 
-  private fun parseRegError(message: String): String {
+  private fun parseCallError(message: String): String {
     val lower = message.lowercase()
     return when {
-      lower.contains("not found") || lower.contains("404") -> "خادم SIP غير متاح - حاول بعد قليل"
-      lower.contains("401") || lower.contains("unauthorized") || lower.contains("forbidden") -> "بيانات SIP غير صالحة"
-      lower.contains("timeout") || lower.contains("timed out") -> "انتهت مهلة الاتصال - تحقق من الإنترنت"
-      lower.contains("network") || lower.contains("unreachable") -> "لا يمكن الوصول لخادم SIP - تحقق من الإنترنت"
-      lower.contains("tls") || lower.contains("ssl") || lower.contains("certificate") -> "مشكلة في الاتصال الآمن TLS"
-      else -> message.ifEmpty { "خطأ غير معروف في التسجيل" }
+      lower.contains("not found") || lower.contains("404") -> "الرقم غير موجود أو الخدمة غير متاحة"
+      lower.contains("401") || lower.contains("unauthorized") -> "فشل المصادقة - بيانات SIP غير صالحة"
+      lower.contains("403") || lower.contains("forbidden") -> "ممنوع الاتصال - تحقق من الرصيد"
+      lower.contains("408") || lower.contains("timeout") || lower.contains("timed out") -> "انتهت مهلة الاتصال - تحقق من الإنترنت"
+      lower.contains("480") || lower.contains("temporarily") -> "الرقم مش متاح حالياً"
+      lower.contains("486") || lower.contains("busy") -> "الرقم مشغول"
+      lower.contains("487") || lower.contains("cancelled") -> "تم إلغاء المكالمة"
+      lower.contains("503") || lower.contains("service unavailable") -> "الخدمة غير متاحة حالياً"
+      lower.contains("network") || lower.contains("unreachable") -> "لا يمكن الوصول للخادم - تحقق من الإنترنت"
+      lower.contains("tls") || lower.contains("ssl") || lower.contains("certificate") -> "مشكلة في الاتصال الآمن"
+      else -> message.ifEmpty { "فشل الاتصال - حاول مرة أخرى" }
     }
   }
 
@@ -231,23 +193,37 @@ class LinphoneCallModule : Module() {
     }
   }
 
-  private fun registerAndCall(o: StartCallOptions, promise: Promise) {
+  /**
+   * KEY FIX: Direct call without SIP registration.
+   * Telicall SIP servers do not support/require SIP registration.
+   * The raw SIP class in callv2.py also connects directly without registration.
+   * We create a Linphone account with registration disabled and place the call immediately.
+   */
+  private fun directCall(o: StartCallOptions, promise: Promise) {
     val c = core ?: throw IllegalStateException("Core not initialized")
-
-    // Cancel any previous pending operation
-    clearPending()
-    pendingPromise = promise
-    pendingOpts = o
 
     // Terminate any existing calls
     c.calls.forEach { try { it.terminate() } catch (_: Throwable) {} }
 
-    // Clear previous accounts
+    // Clean up previous accounts
     try {
-      c.clearAccounts()
-      c.clearProxyConfig()
+      // Remove all existing accounts to avoid conflicts
+      val existingAccounts = c.accounts.toList()
+      for (account in existingAccounts) {
+        try { c.removeAccount(account) } catch (_: Throwable) {}
+      }
     } catch (e: Throwable) {
       Log.w(TAG, "Warning clearing accounts: ${e.message}")
+    }
+
+    // Also clear auth info
+    try {
+      val existingAuth = c.authInfoList.toList()
+      for (auth in existingAuth) {
+        try { c.removeAuthInfo(auth) } catch (_: Throwable) {}
+      }
+    } catch (e: Throwable) {
+      Log.w(TAG, "Warning clearing auth info: ${e.message}")
     }
 
     val transport = when (o.protocol.lowercase()) {
@@ -256,93 +232,91 @@ class LinphoneCallModule : Module() {
       else -> TransportType.Udp
     }
 
-    // Create SIP identity address
+    // Create SIP identity address: sip:username@domain
     val identityStr = "sip:${o.username}@${o.domain}"
     Log.d(TAG, "Creating identity: $identityStr")
     val identity = Factory.instance().createAddress(identityStr)
     if (identity == null) {
-      // Try with just username as sip URI
-      Log.w(TAG, "createAddress failed for identity, trying alternative")
       throw IllegalStateException("فشل إنشاء عنوان SIP - تحقق من بيانات الاتصال")
     }
 
-    // Create proxy address
+    // Create proxy/server address: sip:domain:port;transport=proto
     val proxyStr = "sip:${o.domain}:${o.port};transport=${o.protocol.lowercase()}"
     Log.d(TAG, "Creating proxy: $proxyStr")
     val proxyAddr = Factory.instance().createAddress(proxyStr)
     if (proxyAddr == null) {
-      throw IllegalStateException("فشل الاتصال بخادم SIP - تأكد من صحة الرقم وحاول مرة أخرى")
+      throw IllegalStateException("فشل الاتصال بخادم SIP - تأكد من صحة البيانات")
     }
 
-    // Create authentication info - use Account params instead for Linphone 5.4
-    try {
-      val authInfo = Factory.instance().createAuthInfo(o.username, null, o.password, null, null, o.domain)
-      c.addAuthInfo(authInfo)
-    } catch (e: Throwable) {
-      Log.w(TAG, "createAuthInfo failed: ${e.message}, using params identity instead")
-    }
+    // Create authentication info for 401/407 challenge responses
+    val authInfo = Factory.instance().createAuthInfo(
+      o.username,  // username
+      null,        // userid (null = same as username)
+      o.password,  // password
+      null,        // ha1
+      null,        // realm
+      o.domain     // domain
+    )
+    c.addAuthInfo(authInfo)
+    Log.d(TAG, "Auth info added for user: ${o.username}@${o.domain}")
 
-    // Configure account params
+    // Configure account params with REGISTRATION DISABLED
     val params = c.createAccountParams()
     params.identityAddress = identity
     params.serverAddress = proxyAddr
-    params.isRegisterEnabled = true
+
+    // KEY FIX: Disable SIP registration - Telicall servers don't support it
+    params.isRegisterEnabled = false
 
     // Configure transport
     params.transport = transport
 
+    // For TLS: disable media encryption and certificate verification
     if (transport == TransportType.Tls) {
       c.mediaEncryption = MediaEncryption.None
-      c.verifyServerCertificates(false)
-      c.verifyServerCn(false)
     }
-
-    // Set outbound proxy
-    params.routingListEnabled = false
 
     val account = c.createAccount(params)
     c.addAccount(account)
     c.defaultAccount = account
 
-    // Set registration timeout
-    regTimeoutRunnable = Runnable {
-      Log.e(TAG, "SIP registration timed out after ${REG_TIMEOUT_MS}ms")
-      if (!callPlaced) {
-        pendingPromise?.reject("E_REG_TIMEOUT", "انتهت مهلة التسجيل SIP - تحقق من اتصال الإنترنت وحاول مرة أخرى")
-        emit("failed", "انتهت مهلة الاتصال - حاول مرة أخرى")
-        pendingPromise = null
-        pendingOpts = null
-      }
-    }
-    main.postDelayed(regTimeoutRunnable!!, REG_TIMEOUT_MS)
+    Log.d(TAG, "Account created and set as default (registration disabled)")
 
-    // Registration happens asynchronously
-    emit("outgoing_init", "جاري التسجيل بخادم SIP...")
+    // Place the call immediately - no need to wait for registration
+    emit("outgoing_init", "جاري الاتصال...")
+
+    try {
+      placeCall(o)
+      Log.d(TAG, "Call placed successfully")
+      promise.resolve(null)
+    } catch (e: Throwable) {
+      Log.e(TAG, "placeCall failed", e)
+      emit("failed", e.message ?: "فشل بدء المكالمة")
+      promise.reject("E_CALL", e.message ?: "فشل بدء المكالمة", e)
+    }
   }
 
-  private fun placeCall() {
-    val o = pendingOpts ?: throw IllegalStateException("no pending call options")
+  private fun placeCall(o: StartCallOptions) {
     val c = core ?: throw IllegalStateException("Core not initialized")
 
-    // Normalize destination
+    // Normalize destination - remove + prefix
     val dest = o.destination.trim().removePrefix("+")
 
-    // Format: sip:number@domain
-    val target = "sip:$dest@${o.domain}"
-    Log.d(TAG, "Placing call to: $target")
+    // Create call target: sip:number@domain
+    val targetStr = "sip:$dest@${o.domain}"
+    Log.d(TAG, "Placing call to: $targetStr")
 
-    val callAddr = Factory.instance().createAddress(target)
+    val callAddr = Factory.instance().createAddress(targetStr)
     if (callAddr == null) {
-      throw IllegalStateException("رقم غير صالح: $target")
+      throw IllegalStateException("رقم غير صالح: $dest")
     }
 
     // Create call params
     val callParams = c.createCallParams(null)
     callParams?.mediaEncryption = MediaEncryption.None
-
-    // Enable early media
     callParams?.enableEarlyMediaSending = true
 
+    // Place the call
     if (callParams != null) {
       c.inviteAddressWithParams(callAddr, callParams)
     } else {
@@ -363,7 +337,7 @@ class LinphoneCallModule : Module() {
   }
 
   private fun teardown() {
-    clearPending()
+    callActive = false
     try {
       core?.let { c ->
         listener?.let { c.removeListener(it) }
