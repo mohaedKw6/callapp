@@ -7,7 +7,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
 
 COPY bot.py callv2.py foxapp_api.py /app/
-COPY data/ /app/data/
+COPY data/ /app/
+# data/ contains: bot_data.json, telicall_accounts.json
+# They must be in /app/ (SCRIPT_DIR) not /app/data/
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
