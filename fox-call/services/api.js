@@ -204,9 +204,9 @@ export class FoxApi {
       'Authorization': 'Bearer ' + this._accessToken,
       'content-type': 'application/json',
     };
-    if (body !== undefined) {
-      h['x-signature'] = this._computeSignature(body);
-    }
+    // Always send x-signature — the server requires it for ALL requests,
+    // including GET requests where the body is empty.
+    h['x-signature'] = this._computeSignature(body ?? '');
     return h;
   }
 
