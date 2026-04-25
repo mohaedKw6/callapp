@@ -14,6 +14,7 @@ import { Colors } from './theme/colors';
 type Screen = 'loading' | 'token' | 'dialer' | 'call';
 
 const TOKEN_KEY = 'foxcall_token_v2';
+const JWT_KEY = 'foxcall_jwt_v1';
 const DEVICE_KEY = 'foxcall_device_id';
 
 const genDeviceId = () => {
@@ -79,13 +80,43 @@ export default function App() {
     const api = FoxApi.fromToken(rawToken, did);
     if (!api) throw new Error('التوكن غير صحيح');
     apiRef.current = api;
-    const me = await api.getMe();
-    setUser(me);
-    cmRef.current = new CallManager(api);
-    await SecureStore.setItemAsync(TOKEN_KEY, rawToken);
-    await SecureStore.setItemAsync(DEVICE_KEY, did);
-    setScreen('dialer');
-    return true;
+
+    // Try to restore JWT from storage first
+    try {
+      const savedJwt = await SecureStore.getItemAsync(JWT_KEY);
+      if (savedJwt) {
+        api.setJwt(savedJwt);
+        // Verify it works by calling /api/me
+        try {
+          const me = await api.getMe();
+          setUser(me);
+          cmRef.current = new CallManager(api);
+          await SecureStore.setItemAsync(TOKEN_KEY, rawToken);
+          await SecureStore.setItemAsync(DEVICE_KEY, did);
+          setScreen('dialer');
+          return true;
+        } catch {
+          // JWT expired or invalid, clear it and login again
+          api.setJwt(null);
+          await SecureStore.deleteItemAsync(JWT_KEY);
+        }
+      }
+    } catch {}
+
+    // Login with FoxToken to get a new JWT
+    try {
+      const loginResult = await api.login(rawToken);
+      // Store JWT for future use
+      await SecureStore.setItemAsync(JWT_KEY, loginResult.token);
+      setUser(loginResult.user);
+      cmRef.current = new CallManager(api);
+      await SecureStore.setItemAsync(TOKEN_KEY, rawToken);
+      await SecureStore.setItemAsync(DEVICE_KEY, did);
+      setScreen('dialer');
+      return true;
+    } catch (e: any) {
+      throw new Error(e?.message || 'فشل تسجيل الدخول');
+    }
   };
 
   const handleConnect = async (token: string) => { await connect(token); };
@@ -149,6 +180,7 @@ export default function App() {
           apiRef.current = null;
           cmRef.current = null;
           await SecureStore.deleteItemAsync(TOKEN_KEY);
+          await SecureStore.deleteItemAsync(JWT_KEY);
           setUser(null);
           setPhone('');
           setScreen('token');
