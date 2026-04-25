@@ -1,7 +1,7 @@
 {
   "name": "fox-call",
   "version": "2.0.0",
-  "main": "index.ts",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "babel-preset-expo": "^55.0.18",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -2,6 +2,6 @@
   "name": "linphone-call",
   "version": "1.0.0",
   "description": "Native Linphone SIP calling for Expo (Android)",
-  "main": "index.ts",
+  "main": "index.js",
   "private": true
 }
