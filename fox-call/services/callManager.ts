@@ -173,7 +173,7 @@ export class CallManager {
       this.nativeUnsub = null;
     }
     const dur = this.startedAt ? Math.floor((Date.now() - this.startedAt) / 1000) : 0;
-    const callId = (this.currentCall as any)?.callId;
+    const callId = this.currentCall?.callId;
     this.api.endCall(callId, dur).catch(() => {});
     this.startedAt = 0;
     this.muted = false;

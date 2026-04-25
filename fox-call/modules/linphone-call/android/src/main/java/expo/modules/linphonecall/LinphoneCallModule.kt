@@ -202,7 +202,13 @@ class LinphoneCallModule : Module() {
 
       override fun onRegistrationStateChanged(core: Core, cfg: ProxyConfig, state: RegistrationState, message: String) {
         Log.d(TAG, "Registration state: $state ($message)")
-        // Registration is disabled, so we don't care about this
+        when (state) {
+          RegistrationState.Ok -> Log.d(TAG, "SIP registered successfully")
+          RegistrationState.Failed -> Log.w(TAG, "SIP registration failed: $message")
+          RegistrationState.Cleared -> Log.d(TAG, "SIP registration cleared")
+          RegistrationState.Progress -> Log.d(TAG, "SIP registration in progress...")
+          else -> Log.d(TAG, "SIP registration state: $state")
+        }
       }
       
       override fun onAudioDevicesListUpdated(core: Core) {
@@ -358,8 +364,8 @@ class LinphoneCallModule : Module() {
   }
 
   /**
-   * Direct call without SIP registration.
-   * Telicall SIP servers do not support/require SIP registration.
+   * Place a call via SIP with registration enabled.
+   * The server requires REGISTER (with auth) before accepting INVITE.
    */
   private fun directCall(o: StartCallOptions, promise: Promise) {
     val c = core ?: throw IllegalStateException("Core not initialized")
@@ -426,8 +432,9 @@ class LinphoneCallModule : Module() {
     params.identityAddress = identity
     params.serverAddress = proxyAddr
 
-    // Disable SIP registration - Telicall servers don't support it
-    params.isRegisterEnabled = false
+    // Enable SIP registration — server requires REGISTER before INVITE.
+    // The server challenges with 401; Linphone auto-responds using AuthInfo.
+    params.isRegisterEnabled = true
 
     // Configure transport
     params.transport = transport
@@ -436,7 +443,7 @@ class LinphoneCallModule : Module() {
     c.addAccount(account)
     c.defaultAccount = account
 
-    Log.d(TAG, "Account created and set as default (registration disabled)")
+    Log.d(TAG, "Account created and set as default (registration enabled)")
 
     // Wait for audio pipeline to be ready
     // This is CRITICAL - without this delay, calls may fail
