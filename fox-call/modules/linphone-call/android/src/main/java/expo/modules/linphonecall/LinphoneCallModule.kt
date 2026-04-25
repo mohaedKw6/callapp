@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -38,6 +39,7 @@ class LinphoneCallModule : Module() {
   private var listener: CoreListenerStub? = null
   private val main = Handler(Looper.getMainLooper())
   private var callActive = false
+  private var audioInitialized = false
 
   override fun definition() = ModuleDefinition {
     Name("LinphoneCall")
@@ -46,6 +48,7 @@ class LinphoneCallModule : Module() {
     AsyncFunction("startCall") { options: StartCallOptions, promise: Promise ->
       try {
         ensureCore()
+        initializeAudioPipeline()
         directCall(options, promise)
       } catch (e: Throwable) {
         Log.e(TAG, "startCall failed", e)
@@ -111,15 +114,16 @@ class LinphoneCallModule : Module() {
   private fun ensureCore() {
     if (core != null) return
     val ctx = appContext.reactContext ?: throw IllegalStateException("no context")
+    
+    // Enable logging for debugging
     Factory.instance().setLogCollectionPath(ctx.filesDir.absolutePath)
     Factory.instance().enableLogCollection(org.linphone.core.LogCollectionState.Enabled)
-    Factory.instance().loggingService.setLogLevel(LogLevel.Message)
+    Factory.instance().loggingService.setLogLevel(LogLevel.Debug)
 
     // CRITICAL FIX: Clear root CA to disable certificate verification
-    // This matches callv2.py: context.check_hostname = False, context.verify_mode = ssl.CERT_NONE
     try {
       Factory.instance().setRootCa("")
-      Log.d(TAG, "Root CA cleared - certificate verification disabled for TLS")
+      Log.d(TAG, "Root CA cleared - certificate verification disabled")
     } catch (e: Throwable) {
       Log.w(TAG, "setRootCa not available: ${e.message}")
     }
@@ -131,7 +135,7 @@ class LinphoneCallModule : Module() {
     c.echoCancellationEnabled = true
     c.echoLimiterEnabled = true
 
-    // CRITICAL FIX: Disable TLS certificate verification for self-signed certs
+    // CRITICAL FIX: Disable TLS certificate verification
     try {
       c.verifyServerCertificates(false)
       c.verifyServerCn(false)
@@ -140,7 +144,7 @@ class LinphoneCallModule : Module() {
       Log.w(TAG, "verifyServerCertificates/Cn not available: ${e.message}")
     }
 
-    // Set media encryption to None - SIP signaling over TLS but RTP audio unencrypted
+    // Set media encryption to None
     c.mediaEncryption = MediaEncryption.None
 
     c.start()
@@ -178,12 +182,27 @@ class LinphoneCallModule : Module() {
             Log.e(TAG, "Call error: $reason (raw: $message)")
             emit("failed", reason)
           }
+          Call.State.IncomingReceived -> {
+            emit("ringing", "مكالمة واردة...")
+          }
+          Call.State.Pushed -> {
+            emit("ringing", "جاري الاتصال...")
+          }
           else -> {}
         }
       }
 
       override fun onRegistrationStateChanged(core: Core, cfg: ProxyConfig, state: RegistrationState, message: String) {
-        Log.d(TAG, "Registration state (ignored): $state ($message)")
+        Log.d(TAG, "Registration state: $state ($message)")
+        // Registration is disabled, so we don't care about this
+      }
+      
+      override fun onAudioDevicesListUpdated(core: Core) {
+        Log.d(TAG, "Audio devices list updated")
+        // Refresh audio devices when list changes
+        if (audioInitialized) {
+          configureAudioForCall()
+        }
       }
     }
     listener = l
@@ -191,8 +210,61 @@ class LinphoneCallModule : Module() {
   }
 
   /**
+   * Initialize audio pipeline with proper timing.
+   * This is CRITICAL for call success - audio must be ready BEFORE SIP INVITE.
+   */
+  private fun initializeAudioPipeline() {
+    val ctx = appContext.reactContext ?: return
+    val c = core ?: return
+    
+    main.post {
+      try {
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        am.mode = AudioManager.MODE_IN_COMMUNICATION
+        
+        // Request audio focus
+        @Suppress("DEPRECATION")
+        val result = am.requestAudioFocus(
+          null, 
+          AudioManager.STREAM_VOICE_CALL, 
+          AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+        )
+        Log.d(TAG, "Audio focus request result: $result")
+        
+        // CRITICAL: Wait for audio pipeline to initialize
+        // Linphone needs ~300-500ms after audio focus before sending SIP INVITE
+        SystemClock.sleep(400)
+        
+        // Pre-select audio devices
+        val micDevice = c.audioDevices.firstOrNull {
+          it.type == AudioDevice.Type.Microphone && it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
+        }
+        if (micDevice != null) {
+          c.inputAudioDevice = micDevice
+          Log.d(TAG, "Pre-selected mic: ${micDevice.deviceName}")
+        }
+        
+        val outputDevice = c.audioDevices.firstOrNull {
+          (it.type == AudioDevice.Type.Earpiece || it.type == AudioDevice.Type.Speaker) 
+          && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
+        }
+        if (outputDevice != null) {
+          c.outputAudioDevice = outputDevice
+          Log.d(TAG, "Pre-selected output: ${outputDevice.deviceName}")
+        }
+        
+        audioInitialized = true
+        Log.d(TAG, "Audio pipeline initialized successfully")
+        
+      } catch (e: Throwable) {
+        Log.e(TAG, "Failed to initialize audio pipeline", e)
+        audioInitialized = false
+      }
+    }
+  }
+
+  /**
    * Configure audio routing when a call connects.
-   * Sets up audio manager mode and selects proper input/output devices.
    */
   private fun configureAudioForCall() {
     val ctx = appContext.reactContext ?: return
@@ -229,24 +301,6 @@ class LinphoneCallModule : Module() {
   }
 
   /**
-   * Request audio focus BEFORE placing the call.
-   * This ensures the audio pipeline is ready when the SIP INVITE goes out.
-   */
-  private fun requestAudioFocusBeforeCall() {
-    val ctx = appContext.reactContext ?: return
-    try {
-      val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-      am.mode = AudioManager.MODE_IN_COMMUNICATION
-      am.isSpeakerphoneOn = false
-      @Suppress("DEPRECATION")
-      am.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-      Log.d(TAG, "Audio focus requested before call")
-    } catch (e: Throwable) {
-      Log.w(TAG, "Failed to request audio focus: ${e.message}")
-    }
-  }
-
-  /**
    * Release audio focus when call ends.
    */
   private fun releaseAudioFocus() {
@@ -258,6 +312,8 @@ class LinphoneCallModule : Module() {
         am.isSpeakerphoneOn = false
         @Suppress("DEPRECATION")
         am.abandonAudioFocus(null)
+        audioInitialized = false
+        Log.d(TAG, "Audio focus released")
       } catch (_: Throwable) {}
     }
   }
@@ -265,17 +321,23 @@ class LinphoneCallModule : Module() {
   private fun parseCallError(message: String): String {
     val lower = message.lowercase()
     return when {
-      lower.contains("not found") || lower.contains("404") -> "الرقم غير موجود أو الخدمة غير متاحة"
-      lower.contains("401") || lower.contains("unauthorized") -> "فشل المصادقة - بيانات SIP غير صالحة"
-      lower.contains("403") || lower.contains("forbidden") -> "ممنوع الاتصال - تحقق من الرصيد"
-      lower.contains("408") || lower.contains("timeout") || lower.contains("timed out") -> "انتهت مهلة الاتصال - تحقق من الإنترنت"
-      lower.contains("480") || lower.contains("temporarily") -> "الرقم مش متاح حالياً"
+      lower.contains("not found") || lower.contains("404") || lower.contains("user not found") -> "الرقم غير موجود أو الخدمة غير متاحة"
+      lower.contains("401") || lower.contains("unauthorized") || lower.contains("auth") -> "فشل المصادقة - بيانات SIP غير صالحة"
+      lower.contains("403") || lower.contains("forbidden") || lower.contains("not allowed") -> "ممنوع الاتصال - تحقق من الرصيد أو الحساب"
+      lower.contains("408") || lower.contains("timeout") || lower.contains("timed out") || lower.contains("request timeout") -> "انتهت مهلة الاتصال - تحقق من الإنترنت"
+      lower.contains("480") || lower.contains("temporarily") || lower.contains("not available") -> "الرقم مش متاح حالياً"
       lower.contains("486") || lower.contains("busy") -> "الرقم مشغول"
-      lower.contains("487") || lower.contains("cancelled") -> "تم إلغاء المكالمة"
-      lower.contains("503") || lower.contains("service unavailable") -> "الخدمة غير متاحة حالياً"
-      lower.contains("network") || lower.contains("unreachable") -> "لا يمكن الوصول للخادم - تحقق من الإنترنت"
-      lower.contains("tls") || lower.contains("ssl") || lower.contains("certificate") -> "مشكلة في الاتصال الآمن"
-      else -> message.ifEmpty { "فشل الاتصال - حاول مرة أخرى" }
+      lower.contains("487") || lower.contains("cancelled") || lower.contains("cancel") -> "تم إلغاء المكالمة"
+      lower.contains("503") || lower.contains("service unavailable") || lower.contains("unavailable") -> "الخدمة غير متاحة حالياً - الحساب قد يكون معطلاً"
+      lower.contains("rejected") -> "تم رفض الاتصال"
+      lower.contains("declined") -> "تم رفض المكالمة"
+      lower.contains("network") || lower.contains("unreachable") || lower.contains("no route") -> "لا يمكن الوصول للخادم - تحقق من الإنترنت"
+      lower.contains("tls") || lower.contains("ssl") || lower.contains("certificate") || lower.contains("cert") -> "مشكلة في الاتصال الآمن - تأكد من إعدادات TLS"
+      lower.contains("socket") || lower.contains("connection") || lower.contains("connect") -> "خطأ في الاتصال - تحقق من الشبكة"
+      lower.contains("destruction") || lower.contains("terminated") -> "انتهت المكالمة"
+      lower.contains("no match") || lower.contains("no candidate") || lower.contains("ice") -> "فشل في إنشاء الاتصال الصوتي"
+      lower.contains("declined") -> "تم رفض المكالمة"
+      else -> message.ifEmpty { "فشل الاتصال - حاول مرة أخرى" }.let { "خطأ: $it" }
     }
   }
 
@@ -288,10 +350,8 @@ class LinphoneCallModule : Module() {
   }
 
   /**
-   * KEY FIX: Direct call without SIP registration.
+   * Direct call without SIP registration.
    * Telicall SIP servers do not support/require SIP registration.
-   * The raw SIP class in callv2.py also connects directly without registration.
-   * We create a Linphone account with registration disabled and place the call immediately.
    */
   private fun directCall(o: StartCallOptions, promise: Promise) {
     val c = core ?: throw IllegalStateException("Core not initialized")
@@ -341,24 +401,24 @@ class LinphoneCallModule : Module() {
       throw IllegalStateException("فشل الاتصال بخادم SIP - تأكد من صحة البيانات")
     }
 
-    // Create authentication info for 401/407 challenge responses
+    // Create authentication info
     val authInfo = Factory.instance().createAuthInfo(
-      o.username,  // username
-      null,        // userid (null = same as username)
-      o.password,  // password
-      null,        // ha1
-      null,        // realm
-      o.domain     // domain
+      o.username,
+      null,
+      o.password,
+      null,
+      null,
+      o.domain
     )
     c.addAuthInfo(authInfo)
     Log.d(TAG, "Auth info added for user: ${o.username}@${o.domain}")
 
-    // Configure account params with REGISTRATION DISABLED
+    // Configure account params
     val params = c.createAccountParams()
     params.identityAddress = identity
     params.serverAddress = proxyAddr
 
-    // KEY FIX: Disable SIP registration - Telicall servers don't support it
+    // Disable SIP registration - Telicall servers don't support it
     params.isRegisterEnabled = false
 
     // Configure transport
@@ -370,11 +430,14 @@ class LinphoneCallModule : Module() {
 
     Log.d(TAG, "Account created and set as default (registration disabled)")
 
-    // CRITICAL FIX: Request audio focus BEFORE placing the call
-    // This ensures the audio pipeline is ready when the SIP INVITE goes out
-    requestAudioFocusBeforeCall()
+    // Wait for audio pipeline to be ready
+    // This is CRITICAL - without this delay, calls may fail
+    if (!audioInitialized) {
+      Log.d(TAG, "Waiting for audio pipeline initialization...")
+      SystemClock.sleep(300)
+    }
 
-    // Place the call immediately - no need to wait for registration
+    // Emit connecting state
     emit("outgoing_init", "جاري الاتصال...")
 
     try {
@@ -421,6 +484,7 @@ class LinphoneCallModule : Module() {
 
   private fun teardown() {
     callActive = false
+    audioInitialized = false
     releaseAudioFocus()
     try {
       core?.let { c ->
