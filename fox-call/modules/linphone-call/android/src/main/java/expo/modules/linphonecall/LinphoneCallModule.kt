@@ -120,28 +120,36 @@ class LinphoneCallModule : Module() {
     Factory.instance().enableLogCollection(org.linphone.core.LogCollectionState.Enabled)
     Factory.instance().loggingService.setLogLevel(LogLevel.Debug)
 
-    // CRITICAL FIX: Clear root CA to disable certificate verification
-    try {
-      Factory.instance().setRootCa("")
-      Log.d(TAG, "Root CA cleared - certificate verification disabled")
-    } catch (e: Throwable) {
-      Log.w(TAG, "setRootCa not available: ${e.message}")
-    }
+    // CRITICAL FIX: Disable TLS certificate verification
+    // This matches callv2.py: context.check_hostname = False, context.verify_mode = ssl.CERT_NONE
+    // Note: Factory.setRootCa() removed in Linphone SDK 5.x - we handle this on Core instead
 
     val c = Factory.instance().createCore(null, null, ctx)
     c.isNetworkReachable = true
 
-    // Configure audio settings
-    c.echoCancellationEnabled = true
-    c.echoLimiterEnabled = true
+    // Configure audio settings - echo cancellation for better call quality
+    c.setEchoCancellationEnabled(true)
+    c.setEchoLimiterEnabled(true)
 
-    // CRITICAL FIX: Disable TLS certificate verification
+    // CRITICAL FIX: Disable TLS certificate verification for self-signed certs
+    // In Linphone SDK 5.4.x, verifyServerCertificates/verifyServerCn are method calls
     try {
       c.verifyServerCertificates(false)
-      c.verifyServerCn(false)
       Log.d(TAG, "Server certificate verification disabled")
     } catch (e: Throwable) {
-      Log.w(TAG, "verifyServerCertificates/Cn not available: ${e.message}")
+      Log.w(TAG, "verifyServerCertificates not available: ${e.message}")
+    }
+    try {
+      c.verifyServerCn(false)
+      Log.d(TAG, "Server CN verification disabled")
+    } catch (e: Throwable) {
+      Log.w(TAG, "verifyServerCn not available: ${e.message}")
+    }
+    try {
+      c.rootCa = ""
+      Log.d(TAG, "Root CA cleared for TLS")
+    } catch (e: Throwable) {
+      Log.w(TAG, "rootCa not available: ${e.message}")
     }
 
     // Set media encryption to None
@@ -361,7 +369,7 @@ class LinphoneCallModule : Module() {
 
     // Clean up previous accounts
     try {
-      val existingAccounts = c.accounts.toList()
+      val existingAccounts = c.accountList
       for (account in existingAccounts) {
         try { c.removeAccount(account) } catch (_: Throwable) {}
       }
@@ -470,7 +478,7 @@ class LinphoneCallModule : Module() {
     // Create call params
     val callParams = c.createCallParams(null)
     callParams?.mediaEncryption = MediaEncryption.None
-    callParams?.enableEarlyMediaSending = true
+    callParams?.setEarlyMediaSendingEnabled(true)
 
     // Place the call
     if (callParams != null) {
