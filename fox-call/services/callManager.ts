@@ -37,75 +37,114 @@ export class CallManager {
     this.listener.onState?.(s);
   }
 
-  async startCall(to: string): Promise<CallStartResult> {
+  async startCall(to: string, retries = 2): Promise<CallStartResult> {
     this.setState('connecting');
-    let res: CallStartResult;
-    try {
-      res = await this.api.startCall(to);
-    } catch (e: any) {
-      this.setState('failed');
-      const errMsg = e?.message || 'فشل بدء المكالمة';
-      // Translate common errors to Arabic
-      const friendly = this.translateError(errMsg);
-      this.listener.onError?.(friendly);
-      throw e;
-    }
-    this.currentCall = res;
+    let lastError: string = '';
 
-    // Check if Linphone native module is available
-    if (!LinphoneCall.isAvailable()) {
-      this.setState('failed');
-      this.listener.onError?.('الوحدة الصوتية غير متاحة - يجب تثبيت نسخة محدثة من التطبيق');
-      throw new Error('Linphone module not available');
-    }
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      let res: CallStartResult;
+      try {
+        res = await this.api.startCall(to);
+        this.currentCall = res;
 
-    // Subscribe to native call events
-    this.nativeUnsub = LinphoneCall.addCallListener((evt: CallEvent) => {
-      console.log('[CallManager] Native event:', evt.state, evt.reason);
-      if (evt.state === 'ringing' || evt.state === 'outgoing_progress') {
-        this.setState('ringing');
-      } else if (evt.state === 'outgoing_init') {
-        // Still connecting, keep state
-      } else if (evt.state === 'connected') {
-        this.setState('connected');
-        this.startedAt = Date.now();
-        this.startTimer();
-      } else if (evt.state === 'ended') {
-        this.cleanup('ended');
-      } else if (evt.state === 'failed') {
-        const reason = evt.reason || 'فشل الاتصال';
-        console.error('[CallManager] Call failed:', reason);
-        this.listener.onError?.(reason);
-        this.cleanup('failed');
+        // Check if Linphone native module is available
+        if (!LinphoneCall.isAvailable()) {
+          this.setState('failed');
+          this.listener.onError?.('الوحدة الصوتية غير متاحة - يجب تثبيت نسخة محدثة من التطبيق');
+          throw new Error('Linphone module not available');
+        }
+
+        // Subscribe to native call events
+        this.nativeUnsub = LinphoneCall.addCallListener((evt: CallEvent) => {
+          console.log('[CallManager] Native event:', evt.state, evt.reason);
+          if (evt.state === 'ringing' || evt.state === 'outgoing_progress') {
+            this.setState('ringing');
+          } else if (evt.state === 'outgoing_init') {
+            // Still connecting, keep state
+          } else if (evt.state === 'connected') {
+            this.setState('connected');
+            this.startedAt = Date.now();
+            this.startTimer();
+          } else if (evt.state === 'ended') {
+            this.cleanup('ended');
+          } else if (evt.state === 'failed') {
+            const reason = evt.reason || 'فشل الاتصال';
+            console.error('[CallManager] Call failed:', reason);
+            this.listener.onError?.(reason);
+            this.cleanup('failed');
+          }
+        });
+
+        try {
+          await LinphoneCall.startCall({
+            username: res.sip.username,
+            password: res.sip.password,
+            domain: res.sip.domain,
+            port: res.sip.port,
+            protocol: res.sip.protocol,
+            destination: to.replace(/^\+/, ''),
+            callLimitSec: res.sip.callLimit,
+          });
+          this.setState('ringing');
+          return res;
+        } catch (e: any) {
+          const errMsg = e?.message || 'فشل تشغيل الصوت';
+          const friendly = this.translateError(errMsg);
+          console.error('[CallManager] Linphone startCall error:', errMsg);
+
+          // If this is the last attempt, show error
+          if (attempt >= retries) {
+            this.listener.onError?.(friendly);
+            this.cleanup('failed');
+            throw e;
+          }
+
+          lastError = friendly;
+          console.log(`[CallManager] Retry ${attempt + 1}/${retries} after error: ${errMsg}`);
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      } catch (e: any) {
+        const errMsg = e?.message || 'فشل بدء المكالمة';
+        lastError = this.translateError(errMsg);
+
+        // If this is the last attempt or non-retryable error
+        if (attempt >= retries) {
+          this.setState('failed');
+          this.listener.onError?.(lastError);
+          throw e;
+        }
+
+        console.log(`[CallManager] API retry ${attempt + 1}/${retries}: ${errMsg}`);
+        await new Promise(r => setTimeout(r, 1500));
       }
-    });
 
-    try {
-      await LinphoneCall.startCall({
-        username: res.sip.username,
-        password: res.sip.password,
-        domain: res.sip.domain,
-        port: res.sip.port,
-        protocol: res.sip.protocol,
-        destination: to.startsWith('+') ? to : `+${to}`,
-        callLimitSec: res.sip.callLimit,
-      });
-      this.setState('ringing');
-    } catch (e: any) {
-      const errMsg = e?.message || 'فشل تشغيل الصوت';
-      const friendly = this.translateError(errMsg);
-      console.error('[CallManager] Linphone startCall error:', errMsg);
-      this.listener.onError?.(friendly);
-      this.cleanup('failed');
-      throw e;
-    }
-    return res;
+    // All retries exhausted
+    this.setState('failed');
+    this.listener.onError?.(lastError || 'فشل الاتصال بعد عدة محاولات');
+    throw new Error(lastError || 'فشل الاتصال بعد عدة محاولات');
   }
 
   private translateError(msg: string): string {
     const lower = msg.toLowerCase();
+
+    // Check for specific error patterns first (before generic checks)
+    // Account used before errors
+    if (lower.includes('used') || lower.includes('already') || lower.includes('استعمل')) {
+      return 'هذا الحساب مستعمل قبل كده - جاري تجربة حساب آخر';
+    }
+    // No balance errors
+    if (lower.includes('no_balance') || lower.includes('رصيدك مش كافي') || lower.includes('balance') || lower.includes('رصيد')) {
+      if (lower.includes('telicall')) {
+        return 'حساب Telicall خلص رصيده - جاري تجربة حساب آخر';
+      }
+      return 'رصيدك مش كافي لإجراء مكالمة';
+    }
+    // No accounts available
+    if (lower.includes('no accounts') || lower.includes('لا يوجد') || lower.includes('لا توجد') || lower.includes('حسابات')) {
+      return 'مفيش حسابات متاحة حالياً - حاول لاحقاً';
+    }
     // Network errors
-    if (lower.includes('network') || lower.includes('unreachable') || lower.includes('timeout')) {
+    if (lower.includes('network') || lower.includes('unreachable') || lower.includes('timeout') || lower.includes('connection')) {
       return 'تعذر الاتصال بالخادم - تحقق من اتصال الإنترنت';
     }
     // SIP registration errors
@@ -116,20 +155,31 @@ export class CallManager {
     if (lower.includes('tls') || lower.includes('ssl') || lower.includes('certificate')) {
       return 'مشكلة في الاتصال الآمن - حاول مرة أخرى';
     }
-    // Not found
-    if (lower.includes('not found') || lower.includes('404')) {
+    // Not found / 404
+    if (lower.includes('not found') || lower.includes('404') || lower.includes('غير متاحة')) {
+      return 'الخدمة غير متاحة حالياً - حاول بعد قليل';
+    }
+    // Service unavailable
+    if (lower.includes('unavailable') || lower.includes('غير متاح') || lower.includes('غير موجودة')) {
       return 'الخدمة غير متاحة حالياً - حاول بعد قليل';
     }
     // Module errors
     if (lower.includes('module') || lower.includes('native')) {
       return 'التطبيق يحتاج تحديث - حمّل النسخة الأحدث';
     }
-    // Balance
-    if (lower.includes('رصيد') || lower.includes('balance')) {
-      return msg; // Already in Arabic
+    // Telicall specific errors
+    if (lower.includes('telicall')) {
+      return 'خطأ في خدمة Telicall - حاول مرة أخرى';
     }
-    // Default - return original
-    return msg;
+    // Internal server error
+    if (lower.includes('500') || lower.includes('server error') || lower.includes('خطأ في')) {
+      return 'خطأ في السيرفر - جربي بعد شوية';
+    }
+    // Default - return original with friendly message
+    if (msg && msg.length > 0 && msg.length < 200) {
+      return msg;
+    }
+    return 'حدث خطأ غير متوقع - حاول مرة أخرى';
   }
 
   private startTimer() {
