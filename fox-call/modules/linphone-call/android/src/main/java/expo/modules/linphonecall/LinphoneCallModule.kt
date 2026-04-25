@@ -448,8 +448,8 @@ class LinphoneCallModule : Module() {
         // Configure transport
         params.transport = transport
 
-        // Set registration timeout to 15 seconds (faster timeout for quick fallback)
-        params.registerTimeout = 15
+        // Note: registerTimeout/regExpires not available in Linphone SDK 5.4.x AccountParams API
+        // Registration expiry uses the SDK default (600 seconds)
 
         val account = c.createAccount(params)
         c.addAccount(account)
