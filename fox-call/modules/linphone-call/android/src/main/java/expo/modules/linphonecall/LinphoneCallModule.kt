@@ -393,78 +393,122 @@ class LinphoneCallModule : Module() {
       Log.w(TAG, "Warning clearing auth info: ${e.message}")
     }
 
-    val transport = when (o.protocol.lowercase()) {
-      "tls" -> TransportType.Tls
-      "tcp" -> TransportType.Tcp
-      else -> TransportType.Udp
+    // CRITICAL FIX: Try TLS first, fallback to TCP if TLS fails
+    // Many networks block port 5061 (TLS), so TCP is more reliable
+    var lastError: String? = null
+    val protocols = listOf(o.protocol.lowercase(), "tcp") // Try original first, then TCP fallback
+
+    for (proto in protocols) {
+      try {
+        val transport = when (proto) {
+          "tls" -> TransportType.Tls
+          "tcp" -> TransportType.Tcp
+          else -> TransportType.Udp
+        }
+
+        Log.d(TAG, "Trying protocol: $proto for domain ${o.domain}")
+
+        // Create SIP identity address: sip:username@domain
+        val identityStr = "sip:${o.username}@${o.domain}"
+        Log.d(TAG, "Creating identity: $identityStr")
+        val identity = Factory.instance().createAddress(identityStr)
+        if (identity == null) {
+          throw IllegalStateException("فشل إنشاء عنوان SIP - تحقق من بيانات الاتصال")
+        }
+
+        // Create proxy/server address: sip:domain:port;transport=proto
+        val proxyStr = "sip:${o.domain}:${o.port};transport=$proto"
+        Log.d(TAG, "Creating proxy: $proxyStr")
+        val proxyAddr = Factory.instance().createAddress(proxyStr)
+        if (proxyAddr == null) {
+          throw IllegalStateException("فشل الاتصال بخادم SIP - تأكد من صحة البيانات")
+        }
+
+        // Create authentication info
+        val authInfo = Factory.instance().createAuthInfo(
+          o.username,
+          null,
+          o.password,
+          null,
+          null,
+          o.domain
+        )
+        c.addAuthInfo(authInfo)
+        Log.d(TAG, "Auth info added for user: ${o.username}@${o.domain}")
+
+        // Configure account params
+        val params = c.createAccountParams()
+        params.identityAddress = identity
+        params.serverAddress = proxyAddr
+
+        // Enable SIP registration — server requires REGISTER before INVITE.
+        // The server challenges with 401; Linphone auto-responds using AuthInfo.
+        params.isRegisterEnabled = true
+
+        // Configure transport
+        params.transport = transport
+
+        // Set registration timeout to 15 seconds (faster timeout for quick fallback)
+        params.registerTimeout = 15
+
+        val account = c.createAccount(params)
+        c.addAccount(account)
+        c.defaultAccount = account
+
+        Log.d(TAG, "Account created with protocol $proto (registration enabled)")
+
+        // Wait for audio pipeline to be ready
+        if (!audioInitialized) {
+          Log.d(TAG, "Waiting for audio pipeline initialization...")
+          SystemClock.sleep(300)
+        }
+
+        // Emit connecting state
+        emit("outgoing_init", "جاري الاتصال...")
+
+        // Wait for registration with timeout
+        val regTimeout = 10000 // 10 seconds for registration
+        val regStart = System.currentTimeMillis()
+        var registered = false
+
+        while (System.currentTimeMillis() - regStart < regTimeout) {
+          val state = account?.state
+          Log.d(TAG, "Registration state: $state")
+          if (state == RegistrationState.Ok) {
+            registered = true
+            break
+          } else if (state == RegistrationState.Failed) {
+            break
+          }
+          SystemClock.sleep(200)
+        }
+
+        if (!registered) {
+          Log.w(TAG, "Registration not completed in time, attempting call anyway...")
+        }
+
+        try {
+          placeCall(o)
+          Log.d(TAG, "Call placed successfully with protocol $proto")
+          promise.resolve(null)
+          return
+        } catch (e: Throwable) {
+          lastError = e.message
+          Log.e(TAG, "Call failed with protocol $proto: ${e.message}")
+          // Clear account and try next protocol
+          try { c.removeAccount(account) } catch (_: Throwable) {}
+        }
+      } catch (e: Throwable) {
+        lastError = e.message
+        Log.e(TAG, "Setup failed with protocol $proto: ${e.message}")
+      }
     }
 
-    // Create SIP identity address: sip:username@domain
-    val identityStr = "sip:${o.username}@${o.domain}"
-    Log.d(TAG, "Creating identity: $identityStr")
-    val identity = Factory.instance().createAddress(identityStr)
-    if (identity == null) {
-      throw IllegalStateException("فشل إنشاء عنوان SIP - تحقق من بيانات الاتصال")
-    }
-
-    // Create proxy/server address: sip:domain:port;transport=proto
-    val proxyStr = "sip:${o.domain}:${o.port};transport=${o.protocol.lowercase()}"
-    Log.d(TAG, "Creating proxy: $proxyStr")
-    val proxyAddr = Factory.instance().createAddress(proxyStr)
-    if (proxyAddr == null) {
-      throw IllegalStateException("فشل الاتصال بخادم SIP - تأكد من صحة البيانات")
-    }
-
-    // Create authentication info
-    val authInfo = Factory.instance().createAuthInfo(
-      o.username,
-      null,
-      o.password,
-      null,
-      null,
-      o.domain
-    )
-    c.addAuthInfo(authInfo)
-    Log.d(TAG, "Auth info added for user: ${o.username}@${o.domain}")
-
-    // Configure account params
-    val params = c.createAccountParams()
-    params.identityAddress = identity
-    params.serverAddress = proxyAddr
-
-    // Enable SIP registration — server requires REGISTER before INVITE.
-    // The server challenges with 401; Linphone auto-responds using AuthInfo.
-    params.isRegisterEnabled = true
-
-    // Configure transport
-    params.transport = transport
-
-    val account = c.createAccount(params)
-    c.addAccount(account)
-    c.defaultAccount = account
-
-    Log.d(TAG, "Account created and set as default (registration enabled)")
-
-    // Wait for audio pipeline to be ready
-    // This is CRITICAL - without this delay, calls may fail
-    if (!audioInitialized) {
-      Log.d(TAG, "Waiting for audio pipeline initialization...")
-      SystemClock.sleep(300)
-    }
-
-    // Emit connecting state
-    emit("outgoing_init", "جاري الاتصال...")
-
-    try {
-      placeCall(o)
-      Log.d(TAG, "Call placed successfully")
-      promise.resolve(null)
-    } catch (e: Throwable) {
-      Log.e(TAG, "placeCall failed", e)
-      releaseAudioFocus()
-      emit("failed", e.message ?: "فشل بدء المكالمة")
-      promise.reject("E_CALL", e.message ?: "فشل بدء المكالمة", e)
-    }
+    // All protocols failed
+    releaseAudioFocus()
+    val errorMsg = lastError ?: "فشل الاتصال بجميع البروتوكولات"
+    emit("failed", errorMsg)
+    promise.reject("E_CALL", errorMsg, Exception(errorMsg))
   }
 
   private fun placeCall(o: StartCallOptions) {
