@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.mohamedqm.foxcall",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0F1F"
@@ -46,9 +46,9 @@
         {
           "android": {
             "minSdkVersion": 24,
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36,
-            "buildToolsVersion": "36.0.0",
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
             "extraMavenRepos": [
               "https://download.linphone.org/maven_repository"
             ]
@@ -58,9 +58,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "5c6e8fde-f9c7-4611-a61c-67cec76d3b2d"
+        "projectId": "bb785610-b314-45c1-845a-0ede6e1353fd"
       }
     },
-    "owner": "moha1122am"
+    "owner": "dlmzqqlje"
   }
 }
