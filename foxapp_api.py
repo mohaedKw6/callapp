@@ -541,6 +541,17 @@ def _root():
     return {"service": "Fox Call Bot", "ok": True, "url": PUBLIC_URL}
 
 
+@app.get("/admin")
+def _admin_panel():
+    """Serve the admin panel HTML page."""
+    import os
+    admin_file = os.path.join(SCRIPT_DIR, "admin_panel.html")
+    if os.path.exists(admin_file):
+        with open(admin_file, "r", encoding="utf-8") as f:
+            return f.read(), 200, {"Content-Type": "text/html; charset=utf-8"}
+    return {"error": "Admin panel not found"}, 404
+
+
 @app.get("/api/health")
 def _health():
     return {"ok": True, "service": "callapp-bot", "version": "2.0.0"}
@@ -1007,6 +1018,144 @@ def api_admin_calls(user_id: str):
                 "calls": user_calls,
             }
         )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/admin/stats")
+@_require_admin
+def api_admin_stats():
+    """Get overall statistics for the dashboard."""
+    try:
+        logs = _load_api_call_logs()
+        all_calls = logs.get("all_calls", [])
+
+        # Get bot stats
+        cv = _cv()
+        bot_data = cv.load_bot_data()
+        bot_stats = bot_data.get("stats", {})
+
+        # Get all users and their balances
+        users_db = cv.load_users_db()
+        total_balance = sum(float(u.get("balance", 0) or 0) for u in users_db.values())
+
+        return jsonify({
+            "total_calls": bot_stats.get("total_calls", 0),
+            "success_calls": bot_stats.get("success_calls", 0),
+            "total_users": len(users_db),
+            "total_balance": round(total_balance, 2),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/admin/users")
+@_require_admin
+def api_admin_all_users():
+    """Get all users with basic info for the user list."""
+    try:
+        cv = _cv()
+        users_db = cv.load_users_db()
+        logs = _load_api_call_logs()
+        all_users_logs = logs.get("all_users", {})
+
+        users_list = []
+        for uid, rec in users_db.items():
+            bal = float(rec.get("balance", 0) or 0)
+            cost = _call_cost()
+            users_list.append({
+                "user_id": uid,
+                "username": rec.get("username") or "",
+                "full_name": (
+                    (rec.get("first_name") or "")
+                    + (" " + rec.get("last_name", "") if rec.get("last_name") else "")
+                ).strip() or rec.get("username") or uid,
+                "balance": round(bal, 2),
+                "last_ip": rec.get("last_ip") or "",
+                "last_seen": rec.get("last_seen") or rec.get("last_login") or "",
+                "total_calls": all_users_logs.get(uid, {}).get("total_calls", 0),
+                "is_banned": _is_banned(uid),
+            })
+
+        # Sort by last seen
+        users_list.sort(key=lambda x: x["last_seen"] or "", reverse=True)
+
+        return jsonify({"users": users_list})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/admin/all-calls")
+@_require_admin
+def api_admin_all_calls():
+    """Get all calls for the calls log view."""
+    try:
+        limit = request.args.get("limit", 200, type=int)
+        limit = min(limit, 1000)
+
+        logs = _load_api_call_logs()
+        all_calls = logs.get("all_calls", [])
+        # Most recent first, limit
+        calls = all_calls[-limit:][::-1]
+
+        return jsonify({"calls": calls, "total": len(all_calls)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/admin/ips")
+@_require_admin
+def api_admin_ips():
+    """Get all unique IP addresses with user info."""
+    try:
+        cv = _cv()
+        users_db = cv.load_users_db()
+        logs = _load_api_call_logs()
+        all_users_logs = logs.get("all_users", {})
+
+        ip_map = {}
+        for uid, rec in users_db.items():
+            ip = rec.get("last_ip", "")
+            if ip:
+                if ip not in ip_map:
+                    ip_map[ip] = {
+                        "ip": ip,
+                        "user_id": uid,
+                        "username": rec.get("username") or "",
+                        "last_seen": rec.get("last_seen") or rec.get("last_login") or "",
+                        "total_calls": all_users_logs.get(uid, {}).get("total_calls", 0),
+                    }
+
+        # Sort by last seen
+        ips_list = sorted(ip_map.values(), key=lambda x: x["last_seen"] or "", reverse=True)
+
+        return jsonify({"ips": ips_list})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/admin/ban/<user_id>")
+@_require_admin
+def api_admin_ban(user_id: str):
+    """Ban a user by adding to banned_db."""
+    uid = str(user_id).strip()
+    try:
+        cv = _cv()
+        cv.add_banned(int(uid), admin_id=None, reason="Banned by admin panel")
+        return jsonify({"ok": True, "message": f"User {uid} banned"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/admin/unban/<user_id>")
+@_require_admin
+def api_admin_unban(user_id: str):
+    """Unban a user by removing from banned_db."""
+    uid = str(user_id).strip()
+    try:
+        cv = _cv()
+        cv.remove_banned(int(uid))
+        return jsonify({"ok": True, "message": f"User {uid} unbanned"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
