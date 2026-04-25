@@ -87,7 +87,7 @@ export class CallManager {
         domain: res.sip.domain,
         port: res.sip.port,
         protocol: res.sip.protocol,
-        destination: to.replace(/^\+/, ''),
+        destination: to.startsWith('+') ? to : `+${to}`,
         callLimitSec: res.sip.callLimit,
       });
       this.setState('ringing');

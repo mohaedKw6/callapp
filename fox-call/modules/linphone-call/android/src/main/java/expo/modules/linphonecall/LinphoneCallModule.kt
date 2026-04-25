@@ -193,8 +193,8 @@ class LinphoneCallModule : Module() {
           Call.State.IncomingReceived -> {
             emit("ringing", "مكالمة واردة...")
           }
-          Call.State.Pushed -> {
-            emit("ringing", "جاري الاتصال...")
+          Call.State.PushIncomingReceived -> {
+            emit("ringing", "مكالمة واردة...")
           }
           else -> {}
         }
@@ -463,16 +463,16 @@ class LinphoneCallModule : Module() {
   private fun placeCall(o: StartCallOptions) {
     val c = core ?: throw IllegalStateException("Core not initialized")
 
-    // Normalize destination - remove + prefix
-    val dest = o.destination.trim().removePrefix("+")
-
-    // Create call target: sip:number@domain
-    val targetStr = "sip:$dest@${o.domain}"
+    // CRITICAL FIX: Telicall SIP server requires + prefix in destination
+    // The bot (callv2.py) always sends: sip:+{number}@{domain}
+    // So we must ensure the + prefix is present
+    val rawDest = o.destination.trim().removePrefix("+")
+    val targetStr = "sip:+$rawDest@${o.domain}"
     Log.d(TAG, "Placing call to: $targetStr")
 
     val callAddr = Factory.instance().createAddress(targetStr)
     if (callAddr == null) {
-      throw IllegalStateException("رقم غير صالح: $dest")
+      throw IllegalStateException("رقم غير صالح: $rawDest")
     }
 
     // Create call params
