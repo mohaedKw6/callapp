@@ -2906,8 +2906,8 @@
     }
   },
   "stats": {
-    "total_calls": 327,
-    "success_calls": 131
+    "total_calls": 329,
+    "success_calls": 133
   },
   "voice_labels": {},
   "settings": {
@@ -4209,7 +4209,8 @@
     "fisey74244@pbsan.com",
     "sidate7024@uscopt.com",
     "teliw30847@wianbv.com",
-    "rilepa3721@uscopt.com"
+    "rilepa3721@uscopt.com",
+    "yopewab388@uscopt.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
@@ -4257,6 +4258,15 @@
       ],
       "created_at": "2026-04-26 12:43:25",
       "created_by": "962731079"
+    },
+    "NA7LI08D": {
+      "amount": 5.0,
+      "max_users": 1,
+      "used_by": [
+        "7627857345"
+      ],
+      "created_at": "2026-04-26 15:44:31",
+      "created_by": "7627857345"
     }
   },
   "competition": {
