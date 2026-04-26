@@ -74,11 +74,11 @@
       "first_seen": "2026-04-09 08:11:14",
       "username": "G_M_A_Q",
       "first_name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥",
-      "streak": 6,
-      "last_login_date": "2026-04-25",
-      "balance": 5.6,
+      "streak": 7,
+      "last_login_date": "2026-04-26",
+      "balance": 5.65,
       "dan_calls": 122,
-      "last_daily_bonus": "2026-04-25",
+      "last_daily_bonus": "2026-04-26",
       "last_ip": "102.46.160.248",
       "last_seen": "2026-04-26 10:51:30"
     },
@@ -92,7 +92,11 @@
       "streak": 1,
       "last_login_date": "2026-04-26",
       "last_daily_bonus": "2026-04-22",
-      "balance": 0.05
+      "balance": 4.95,
+      "last_ip": "31.31.176.225",
+      "last_seen": "2026-04-26 15:46:54",
+      "refresh_token_hash": "2b6d0e725b97f0e34fbde29211f625a011f4585689212142eb2285d83cd1376d",
+      "last_login": "2026-04-26 15:45:02"
     },
     "8752475170": {
       "usage": 0,
@@ -2906,8 +2910,8 @@
     }
   },
   "stats": {
-    "total_calls": 329,
-    "success_calls": 133
+    "total_calls": 333,
+    "success_calls": 137
   },
   "voice_labels": {},
   "settings": {
@@ -4210,7 +4214,9 @@
     "sidate7024@uscopt.com",
     "teliw30847@wianbv.com",
     "rilepa3721@uscopt.com",
-    "yopewab388@uscopt.com"
+    "yopewab388@uscopt.com",
+    "xexip89124@xnudeart.com",
+    "ceboyib317@xnudeart.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
