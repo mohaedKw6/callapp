@@ -2683,13 +2683,13 @@
   },
   "7716499735": {
     "usage": 0,
-    "referrals": 6,
+    "referrals": 7,
     "first_seen": "2026-04-25 19:16:15",
     "username": "",
     "first_name": "\u0633\u0627\u0631\u0647",
     "streak": 2,
     "last_login_date": "2026-04-26",
-    "balance": 0.1,
+    "balance": 0.15,
     "last_use": "2026-04-26 12:08:29",
     "successful_calls": 1
   },
@@ -2840,6 +2840,15 @@
     "first_seen": "2026-04-26 15:17:37",
     "username": "GiftsToDropee2",
     "first_name": "Dropee",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "7501289878": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 16:13:10",
+    "username": "ma_zql",
+    "first_name": "MABROUK",
     "streak": 1,
     "last_login_date": "2026-04-26"
   }
