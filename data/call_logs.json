@@ -1317,8 +1317,10 @@
       "username": "",
       "first_name": "ساره",
       "first_seen": "2026-04-25 19:16:15",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967778987167"
+      ]
     },
     "6718184405": {
       "username": "Blckvckkfkc",
@@ -1366,6 +1368,13 @@
       "username": "USF_P",
       "first_name": "محمود يحيى",
       "first_seen": "2026-04-26 00:55:49",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "8492824775": {
+      "username": "",
+      "first_name": "Mram",
+      "first_seen": "2026-04-26 12:07:47",
       "total_calls": 0,
       "phones_called": []
     }
@@ -1618,6 +1627,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-04-20 21:13:15"
+    },
+    {
+      "user_id": "7716499735",
+      "phone": "+967778987167",
+      "from_number": "447577350894",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-04-26 12:10:23"
     }
   ],
   "all_phones": {
@@ -1766,6 +1783,14 @@
         "7440051828"
       ],
       "last_call": "2026-04-20 21:13:15"
+    },
+    "967778987167": {
+      "first_call": "2026-04-26 12:10:23",
+      "total_calls": 1,
+      "users_called": [
+        "7716499735"
+      ],
+      "last_call": "2026-04-26 12:10:23"
     }
   }
 }
