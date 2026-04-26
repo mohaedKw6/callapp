@@ -360,12 +360,13 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 7,
+      "total_calls": 8,
       "phones_called": [
         "967771282329",
         "967781528914",
         "967784800247",
-        "967779958555"
+        "967779958555",
+        "967777189801"
       ]
     },
     "5534488473": {
@@ -1433,6 +1434,20 @@
       "first_seen": "2026-04-26 16:13:10",
       "total_calls": 0,
       "phones_called": []
+    },
+    "6727266552": {
+      "username": "",
+      "first_name": "'𝕸ُٖ𝖔ًُُٕ𝖍ْـ𝕾ٍَٕ𝖆ٍ𝖑26𝖃\"",
+      "first_seen": "2026-04-26 17:48:38",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "6177600657": {
+      "username": "",
+      "first_name": "ونعم بالله",
+      "first_seen": "2026-04-26 17:50:37",
+      "total_calls": 0,
+      "phones_called": []
     }
   },
   "all_calls": [
@@ -1899,6 +1914,32 @@
       "status": "ended",
       "ip_address": "31.31.176.225",
       "timestamp": "2026-04-26 16:01:59"
+    },
+    {
+      "call_id": "b9589088864cdba7",
+      "user_id": "7627857345",
+      "to": "+967777189801",
+      "from": "+447577351295",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-26 17:42:09",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.176.225",
+      "timestamp": "2026-04-26 17:42:09"
+    },
+    {
+      "call_id": "b9589088864cdba7",
+      "user_id": "7627857345",
+      "to": "+967777189801",
+      "from": "+447577351295",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-26 17:42:09",
+      "end_time": "2026-04-26 17:42:59",
+      "duration": 19,
+      "status": "ended",
+      "ip_address": "31.31.176.225",
+      "timestamp": "2026-04-26 17:42:59"
     }
   ],
   "all_phones": {
@@ -2088,6 +2129,14 @@
         "7627857345"
       ],
       "last_call": "2026-04-26 16:01:59"
+    },
+    "967777189801": {
+      "first_call": "2026-04-26 17:42:09",
+      "total_calls": 1,
+      "users_called": [
+        "7627857345"
+      ],
+      "last_call": "2026-04-26 17:42:59"
     }
   }
 }
