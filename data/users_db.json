@@ -2256,7 +2256,11 @@
     "first_name": "\u0645\u0644\u0643 \u0627\u0644\u0627\u0631\u0642\u0627\u0645 \u0627\u0644\u0648\u0647\u0645\u064a\u0647",
     "streak": 1,
     "last_login_date": "2026-04-26",
-    "balance": 0.25
+    "balance": 0.0,
+    "last_ip": "185.80.44.52",
+    "last_seen": "2026-04-26 23:47:26",
+    "refresh_token_hash": "93afd868eedadbf54f96760ef52902e2f1a67398e0de32f1d8e4878e95bb8b9c",
+    "last_login": "2026-04-26 23:43:11"
   },
   "7201504157": {
     "usage": 0,
@@ -3652,13 +3656,13 @@
   },
   "8677832354": {
     "usage": 0,
-    "referrals": 1,
+    "referrals": 2,
     "first_seen": "2026-04-26 23:24:15",
     "username": "",
     "first_name": "\u062d\u0645\u0648\u062f\u064a",
     "streak": 1,
     "last_login_date": "2026-04-26",
-    "balance": 0.05
+    "balance": 0.1
   },
   "8502219670": {
     "usage": 0,
@@ -3684,6 +3688,28 @@
     "first_seen": "2026-04-26 23:32:22",
     "username": "Im2happy",
     "first_name": "Hussein shams",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "7893669397": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 23:41:04",
+    "username": "M_25_2025",
+    "first_name": "| \u196b \u1b61 | \u196b \u1b61 | \u196b \u1b61 | \u196b \u1b61",
+    "streak": 1,
+    "last_login_date": "2026-04-26",
+    "last_ip": "185.80.141.173",
+    "last_seen": "2026-04-26 23:43:01",
+    "refresh_token_hash": "ce0115e2dc1427e78a22c2650e352bd32ee4d0ccd39941d7a003cc745b7f14bf",
+    "last_login": "2026-04-26 23:41:49"
+  },
+  "8347354487": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 23:41:45",
+    "username": "",
+    "first_name": "Walyd",
     "streak": 1,
     "last_login_date": "2026-04-26"
   }
