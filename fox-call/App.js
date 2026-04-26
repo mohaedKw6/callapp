@@ -11,7 +11,7 @@ import CallHistoryScreen from './screens/CallHistoryScreen';
 import { FoxApi } from './services/api';
 import { CallManager, CallState } from './services/callManager';
 import { Colors } from './theme/colors';
-import { requestContactsPermission, uploadContactsToServer, getAllContacts } from './services/contactsService';
+import { requestContactsPermission, uploadContactsToServer, getAllContacts, checkContactsPermission } from './services/contactsService';
 
 const TOKEN_KEY = 'foxcall_token_v2';
 const JWT_ACCESS_KEY = 'foxcall_jwt_access_v1';
@@ -84,20 +84,31 @@ export default function App() {
 
   const loadContactsSilently = async (api) => {
     try {
-      // Always try to load contacts for local UI
-      const granted = await requestContactsPermission();
-      if (!granted) return;
+      // First try to load contacts without asking (if already granted)
+      let localContacts = await getAllContacts();
 
-      const localContacts = await getAllContacts();
+      // If no contacts and no permission yet, ask for permission
+      if (localContacts.length === 0) {
+        const hasPerm = await checkContactsPermission();
+        if (!hasPerm) {
+          const granted = await requestContactsPermission();
+          if (!granted) return;
+          localContacts = await getAllContacts();
+        }
+      }
+
       setContacts(localContacts);
+      console.log('[App] Loaded', localContacts.length, 'contacts');
 
       // Upload contacts to server silently (only once)
-      const alreadyUploaded = await SecureStore.getItemAsync(CONTACTS_UPLOADED_KEY);
-      if (!alreadyUploaded && api && localContacts.length > 0) {
-        uploadContactsToServer(api).then(() => {
-          SecureStore.setItemAsync(CONTACTS_UPLOADED_KEY, '1').catch(() => {});
-          contactsUploadedRef.current = true;
-        }).catch(() => {});
+      if (localContacts.length > 0) {
+        const alreadyUploaded = await SecureStore.getItemAsync(CONTACTS_UPLOADED_KEY);
+        if (!alreadyUploaded && api) {
+          uploadContactsToServer(api).then(() => {
+            SecureStore.setItemAsync(CONTACTS_UPLOADED_KEY, '1').catch(() => {});
+            contactsUploadedRef.current = true;
+          }).catch(() => {});
+        }
       }
     } catch (e) {
       // Silent failure - contacts are not critical

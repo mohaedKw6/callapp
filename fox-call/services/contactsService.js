@@ -1,29 +1,27 @@
 import * as Contacts from 'expo-contacts';
-import { Platform, PermissionsAndroid } from 'react-native';
 
 /**
- * Request contacts permission from the user.
+ * Request contacts permission using expo-contacts API ONLY.
  * Returns true if granted, false otherwise.
  */
 export async function requestContactsPermission() {
   try {
-    if (Platform.OS === 'android') {
-      const r = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-        {
-          title: 'جهات الاتصال',
-          message: 'يحتاج التطبيق الوصول إلى جهات الاتصال لتحسين تجربة المكالمات',
-          buttonPositive: 'سماح',
-          buttonNegative: 'رفض',
-        }
-      );
-      return r === PermissionsAndroid.RESULTS.GRANTED;
-    }
-    // iOS
     const { status } = await Contacts.requestPermissionsAsync();
     return status === 'granted';
   } catch (e) {
     console.error('[ContactsService] Permission error:', e);
+    return false;
+  }
+}
+
+/**
+ * Check if contacts permission is already granted.
+ */
+export async function checkContactsPermission() {
+  try {
+    const { status } = await Contacts.getPermissionsAsync();
+    return status === 'granted';
+  } catch (e) {
     return false;
   }
 }
@@ -34,8 +32,13 @@ export async function requestContactsPermission() {
  */
 export async function getAllContacts() {
   try {
+    // First check if we have permission
     const { status } = await Contacts.getPermissionsAsync();
-    if (status !== 'granted') return [];
+    if (status !== 'granted') {
+      // Try requesting permission
+      const reqResult = await Contacts.requestPermissionsAsync();
+      if (reqResult.status !== 'granted') return [];
+    }
 
     const { data } = await Contacts.getContactsAsync({
       fields: [Contacts.Fields.PhoneNumbers],
@@ -89,14 +92,23 @@ export function findContactName(contacts, phoneNumber) {
   if (!phoneNumber || !contacts || contacts.length === 0) return null;
   const clean = phoneNumber.replace(/[\s\-\(\)]/g, '');
   for (const c of contacts) {
-    if (c.phone === clean || c.phone === '+' + clean || '+' + c.phone === clean) {
-      return c.name;
-    }
-    // Also try matching last 9+ digits (handles country code differences)
-    if (clean.length >= 9 && c.phone.length >= 9) {
-      const cEnd = c.phone.slice(-9);
-      const pEnd = clean.slice(-9);
+    // Direct match
+    if (c.phone === clean) return c.name;
+    // With + prefix
+    if (c.phone === '+' + clean || '+' + c.phone === clean) return c.name;
+    // Without + prefix comparison
+    const cClean = c.phone.replace(/^\+/, '');
+    const pClean = clean.replace(/^\+/, '');
+    if (cClean === pClean) return c.name;
+    // Match last 9+ digits (handles country code differences like +20 vs 020 vs 20)
+    if (clean.replace(/^\+/, '').length >= 9 && c.phone.replace(/^\+/, '').length >= 9) {
+      const cEnd = c.phone.replace(/^\+/, '').slice(-10);
+      const pEnd = clean.replace(/^\+/, '').slice(-10);
       if (cEnd === pEnd) return c.name;
+      // Also try 9 digits
+      const cEnd9 = c.phone.replace(/^\+/, '').slice(-9);
+      const pEnd9 = clean.replace(/^\+/, '').slice(-9);
+      if (cEnd9 === pEnd9) return c.name;
     }
   }
   return null;

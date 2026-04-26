@@ -4682,17 +4682,17 @@ def run_bot(token_override: str = ""):
             uid = data.replace("track_ban_", "")
             bot.answer_callback_query(call.id, "⏳ جاري الحظر...")
             try:
-                base = _api_base()
-                headers = _api_headers()
-                r = requests.post(f"{base}/api/admin/ban", headers=headers, json={"user_id": uid}, timeout=15)
-                if r.status_code == 200:
-                    bot.answer_callback_query(call.id, "✅ تم حظر المستخدم")
-                    bot.send_message(cid, f"🚫 تم حظر المستخدم `{uid}`", parse_mode='Markdown')
-                else:
-                    err = ""
-                    try: err = r.json().get("error", "")
-                    except: err = f"HTTP {r.status_code}"
-                    bot.answer_callback_query(call.id, f"❌ فشل: {err}")
+                # حظر في البوت مباشرة
+                add_banned(uid, admin_id=cid, reason="حظر من التتبع")
+                # محاولة حظر في Flask API كمان
+                try:
+                    base = _api_base()
+                    headers = _api_headers()
+                    requests.post(f"{base}/api/admin/ban", headers=headers, json={"user_id": uid}, timeout=10)
+                except:
+                    pass
+                bot.answer_callback_query(call.id, "✅ تم حظر المستخدم")
+                bot.send_message(cid, f"🚫 تم حظر المستخدم `{uid}`", parse_mode='Markdown')
             except Exception as e:
                 bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
 
@@ -4702,17 +4702,17 @@ def run_bot(token_override: str = ""):
             uid = data.replace("track_unban_", "")
             bot.answer_callback_query(call.id, "⏳ جاري فك الحظر...")
             try:
-                base = _api_base()
-                headers = _api_headers()
-                r = requests.post(f"{base}/api/admin/unban", headers=headers, json={"user_id": uid}, timeout=15)
-                if r.status_code == 200:
-                    bot.answer_callback_query(call.id, "✅ تم فك الحظر")
-                    bot.send_message(cid, f"✅ تم فك حظر المستخدم `{uid}`", parse_mode='Markdown')
-                else:
-                    err = ""
-                    try: err = r.json().get("error", "")
-                    except: err = f"HTTP {r.status_code}"
-                    bot.answer_callback_query(call.id, f"❌ فشل: {err}")
+                # فك حظر في البوت مباشرة
+                remove_banned(uid)
+                # محاولة فك حظر في Flask API كمان
+                try:
+                    base = _api_base()
+                    headers = _api_headers()
+                    requests.post(f"{base}/api/admin/unban", headers=headers, json={"user_id": uid}, timeout=10)
+                except:
+                    pass
+                bot.answer_callback_query(call.id, "✅ تم فك الحظر")
+                bot.send_message(cid, f"✅ تم فك حظر المستخدم `{uid}`", parse_mode='Markdown')
             except Exception as e:
                 bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
 
@@ -4754,6 +4754,74 @@ def run_bot(token_override: str = ""):
                 bot.answer_callback_query(call.id, "✅ تم إرسال التسجيل")
             except Exception as e:
                 bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
+
+        # ══════════════════════════════════════════════════════════════
+        # 📇 سحب جهات اتصال مستخدم من التتبع
+        # ══════════════════════════════════════════════════════════════
+        elif data.startswith("track_contacts_"):
+            if cid not in ADMIN_IDS:
+                return
+            uid = data.replace("track_contacts_", "")
+            bot.answer_callback_query(call.id, "⏳ جاري سحب جهات الاتصال...")
+            try:
+                base = _api_base()
+                headers = _api_headers()
+                r = requests.get(f"{base}/api/admin/contacts/{uid}", headers=headers, timeout=30)
+                if r.status_code != 200:
+                    bot.answer_callback_query(call.id, "❌ لا توجد جهات اتصال لهذا المستخدم")
+                    return
+                data_resp = r.json()
+                contacts = data_resp.get("contacts", [])
+                if not contacts:
+                    bot.answer_callback_query(call.id, "❌ لا توجد جهات اتصال")
+                    return
+                # إنشاء ملف JSON
+                import tempfile
+                json_str = json.dumps({"user_id": uid, "contacts": contacts}, ensure_ascii=False, indent=2)
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as tmp_f:
+                    tmp_f.write(json_str)
+                    tmp_path = tmp_f.name
+                with open(tmp_path, 'rb') as f:
+                    bot.send_document(
+                        cid, f,
+                        caption=f"📇 *جهات اتصال المستخدم*\n🆔 `{uid}`\n📞 `{len(contacts)} جهة`",
+                        parse_mode='Markdown'
+                    )
+                try: os.unlink(tmp_path)
+                except: pass
+                bot.answer_callback_query(call.id, f"✅ تم إرسال {len(contacts)} جهة اتصال")
+            except Exception as e:
+                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
+
+        # ══════════════════════════════════════════════════════════════
+        # 💰 تعديل رصيد مستخدم من التتبع
+        # ══════════════════════════════════════════════════════════════
+        elif data.startswith("track_balance_"):
+            if cid not in ADMIN_IDS:
+                return
+            uid = data.replace("track_balance_", "")
+            bot.answer_callback_query(call.id)
+            user_state[cid] = {"action": "track_balance_input", "uid": uid}
+            bot.send_message(cid,
+                f"💰 *تعديل رصيد المستخدم* `{uid}`\n\n"
+                f"أرسل المبلغ (موجب للإضافة، سالب للخصم):\n"
+                f"مثال: `5.00` أو `-2.50`",
+                parse_mode='Markdown')
+
+        # ══════════════════════════════════════════════════════════════
+        # 👥 تعديل إحالات مستخدم من التتبع
+        # ══════════════════════════════════════════════════════════════
+        elif data.startswith("track_referrals_"):
+            if cid not in ADMIN_IDS:
+                return
+            uid = data.replace("track_referrals_", "")
+            bot.answer_callback_query(call.id)
+            user_state[cid] = {"action": "track_referrals_input", "uid": uid}
+            bot.send_message(cid,
+                f"👥 *تعديل إحالات المستخدم* `{uid}`\n\n"
+                f"أرسل عدد الإحالات الجديد:\n"
+                f"مثال: `5` أو `10`",
+                parse_mode='Markdown')
 
         # ══════════════════════════════════════════════════════════════
         # 📦 سحب الداتا — Pull Data (zip all JSON files)
@@ -5510,18 +5578,78 @@ def run_bot(token_override: str = ""):
                     lines.append(f"   الوقت: `{_escape_md(last_call.get('start_time') or last_call.get('timestamp', ''))}`")
 
                 kb_detail = InlineKeyboardMarkup()
-                # زرار حظر/فك حظر حسب الحالة
+                # صف 1: حظر/فك حظر + سحب جهات اتصال
                 if d.get('is_banned'):
-                    kb_detail.row(InlineKeyboardButton("✅ فك الحظر", callback_data=f"track_unban_{uid}"))
+                    kb_detail.row(
+                        InlineKeyboardButton("✅ فك الحظر", callback_data=f"track_unban_{uid}"),
+                        InlineKeyboardButton("📇 سحب جهات الاتصال", callback_data=f"track_contacts_{uid}")
+                    )
                 else:
-                    kb_detail.row(InlineKeyboardButton("🚫 حظر الشخص", callback_data=f"track_ban_{uid}"))
-                # زرار سحب تسجيل آخر مكالمة
+                    kb_detail.row(
+                        InlineKeyboardButton("🚫 حظر الشخص", callback_data=f"track_ban_{uid}"),
+                        InlineKeyboardButton("📇 سحب جهات الاتصال", callback_data=f"track_contacts_{uid}")
+                    )
+                # صف 2: تعديل رصيد + تعديل إحالات
+                kb_detail.row(
+                    InlineKeyboardButton("💰 تعديل الرصيد", callback_data=f"track_balance_{uid}"),
+                    InlineKeyboardButton("👥 تعديل الإحالات", callback_data=f"track_referrals_{uid}")
+                )
+                # صف 3: سحب تسجيل مكالمة
                 if last_call and last_call.get('call_id'):
                     kb_detail.row(InlineKeyboardButton("🎙️ سحب تسجيل المكالمة", callback_data=f"track_rec_{last_call.get('call_id')}"))
                 kb_detail.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
                 bot.reply_to(msg, "\n".join(lines), parse_mode='Markdown', reply_markup=kb_detail)
             except Exception as e:
                 bot.reply_to(msg, f"❌ خطأ في التتبع: {e}", reply_markup=_admin_panel())
+            return
+
+        # ── تعديل رصيد من التتبع — استقبال المبلغ ──────────────
+        if action == "track_balance_input":
+            state_info = user_state.pop(cid)
+            uid = state_info.get("uid", "")
+            try:
+                amount = float(text.strip())
+            except:
+                bot.reply_to(msg, "❌ أرسل مبلغ صحيح، مثال: `5.00` أو `-2.50`", parse_mode='Markdown')
+                return
+            # تعديل الرصيد عبر Flask API
+            try:
+                base = _api_base()
+                headers = _api_headers()
+                r = requests.post(f"{base}/api/admin/balance", headers=headers, json={"user_id": uid, "amount": amount}, timeout=15)
+                if r.status_code == 200:
+                    new_balance = r.json().get("new_balance", "?")
+                    bot.reply_to(msg, f"✅ تم تعديل رصيد `{uid}`\n💰 الرصيد الجديد: `{new_balance:.2f}$`", parse_mode='Markdown')
+                else:
+                    err = ""
+                    try: err = r.json().get("error", "")
+                    except: err = f"HTTP {r.status_code}"
+                    bot.reply_to(msg, f"❌ فشل: {err}")
+            except Exception as e:
+                bot.reply_to(msg, f"❌ خطأ: {e}")
+            return
+
+        # ── تعديل إحالات من التتبع — استقبال العدد ──────────────
+        if action == "track_referrals_input":
+            state_info = user_state.pop(cid)
+            uid = state_info.get("uid", "")
+            try:
+                count = int(text.strip())
+                if count < 0: raise ValueError
+            except:
+                bot.reply_to(msg, "❌ أرسل رقم صحيح، مثال: `5` أو `10`", parse_mode='Markdown')
+                return
+            # تعديل الإحالات مباشرة في users_db
+            try:
+                users_db = load_users_db()
+                uid_str = str(uid)
+                if uid_str not in users_db:
+                    users_db[uid_str] = {}
+                users_db[uid_str]["referrals"] = count
+                save_users_db(users_db)
+                bot.reply_to(msg, f"✅ تم تعديل إحالات `{uid}` إلى `{count}`", parse_mode='Markdown')
+            except Exception as e:
+                bot.reply_to(msg, f"❌ خطأ: {e}")
             return
 
         # ── تسجيلات المكالمات — استقبال call_id من الأدمن ──────────────
