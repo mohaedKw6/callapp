@@ -3650,6 +3650,10 @@ def _admin_panel():
         InlineKeyboardButton("📤 رفع الداتا", callback_data="admin_data_push")
     )
     kb.add(
+        InlineKeyboardButton("☁️ مزامنة GitHub", callback_data="admin_gh_sync"),
+        InlineKeyboardButton("📥 تحميل من GitHub", callback_data="admin_gh_pull")
+    )
+    kb.add(
         InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="go_start")
     )
 
@@ -4954,6 +4958,64 @@ def run_bot(token_override: str = ""):
             )
 
         # ══════════════════════════════════════════════════════════════
+        # ☁️ مزامنة GitHub — Push all data to GitHub now
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_gh_sync":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "☁️ جاري المزامنة...")
+            try:
+                from github_sync import push_to_github
+                result = push_to_github(force=True)
+                pushed = result.get('pushed', 0)
+                skipped = result.get('skipped', 0)
+                errors = result.get('errors', 0)
+                msg_text = (
+                    f"☁️ *مزامنة GitHub*\n\n"
+                    f"✅ مرفوع: {pushed}\n"
+                    f"⏭️ تم تخطيه: {skipped}\n"
+                    f"❌ أخطاء: {errors}"
+                )
+                bot.send_message(cid, msg_text, parse_mode='Markdown', reply_markup=_admin_panel())
+            except Exception as e:
+                bot.send_message(cid, f"❌ فشل المزامنة: {e}", reply_markup=_admin_panel())
+
+        # ══════════════════════════════════════════════════════════════
+        # 📥 تحميل من GitHub — Pull all data from GitHub now
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_gh_pull":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "📥 جاري التحميل من GitHub...")
+            try:
+                from github_sync import pull_from_github
+                result = pull_from_github()
+                pulled = result.get('pulled', 0)
+                skipped = result.get('skipped', 0)
+                errors = result.get('errors', 0)
+                details = result.get('details', [])
+                msg_text = (
+                    f"📥 *تحميل من GitHub*\n\n"
+                    f"✅ تم تحميل: {pulled}\n"
+                    f"⏭️ تم تخطيه: {skipped}\n"
+                    f"❌ أخطاء: {errors}"
+                )
+                if details:
+                    msg_text += "\n\n📋 التفاصيل:"
+                    for d in details[:10]:
+                        msg_text += f"\n  • {d}"
+                bot.send_message(cid, msg_text, parse_mode='Markdown', reply_markup=_admin_panel())
+                # إعادة تحميل الحسابات بعد التحميل
+                if pulled > 0:
+                    load_accounts()
+                    bd = load_bot_data()
+                    saved_accounts = bd.get("accounts", [])
+                    if saved_accounts:
+                        bot.send_message(cid, f"🔄 تم إعادة تحميل {len(saved_accounts)} حساب")
+            except Exception as e:
+                bot.send_message(cid, f"❌ فشل التحميل: {e}", reply_markup=_admin_panel())
+
+        # ══════════════════════════════════════════════════════════════
         # 🔑 إنشاء توكن — Create Fox Token
         # ══════════════════════════════════════════════════════════════
         elif data == "create_token":
@@ -5363,8 +5425,8 @@ def run_bot(token_override: str = ""):
                     except Exception as _ghe:
                         gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
                     bot.edit_message_text(
-                        f"✅ *تم رفع الملف بنجاح*\n📄 `{base_name}`{gh_msg}",
-                        cid, m.message_id, parse_mode='Markdown')
+                        f"✅ تم رفع الملف بنجاح\n📄 {base_name}{gh_msg}",
+                        cid, m.message_id)
                 except Exception as e:
                     try: bot.edit_message_text(f"❌ خطأ في رفع الملف: {e}", cid, m.message_id)
                     except: bot.reply_to(msg, f"❌ خطأ في رفع الملف: {e}")
@@ -5400,9 +5462,9 @@ def run_bot(token_override: str = ""):
                     bot.edit_message_text(
                         f"❌ الملف مش zip صالح\n"
                         f"📊 الحجم: {file_size_kb:.1f} KB\n"
-                        f"🔢 أول 20 بايت: `{first_bytes}`\n"
+                        f"🔢 أول 20 بايت: {first_bytes}\n"
                         f"💡 جرب تحويل الملف لـ zip ببرنامج ضغط عادي (مش RAR أو 7z)",
-                        cid, m.message_id, parse_mode='Markdown')
+                        cid, m.message_id)
                     try: os.unlink(tmp_zip.name)
                     except: pass
                     return
@@ -5449,15 +5511,19 @@ def run_bot(token_override: str = ""):
                         gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
                 # نتيجة
                 if replaced:
-                    result_lines = [f"✅ *تم رفع الداتا بنجاح*", f"", f"📁 الملفات المستبدلة ({len(replaced)}):"]
+                    result_lines = [f"✅ تم رفع الداتا بنجاح", f"", f"📁 الملفات المستبدلة ({len(replaced)}):"]
                     for fn in replaced:
-                        result_lines.append(f"  ✅ `{fn}`")
+                        result_lines.append(f"  ✅ {fn}")
                     if errors:
                         result_lines.append(f"\n❌ أخطاء ({len(errors)}):")
                         for err in errors:
                             result_lines.append(f"  ❌ {err}")
                     result_lines.append(gh_msg)
-                    bot.edit_message_text("\n".join(result_lines), cid, m.message_id, parse_mode='Markdown')
+                    try:
+                        bot.edit_message_text("\n".join(result_lines), cid, m.message_id)
+                    except Exception:
+                        # fallback لو في أحرف خاصة
+                        bot.send_message(cid, "✅ تم رفع الداتا بنجاح", reply_markup=_admin_panel())
                 else:
                     msg_text = "❌ لم يتم العثور على ملفات صالحة في الـ zip"
                     if errors:
@@ -5465,7 +5531,7 @@ def run_bot(token_override: str = ""):
                     bot.edit_message_text(msg_text, cid, m.message_id)
             except Exception as e:
                 try: bot.edit_message_text(f"❌ خطأ في رفع الداتا: {e}", cid, m.message_id)
-                except: bot.reply_to(msg, f"❌ خطأ في رفع الداتا: {e}")
+                except: bot.reply_to(msg, "❌ خطأ في رفع الداتا")
             return
 
         # نتحقق إن الملف اسمه Dan.json
