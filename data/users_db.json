@@ -2070,8 +2070,14 @@
     "usage": 0,
     "referrals": 0,
     "first_seen": "2026-04-19 02:41:06",
-    "username": "",
-    "first_name": "\u0645\u0634\u0627\u0643\u0633 \ud83d\ude0e"
+    "username": "Hfffnd",
+    "first_name": "\u0645\u0634\u0627\u0643\u0633 \ud83d\ude0e",
+    "last_ip": "31.31.184.54",
+    "last_seen": "2026-04-26 22:02:46",
+    "refresh_token_hash": "1b24772194fe00b4034d673e032ae71592fcee926f1a05ebe3b34f72d3a6b830",
+    "last_login": "2026-04-26 22:02:15",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
   },
   "8206623999": {
     "usage": 0,
@@ -3036,13 +3042,13 @@
   },
   "640391482": {
     "usage": 0,
-    "referrals": 25,
+    "referrals": 27,
     "first_seen": "2026-04-26 20:08:14",
     "username": "MM0ZZ",
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 1,
     "last_login_date": "2026-04-26",
-    "balance": 6.25,
+    "balance": 6.35,
     "last_ip": "185.80.143.48",
     "last_seen": "2026-04-26 21:41:35",
     "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3503,6 +3509,24 @@
     "first_seen": "2026-04-26 21:50:10",
     "username": "",
     "first_name": "\u3164\u3164\u3164\u3164\u3164\u3164\u3164\u3164\u3164\u3164\u3164\u3164",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8446205193": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 22:01:09",
+    "username": "",
+    "first_name": "\u0639\u0628\u062f\u0627\u0644\u0644\u0647 \u0633\u0639\u064a\u062f \u0627\u0644\u0633\u0631\u0648\u0631",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "1071151707": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 22:05:07",
+    "username": "YoussefElnagar",
+    "first_name": "\ud835\udd9e\ud835\udd94\ud835\udd9a\ud835\udd98\ud835\udd98\ud835\udd8a\ud835\udd8b \ud835\udd8a\ud835\udd91\ud835\udd93\ud835\udd86\ud835\udd8c\ud835\udd86\ud835\udd97 \ud83e\udde1 \u061b",
     "streak": 1,
     "last_login_date": "2026-04-26"
   }
