@@ -6382,8 +6382,15 @@ if __name__ == "__main__":
         if len(sys.argv) > 1 and ':' in sys.argv[1]:
             BOT_TOKEN = sys.argv[1]
 
-        # 🗂️ Initialize data directory (critical for Railway volumes)
+        # 🗂️ Step 1: Initialize data directory (create defaults if missing)
         _init_data_dir()
+
+        # 🌐 Step 2: Pull latest data from GitHub (overwrites local with remote)
+        try:
+            from github_sync import init_github_sync
+            init_github_sync()
+        except Exception as _ghe:
+            print(f"[startup] ⚠️ GitHub sync init failed: {_ghe}")
 
         load_accounts()
 
@@ -6397,4 +6404,10 @@ if __name__ == "__main__":
 
         run_bot()
     except KeyboardInterrupt:
+        # 🌐 Final push to GitHub before shutdown
+        try:
+            from github_sync import stop_auto_sync
+            stop_auto_sync()
+        except Exception:
+            pass
         print("\nتم الإيقاف")
