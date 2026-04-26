@@ -2764,10 +2764,70 @@
     },
     "7741911277": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 2,
       "first_seen": "2026-04-26 13:42:36",
       "username": "oooooooooo1469",
       "first_name": ".... ....",
+      "streak": 1,
+      "last_login_date": "2026-04-26",
+      "balance": 0.1,
+      "dtmf": {
+        "0": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "hangup",
+          "label": "📴 قطع المكالمة",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      }
+    },
+    "8292857659": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 13:56:09",
+      "username": "oooonnnn1379",
+      "first_name": ".♥♥♥",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8667138815": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 13:57:32",
+      "username": "",
+      "first_name": "@nasr.",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "7549035361": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 14:01:16",
+      "username": "",
+      "first_name": "M M",
       "streak": 1,
       "last_login_date": "2026-04-26"
     }
