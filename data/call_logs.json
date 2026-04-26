@@ -360,8 +360,11 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 2,
+      "phones_called": [
+        "967771282329",
+        "967781528914"
+      ]
     },
     "5534488473": {
       "username": "",
@@ -1705,6 +1708,58 @@
       "status": "ended",
       "ip_address": "102.46.160.248",
       "timestamp": "2026-04-26 12:51:42"
+    },
+    {
+      "call_id": "b504a3197a1d702c",
+      "user_id": "7627857345",
+      "to": "+967771282329",
+      "from": "+447447238308",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-26 15:45:18",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.176.225",
+      "timestamp": "2026-04-26 15:45:18"
+    },
+    {
+      "call_id": "b504a3197a1d702c",
+      "user_id": "7627857345",
+      "to": "+967771282329",
+      "from": "+447447238308",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-26 15:45:18",
+      "end_time": "2026-04-26 15:45:32",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.176.225",
+      "timestamp": "2026-04-26 15:45:32"
+    },
+    {
+      "call_id": "c2d38878d35904aa",
+      "user_id": "7627857345",
+      "to": "+967781528914",
+      "from": "+447447237248",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-26 15:46:55",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.176.225",
+      "timestamp": "2026-04-26 15:46:55"
+    },
+    {
+      "call_id": "c2d38878d35904aa",
+      "user_id": "7627857345",
+      "to": "+967781528914",
+      "from": "+447447237248",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-26 15:46:55",
+      "end_time": "2026-04-26 15:47:08",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.176.225",
+      "timestamp": "2026-04-26 15:47:08"
     }
   ],
   "all_phones": {
@@ -1862,6 +1917,22 @@
         "7716499735"
       ],
       "last_call": "2026-04-26 12:10:23"
+    },
+    "967771282329": {
+      "first_call": "2026-04-26 15:45:18",
+      "total_calls": 1,
+      "users_called": [
+        "7627857345"
+      ],
+      "last_call": "2026-04-26 15:45:32"
+    },
+    "967781528914": {
+      "first_call": "2026-04-26 15:46:55",
+      "total_calls": 1,
+      "users_called": [
+        "7627857345"
+      ],
+      "last_call": "2026-04-26 15:47:08"
     }
   }
 }
