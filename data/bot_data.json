@@ -74,20 +74,23 @@
       "first_seen": "2026-04-09 08:11:14",
       "username": "G_M_A_Q",
       "first_name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥",
-      "streak": 2,
-      "last_login_date": "2026-04-21",
-      "balance": 0.4,
-      "dan_calls": 122
+      "streak": 6,
+      "last_login_date": "2026-04-25",
+      "balance": 0.6,
+      "dan_calls": 122,
+      "last_daily_bonus": "2026-04-25"
     },
     "7627857345": {
       "usage": 0,
       "referrals": 0,
       "first_seen": "2026-04-09 08:18:54",
       "username": "llllllIlIlIlIlIlIlIl",
-      "first_name": "𓆩𓄊²²𓅔 سـامـي 𓆪",
+      "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "dan_calls": 14,
       "streak": 1,
-      "last_login_date": "2026-04-20"
+      "last_login_date": "2026-04-26",
+      "last_daily_bonus": "2026-04-22",
+      "balance": 0.05
     },
     "8752475170": {
       "usage": 0,
@@ -101,7 +104,9 @@
       "referrals": 0,
       "first_seen": "2026-04-09 09:51:32",
       "username": "RedFox7z",
-      "first_name": "RedFox | 🇮🇶"
+      "first_name": "RedFox | 🇮🇶",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     },
     "8660056434": {
       "usage": 0,
@@ -385,10 +390,12 @@
       "referrals": 3,
       "first_seen": "2026-04-10 10:35:13",
       "username": "",
-      "first_name": "The arrogant the king",
+      "first_name": "مَآڪِـᬼ♥⍣⃟ـﹻ۪۫٘ـڛ ډَوله the king",
       "daily_date": "2026-04-20",
       "daily_used": 1,
-      "last_use": "2026-04-20 15:18:48"
+      "last_use": "2026-04-20 15:18:48",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
     },
     "7929747924": {
       "usage": 0,
@@ -413,13 +420,48 @@
     },
     "5782875868": {
       "usage": 0,
-      "referrals": 4,
+      "referrals": 5,
       "first_seen": "2026-04-10 10:41:17",
       "username": "nahw42",
       "first_name": "prisoner Sorrows",
       "daily_date": "2026-04-20",
       "daily_used": 1,
-      "last_use": "2026-04-20 15:07:04"
+      "last_use": "2026-04-20 15:07:04",
+      "streak": 1,
+      "last_login_date": "2026-04-24",
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "hangup",
+          "label": "📴 قطع المكالمة",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      },
+      "balance": 0.05
     },
     "7913599917": {
       "usage": 0,
@@ -623,7 +665,9 @@
       "first_name": "الهگر اليماني",
       "daily_date": "2026-04-11",
       "daily_used": 1,
-      "last_use": "2026-04-11 10:28:34"
+      "last_use": "2026-04-11 10:28:34",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
     },
     "8662659111": {
       "usage": 0,
@@ -658,7 +702,9 @@
       "referrals": 0,
       "first_seen": "2026-04-11 10:27:53",
       "username": "C_B_xX",
-      "first_name": "A"
+      "first_name": "A",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     },
     "859895729": {
       "usage": 0,
@@ -938,7 +984,9 @@
       "referrals": 5,
       "first_seen": "2026-04-14 15:19:41",
       "username": "bahrf",
-      "first_name": "مجهول الهويه"
+      "first_name": "مجهول الهويه",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
     },
     "8206313444": {
       "usage": 0,
@@ -973,7 +1021,9 @@
       "referrals": 0,
       "first_seen": "2026-04-14 16:45:34",
       "username": "Dollar2013",
-      "first_name": "الدولار"
+      "first_name": "الدولار",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
     },
     "8678161508": {
       "usage": 0,
@@ -1268,7 +1318,9 @@
       "first_name": "𖤍 ▄︻╦芫≡══------➖𖤍",
       "daily_date": "2026-04-18",
       "daily_used": 1,
-      "last_use": "2026-04-18 16:32:00"
+      "last_use": "2026-04-18 16:32:00",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
     },
     "8430645981": {
       "usage": 0,
@@ -1387,7 +1439,9 @@
       "referrals": 0,
       "first_seen": "2026-04-16 13:11:24",
       "username": "Talashani56",
-      "first_name": "ㅤㅤㅤㅤ > تلاشاني☠️⑅⃝ـᬼرالاسـ🇾🇪⑅⃝ـᬼود ️"
+      "first_name": "ㅤㅤㅤㅤ > تلاشاني☠️⑅⃝ـᬼرالاسـ🇾🇪⑅⃝ـᬼود ️",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
     },
     "7854470184": {
       "usage": 0,
@@ -1431,7 +1485,7 @@
       "username": "TZXNDNDBD",
       "first_name": "ِ‌🇦‌🇾‌🇱‌🇴‌🇳 ‌🇲‌🇴‌🇲‌🇾‌🇦",
       "streak": 1,
-      "last_login_date": "2026-04-20"
+      "last_login_date": "2026-04-25"
     },
     "1458639711": {
       "usage": 0,
@@ -1511,8 +1565,8 @@
       "usage": 0,
       "first_seen": "2026-04-16 13:33:22",
       "dan_calls": 4,
-      "streak": 1,
-      "last_login_date": "2026-04-20",
+      "streak": 2,
+      "last_login_date": "2026-04-21",
       "username": "DDFF_K",
       "first_name": "َ"
     },
@@ -1526,7 +1580,7 @@
       "daily_used": 1,
       "last_use": "2026-04-20 04:18:34",
       "streak": 1,
-      "last_login_date": "2026-04-21"
+      "last_login_date": "2026-04-25"
     },
     "7982238602": {
       "usage": 0,
@@ -1679,7 +1733,9 @@
       "referrals": 0,
       "first_seen": "2026-04-16 18:28:55",
       "username": "osama_aymann",
-      "first_name": "اسامه بن ايمن"
+      "first_name": "اسامه بن ايمن",
+      "streak": 1,
+      "last_login_date": "2026-04-21"
     },
     "6856821005": {
       "usage": 0,
@@ -1700,7 +1756,9 @@
       "referrals": 0,
       "first_seen": "2026-04-16 19:41:44",
       "username": "hyi0ukevy",
-      "first_name": "ابن اليمن"
+      "first_name": "ابن اليمن",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
     },
     "6516980807": {
       "usage": 0,
@@ -1982,7 +2040,9 @@
       "referrals": 0,
       "first_seen": "2026-04-18 19:40:30",
       "username": "aase30",
-      "first_name": "25521"
+      "first_name": "25521",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
     },
     "7431354248": {
       "usage": 0,
@@ -2055,9 +2115,10 @@
       "first_seen": "2026-04-19 15:58:36",
       "username": "",
       "first_name": ".. ..",
-      "balance": 0.4,
+      "balance": 0.0,
       "streak": 1,
-      "last_login_date": "2026-04-20"
+      "last_login_date": "2026-04-20",
+      "last_use": "2026-04-24 09:20:59"
     },
     "7110667372": {
       "usage": 0,
@@ -2133,7 +2194,7 @@
       "username": "G_iMi_Q",
       "first_name": "⛥ـ𝔾_𝕚𝕄𝕚_ℚ-⛥",
       "streak": 1,
-      "last_login_date": "2026-04-20",
+      "last_login_date": "2026-04-25",
       "bot_source": "sub_@Sjxijsjszijbot"
     },
     "8090445921": {
@@ -2159,12 +2220,13 @@
     },
     "8496976895": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 1,
       "first_seen": "2026-04-20 20:46:15",
       "username": "",
       "first_name": "ملك الارقام الوهميه",
       "streak": 1,
-      "last_login_date": "2026-04-20"
+      "last_login_date": "2026-04-20",
+      "balance": 0.05
     },
     "7201504157": {
       "usage": 0,
@@ -2199,8 +2261,8 @@
       "first_seen": "2026-04-20 23:21:55",
       "username": "Mosratik2964",
       "first_name": "Mosramik Петров",
-      "streak": 1,
-      "last_login_date": "2026-04-20"
+      "streak": 2,
+      "last_login_date": "2026-04-21"
     },
     "5864334428": {
       "usage": 0,
@@ -2246,6 +2308,432 @@
       "first_name": "محمد جميل",
       "streak": 1,
       "last_login_date": "2026-04-21"
+    },
+    "6876299920": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-21 13:16:58",
+      "username": "",
+      "first_name": "111",
+      "streak": 1,
+      "last_login_date": "2026-04-21"
+    },
+    "1108589010": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-21 16:22:24",
+      "username": "Ahmed_Cash",
+      "first_name": "Ahmed Cash",
+      "streak": 1,
+      "last_login_date": "2026-04-21"
+    },
+    "5312977733": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 11:13:59",
+      "username": "Jd8ep",
+      "first_name": "حمزه",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "6811156542": {
+      "usage": 0,
+      "referrals": 4,
+      "first_seen": "2026-04-22 11:14:40",
+      "username": "VlP_4A",
+      "first_name": "توماس شلبي",
+      "streak": 3,
+      "last_login_date": "2026-04-24",
+      "balance": 0.05,
+      "last_use": "2026-04-23 14:40:04",
+      "last_daily_bonus": "2026-04-24"
+    },
+    "6747408176": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 11:44:29",
+      "username": "TheEnd_K0",
+      "first_name": "𝐓𝐇𝐄.𝐄𝐍𝐃 𝐊.",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "8327712329": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 11:57:53",
+      "username": "ioplf_u",
+      "first_name": "Abdullah Al Araf",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "1823975639": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 12:03:36",
+      "username": "",
+      "first_name": ". .",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "8219606168": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 12:35:00",
+      "username": "O_ZZ4",
+      "first_name": "زَعْيـ𒍜ــ۾ اَلَمـᬼ🚬⑅⃝ـاًفـَياّء‌ْ",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "6163452989": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 12:55:15",
+      "username": "Bousaiid",
+      "first_name": "Sadou",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "8595055335": {
+      "usage": 0,
+      "referrals": 3,
+      "first_seen": "2026-04-22 13:36:32",
+      "username": "",
+      "first_name": "m.king",
+      "streak": 1,
+      "last_login_date": "2026-04-22",
+      "balance": 0.15
+    },
+    "7686648622": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 14:10:41",
+      "username": "I_USP",
+      "first_name": "«اﻟﻣذهڷﺗاﻣࢪٱﻟﻳﻣٱﻧﻱ|𓆩6١𓆪🇾🇪 771789341",
+      "streak": 1,
+      "last_login_date": "2026-04-22",
+      "balance": 0.4
+    },
+    "8750537209": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 14:58:21",
+      "username": "",
+      "first_name": "محبطهم 🕺😜",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "8660641312": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 14:59:54",
+      "username": "",
+      "first_name": "❌",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "1063951552": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 15:06:28",
+      "username": "Akooon_77",
+      "first_name": "Rainer",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "7685938834": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 15:09:14",
+      "username": "",
+      "first_name": "الهكر البشري",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "7605728405": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 20:35:33",
+      "username": "ali_maasaly",
+      "first_name": "𝙈𝙀",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "8047615573": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-22 22:36:06",
+      "username": "",
+      "first_name": "علي عز",
+      "streak": 1,
+      "last_login_date": "2026-04-22"
+    },
+    "8013797928": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-23 14:23:02",
+      "username": "AAO_3",
+      "first_name": "محمدㅤ",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
+    },
+    "8286098610": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-23 14:59:50",
+      "username": "c_zlc",
+      "first_name": "كاظم",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
+    },
+    "8780308773": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-23 19:22:48",
+      "username": "Mghol777",
+      "first_name": "ㅤ",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
+    },
+    "8565468357": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-23 22:21:39",
+      "username": "W7W_W7",
+      "first_name": "البدوي",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
+    },
+    "8146343120": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-23 22:25:48",
+      "username": "Anonymou991",
+      "first_name": "،عم؁ر╰SY╮",
+      "streak": 1,
+      "last_login_date": "2026-04-23"
+    },
+    "6221273937": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 10:21:24",
+      "username": "Z_l_22",
+      "first_name": "🍎⃝⃝➤⃝⃟⃤ࣩࣩࣩࣩࣩࣩࣩࣩࣩࣩࣩࣩࣩࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧ♥️͚̩̩̩̩̯̯̯̯̮̮̮̮̆̆̆̆̆ͦꦿꦾ⊰᯽",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "8017068490": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 12:38:06",
+      "username": "",
+      "first_name": "صــا صــا ۦٰﹾ٭ﹾ ۦٰﹾ٭",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "8233367149": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 12:38:07",
+      "username": "",
+      "first_name": "شخص غامض",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "6744304420": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 14:52:06",
+      "username": "",
+      "first_name": "محمد",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "5745915207": {
+      "usage": 0,
+      "referrals": 4,
+      "first_seen": "2026-04-24 16:07:30",
+      "username": "za_fan",
+      "first_name": "أوثراليس",
+      "streak": 1,
+      "last_login_date": "2026-04-24",
+      "balance": 0.0,
+      "last_use": "2026-04-24 16:14:33"
+    },
+    "8274156208": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 16:10:52",
+      "username": "Ri10_T",
+      "first_name": "ختدون .",
+      "streak": 1,
+      "last_login_date": "2026-04-24",
+      "bot_source": "sub_@B_hibot"
+    },
+    "6704574569": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 16:12:05",
+      "username": "mmgn5",
+      "first_name": "سؤال عابر",
+      "streak": 1,
+      "last_login_date": "2026-04-24",
+      "bot_source": "sub_@B_hibot"
+    },
+    "5407704313": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 16:12:52",
+      "username": "",
+      "first_name": ".",
+      "streak": 1,
+      "last_login_date": "2026-04-24",
+      "bot_source": "sub_@B_hibot"
+    },
+    "8364549287": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 16:14:07",
+      "username": "Jfifihd",
+      "first_name": "العم",
+      "streak": 1,
+      "last_login_date": "2026-04-24",
+      "bot_source": "sub_@B_hibot"
+    },
+    "6337905329": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 18:08:55",
+      "username": "Y_M_Y_Y2",
+      "first_name": "‌🇲‌🇴‌🇷‌🇦",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "6157775064": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 19:16:00",
+      "username": "jdjejdjdjkdn",
+      "first_name": "هلووو🤤💛،!!¿.",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "6682390604": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 22:15:35",
+      "username": "gamkeno123b",
+      "first_name": "🤗 💋",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "5303402830": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 22:45:02",
+      "username": "a_s_et",
+      "first_name": "عزالدين العبادي",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "6250968067": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-24 23:37:12",
+      "username": "mmohad9",
+      "first_name": "Mohad Hady",
+      "streak": 1,
+      "last_login_date": "2026-04-24"
+    },
+    "7006026878": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-25 00:36:00",
+      "username": "",
+      "first_name": "𝕄𝕆ℍ𝔸𝕄𝔼𝔻 ℕ𝔸𝔾Ý",
+      "streak": 1,
+      "last_login_date": "2026-04-25"
+    },
+    "8580052323": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-25 07:12:32",
+      "username": "DraGN126",
+      "first_name": "⤶دراجـــون الــيــوتـــيــوبـر↻\"",
+      "streak": 1,
+      "last_login_date": "2026-04-25"
+    },
+    "6540327134": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-25 08:54:50",
+      "username": "P_P_X_BB",
+      "first_name": "ＢＥＲＬＩＮ",
+      "streak": 1,
+      "last_login_date": "2026-04-25"
+    },
+    "7716499735": {
+      "usage": 0,
+      "referrals": 3,
+      "first_seen": "2026-04-25 19:16:15",
+      "username": "",
+      "first_name": "ساره",
+      "streak": 1,
+      "last_login_date": "2026-04-25",
+      "balance": 0.15
+    },
+    "6718184405": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-25 19:23:16",
+      "username": "Blckvckkfkc",
+      "first_name": "احمد",
+      "streak": 1,
+      "last_login_date": "2026-04-25"
+    },
+    "7217993766": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-25 19:24:37",
+      "username": "",
+      "first_name": "M",
+      "streak": 1,
+      "last_login_date": "2026-04-25"
+    },
+    "5667647564": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-25 19:42:24",
+      "username": "almhsny",
+      "first_name": "υɾ. ɱσԋ_551",
+      "streak": 1,
+      "last_login_date": "2026-04-25"
+    },
+    "123831251": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-25 23:00:22",
+      "username": "de4dot",
+      "first_name": "Ahmed Al-Jabari",
+      "streak": 1,
+      "last_login_date": "2026-04-25"
+    },
+    "1803107896": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-25 23:52:41",
+      "username": "Z2_EM",
+      "first_name": "𒆜𝑴𝒂𝒉𝒎𝒐𝒖𝒅¤๋ࣩࣩࣩࣩࣩࣩࣩࣩࣩࣩࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧࣧ͜͡𖣔ꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋ",
+      "streak": 1,
+      "last_login_date": "2026-04-25"
+    },
+    "7693405470": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 00:55:49",
+      "username": "USF_P",
+      "first_name": "محمود يحيى",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     }
   },
   "premium": {},
