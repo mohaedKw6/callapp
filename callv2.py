@@ -4872,14 +4872,21 @@ def run_bot(token_override: str = ""):
             try:
                 import zipfile
                 import tempfile
-                # الملفات المطلوبة
+                # الملفات المطلوبة (موافقة لـ github_sync.py SYNC_FILES)
                 data_files = [
+                    "bot_data.json",
                     "telicall_accounts.json",
                     "users_db.json",
                     "premium_db.json",
-                    "bot_data.json",
+                    "banned_db.json",
                     "tokens_cache.json",
                     "call_logs.json",
+                    "security_strikes.json",
+                    "contacts_db.json",
+                    "monthly_subs.json",
+                    "dtmf_settings.json",
+                    "sub_bots.json",
+                    "failed_accounts.json",
                 ]
                 # إنشاء ملف zip مؤقت
                 tmp_zip = tempfile.NamedTemporaryFile(mode='w', suffix='.zip', delete=False)
@@ -4919,7 +4926,9 @@ def run_bot(token_override: str = ""):
             kb_back = InlineKeyboardMarkup()
             kb_back.row(InlineKeyboardButton("🔙 إلغاء", callback_data="admin_panel"))
             bot.edit_message_text(
-                "📤 *رفع الداتا*\n\nأرسل ملف الـ zip اللي استلمته من سحب الداتا\nهيتم استبدال كل الملفات بالجديدة:",
+                "📤 *رفع الداتا*\n\nأرسل ملف zip أو ملف JSON واحد\nهيتم استبدال الملفات بالجديدة ورفعها على GitHub فوراً:\n\n"
+                "📦 ملف zip: استلمته من سحب الداتا\n"
+                "📄 ملف JSON: ملف واحد من القائمة",
                 cid, call.message.message_id,
                 parse_mode='Markdown', reply_markup=kb_back
             )
@@ -5280,52 +5289,144 @@ def run_bot(token_override: str = ""):
         doc = msg.document
         fname = doc.file_name or ""
 
-        # ═══ رفع الداتا (zip) — Data Push ═══
+        # ═══ رفع الداتا (zip أو json) — Data Push ═══
         state = user_state.get(cid, {})
         if state.get("action") == "admin_data_push_input" and cid in ADMIN_IDS:
             user_state.pop(cid, None)
+            # قائمة الملفات المسموحة (موافقة لـ github_sync.py SYNC_FILES)
+            allowed_data_files = [
+                "bot_data.json",
+                "telicall_accounts.json",
+                "users_db.json",
+                "premium_db.json",
+                "banned_db.json",
+                "tokens_cache.json",
+                "call_logs.json",
+                "security_strikes.json",
+                "contacts_db.json",
+                "monthly_subs.json",
+                "dtmf_settings.json",
+                "sub_bots.json",
+                "failed_accounts.json",
+            ]
+            # ─── رفع ملف JSON واحد ───
+            if fname.lower().endswith('.json'):
+                m = bot.reply_to(msg, "⏳ جاري رفع ملف JSON...")
+                try:
+                    file_info = bot.get_file(doc.file_id)
+                    file_bytes = bot.download_file(file_info.file_path)
+                    # التحقق من إنه JSON صالح
+                    try:
+                        json.loads(file_bytes.decode('utf-8'))
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        bot.edit_message_text("❌ الملف مش JSON صالح", cid, m.message_id)
+                        return
+                    # التحقق من الاسم
+                    base_name = os.path.basename(fname)
+                    if base_name not in allowed_data_files:
+                        bot.edit_message_text(
+                            f"❌ الملف `{base_name}` مش في القائمة المسموحة\n"
+                            f"الملفات المسموحة: {', '.join(allowed_data_files)}",
+                            cid, m.message_id, parse_mode='Markdown')
+                        return
+                    # حفظ الملف
+                    dest = os.path.join(DATA_DIR, base_name)
+                    with open(dest, 'wb') as f:
+                        f.write(file_bytes)
+                    # رفع على GitHub فوراً
+                    gh_msg = ""
+                    try:
+                        from github_sync import push_to_github
+                        gh_result = push_to_github(force=True)
+                        gh_pushed = gh_result.get('pushed', 0)
+                        gh_msg = f"\n☁️ GitHub: {gh_pushed} ملف تم رفعه"
+                    except Exception as _ghe:
+                        gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
+                    bot.edit_message_text(
+                        f"✅ *تم رفع الملف بنجاح*\n📄 `{base_name}`{gh_msg}",
+                        cid, m.message_id, parse_mode='Markdown')
+                except Exception as e:
+                    try: bot.edit_message_text(f"❌ خطأ في رفع الملف: {e}", cid, m.message_id)
+                    except: bot.reply_to(msg, f"❌ خطأ في رفع الملف: {e}")
+                return
+            # ─── رفع ملف ZIP ───
             if not fname.lower().endswith('.zip'):
-                bot.reply_to(msg, "❌ لازم تبعت ملف zip فقط", reply_markup=_admin_panel())
+                bot.reply_to(msg, "❌ لازم تبعت ملف zip أو ملف json فقط", reply_markup=_admin_panel())
                 return
             m = bot.reply_to(msg, "⏳ جاري رفع الداتا...")
             try:
                 import zipfile
                 import tempfile
+                # تحميل الملف من Telegram
                 file_info = bot.get_file(doc.file_id)
-                url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
-                r = requests.get(url, timeout=60)
-                if r.status_code != 200:
-                    bot.edit_message_text("❌ فشل تحميل الملف", cid, m.message_id)
+                file_bytes = bot.download_file(file_info.file_path)
+
+                # التحقق من حجم الملف
+                if len(file_bytes) < 4:
+                    bot.edit_message_text("❌ الملف فارغ أو تالف (حجمه أقل من 4 بايت)", cid, m.message_id)
                     return
+
                 # حفظ الملف مؤقتاً
                 tmp_zip = tempfile.NamedTemporaryFile(mode='wb', suffix='.zip', delete=False)
-                tmp_zip.write(r.content)
+                tmp_zip.write(file_bytes)
+                tmp_zip.flush()
                 tmp_zip.close()
+
+                # التحقق من إنه zip صالح
+                if not zipfile.is_zipfile(tmp_zip.name):
+                    # محاولة فك تشفير base64 أو بيانات ثنائية تالفة
+                    file_size_kb = len(file_bytes) / 1024
+                    first_bytes = file_bytes[:20].hex() if file_bytes else 'empty'
+                    bot.edit_message_text(
+                        f"❌ الملف مش zip صالح\n"
+                        f"📊 الحجم: {file_size_kb:.1f} KB\n"
+                        f"🔢 أول 20 بايت: `{first_bytes}`\n"
+                        f"💡 جرب تحويل الملف لـ zip ببرنامج ضغط عادي (مش RAR أو 7z)",
+                        cid, m.message_id, parse_mode='Markdown')
+                    try: os.unlink(tmp_zip.name)
+                    except: pass
+                    return
+
                 # فك الضغط واستبدال الملفات
-                data_files = [
-                    "telicall_accounts.json",
-                    "users_db.json",
-                    "premium_db.json",
-                    "bot_data.json",
-                    "tokens_cache.json",
-                    "call_logs.json",
-                ]
                 replaced = []
                 errors = []
                 with zipfile.ZipFile(tmp_zip.name, 'r') as zf:
                     for fname_in_zip in zf.namelist():
-                        if fname_in_zip in data_files:
+                        # تجاهل المجلدات والملفات المخفية
+                        if fname_in_zip.endswith('/') or fname_in_zip.startswith('.'):
+                            continue
+                        # استخراج اسم الملف فقط (بدون مسار)
+                        base_name = os.path.basename(fname_in_zip)
+                        if not base_name:
+                            continue
+                        if base_name in allowed_data_files:
                             try:
                                 content = zf.read(fname_in_zip)
-                                dest = os.path.join(DATA_DIR, fname_in_zip)
+                                # التحقق من إنه JSON صالح
+                                try:
+                                    json.loads(content.decode('utf-8'))
+                                except (json.JSONDecodeError, UnicodeDecodeError):
+                                    errors.append(f"{base_name}: مش JSON صالح")
+                                    continue
+                                dest = os.path.join(DATA_DIR, base_name)
                                 with open(dest, 'wb') as f:
                                     f.write(content)
-                                replaced.append(fname_in_zip)
+                                replaced.append(base_name)
                             except Exception as e:
-                                errors.append(f"{fname_in_zip}: {e}")
+                                errors.append(f"{base_name}: {e}")
                 # تنظيف
                 try: os.unlink(tmp_zip.name)
                 except: pass
+                # رفع على GitHub فوراً
+                gh_msg = ""
+                if replaced:
+                    try:
+                        from github_sync import push_to_github
+                        gh_result = push_to_github(force=True)
+                        gh_pushed = gh_result.get('pushed', 0)
+                        gh_msg = f"\n☁️ GitHub: {gh_pushed} ملف تم رفعه"
+                    except Exception as _ghe:
+                        gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
                 # نتيجة
                 if replaced:
                     result_lines = [f"✅ *تم رفع الداتا بنجاح*", f"", f"📁 الملفات المستبدلة ({len(replaced)}):"]
@@ -5335,9 +5436,13 @@ def run_bot(token_override: str = ""):
                         result_lines.append(f"\n❌ أخطاء ({len(errors)}):")
                         for err in errors:
                             result_lines.append(f"  ❌ {err}")
+                    result_lines.append(gh_msg)
                     bot.edit_message_text("\n".join(result_lines), cid, m.message_id, parse_mode='Markdown')
                 else:
-                    bot.edit_message_text("❌ لم يتم العثور على ملفات صالحة في الـ zip", cid, m.message_id)
+                    msg_text = "❌ لم يتم العثور على ملفات صالحة في الـ zip"
+                    if errors:
+                        msg_text += "\n" + "\n".join([f"❌ {e}" for e in errors])
+                    bot.edit_message_text(msg_text, cid, m.message_id)
             except Exception as e:
                 try: bot.edit_message_text(f"❌ خطأ في رفع الداتا: {e}", cid, m.message_id)
                 except: bot.reply_to(msg, f"❌ خطأ في رفع الداتا: {e}")
