@@ -902,10 +902,11 @@
       "username": "G_iMi_Q",
       "first_name": "⛥ـ𝔾_𝕚𝕄𝕚_ℚ-⛥",
       "first_seen": "2026-04-20 20:16:33",
-      "total_calls": 1,
+      "total_calls": 2,
       "phones_called": [
         "201118975909",
-        "201010100279"
+        "201010100279",
+        "201157904192"
       ]
     },
     "8090445921": {
@@ -1765,6 +1766,27 @@
       "first_seen": "2026-04-26 20:24:28",
       "total_calls": 0,
       "phones_called": []
+    },
+    "6898195588": {
+      "username": "Xl5_i",
+      "first_name": "سِيަلف֛ـزًࢪ˹͓‌",
+      "first_seen": "2026-04-26 20:33:07",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "8140894368": {
+      "username": "",
+      "first_name": "@loris",
+      "first_seen": "2026-04-26 20:35:42",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "7079928334": {
+      "username": "h89541",
+      "first_name": "حسين علي موحي",
+      "first_seen": "2026-04-26 20:35:48",
+      "total_calls": 0,
+      "phones_called": []
     }
   },
   "all_calls": [
@@ -2296,6 +2318,32 @@
       "status": "started",
       "ip_address": "102.46.160.248",
       "timestamp": "2026-04-26 19:41:45"
+    },
+    {
+      "call_id": "5c4fe40d48ceea99",
+      "user_id": "6594705905",
+      "to": "+201157904192",
+      "from": "+447577351542",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-26 20:30:54",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "102.46.160.248",
+      "timestamp": "2026-04-26 20:30:54"
+    },
+    {
+      "call_id": "5c4fe40d48ceea99",
+      "user_id": "6594705905",
+      "to": "+201157904192",
+      "from": "+447577351542",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-26 20:30:54",
+      "end_time": "2026-04-26 20:32:20",
+      "duration": 60,
+      "status": "ended",
+      "ip_address": "102.46.160.248",
+      "timestamp": "2026-04-26 20:32:20"
     }
   ],
   "all_phones": {
@@ -2506,6 +2554,14 @@
       "first_call": "2026-04-26 19:41:45",
       "total_calls": 0,
       "users_called": []
+    },
+    "201157904192": {
+      "first_call": "2026-04-26 20:30:54",
+      "total_calls": 1,
+      "users_called": [
+        "6594705905"
+      ],
+      "last_call": "2026-04-26 20:32:20"
     }
   }
 }
