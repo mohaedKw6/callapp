@@ -99,7 +99,7 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
           <View style={S.balStats}>
             <View style={S.balStat}>
               <Ionicons name="call-outline" size={14} color="rgba(255,255,255,0.85)" />
-              <Text style={S.balStatTxt}>${user?.cost?.toFixed(2) ?? '0.20'} للمكالمة</Text>
+              <Text style={S.balStatTxt}>$0.05 غير مرحل | $0.20 مرحل</Text>
             </View>
             <View style={S.balStat}>
               <Ionicons name="layers-outline" size={14} color="rgba(255,255,255,0.85)" />

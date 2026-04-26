@@ -132,6 +132,7 @@ def load_bot_data() -> dict:
         "settings": {
             "required_referrals": 3,   # عدد الإحالات المطلوبة للمكافأة اليومية
             "call_cost": 0.20,         # تكلفة المكالمة الواحدة بالدولار
+            "unanswered_call_cost": 0.05,  # تكلفة المكالمة غير المردودة
             "daily_bonus": 0.10,       # المكافأة اليومية بالدولار
             "referral_bonus": 0.10     # مكافأة كل إحالة بالدولار
         },
@@ -427,6 +428,11 @@ def get_call_cost() -> float:
     """سعر المكالمة بالدولار"""
     bd = load_bot_data()
     return bd.get("settings", {}).get("call_cost", 0.20)
+
+def get_unanswered_call_cost() -> float:
+    """سعر المكالمة غير المردودة (غير مرحلة) بالدولار"""
+    bd = load_bot_data()
+    return bd.get("settings", {}).get("unanswered_call_cost", 0.05)
 
 def get_managed_bot_token(managed_bot_user_id: int) -> str | None:
     """جلب التوكن الخاص بالبوت المدار عبر Telegram API مباشرةً"""
@@ -3498,6 +3504,7 @@ def _main_kb(is_admin=False):
     kb.row(InlineKeyboardButton("🤖 بوتي الخاص", callback_data="my_bots"),
            InlineKeyboardButton("➕ أنشئ بوتاً", callback_data="create_sub_bot"))
     kb.row(InlineKeyboardButton("🏆 لوحة المتصدرين", callback_data="show_leaderboard"))
+    kb.row(InlineKeyboardButton("🔑 إنشاء توكن", callback_data="create_token"))
     kb.row(InlineKeyboardButton("💬 تواصل مع الدعم", url=f"https://t.me/{SUPPORT_USER.replace('@', '')}"))
 
     if is_admin:
@@ -3598,6 +3605,9 @@ def _admin_panel():
         InlineKeyboardButton("🎙️ تسجيلات المكالمات", callback_data="admin_recordings")
     )
     kb.add(
+        InlineKeyboardButton("📱 مستخدمي التطبيق", callback_data="admin_app_users")
+    )
+    kb.add(
         InlineKeyboardButton("📦 سحب الداتا", callback_data="admin_data_pull"),
         InlineKeyboardButton("📤 رفع الداتا", callback_data="admin_data_push")
     )
@@ -3620,6 +3630,16 @@ def _stats_text():
     accounts_count = len(bot_data.get("registered_accounts", []))
     used_count     = len(bot_data.get("used_accounts", []))
     remaining      = max(0, accounts_count - used_count)
+
+    # Count calls made through the app (Flask API)
+    api_call_count = 0
+    try:
+        if os.path.exists(CALL_LOGS_FILE):
+            with open(CALL_LOGS_FILE, 'r', encoding='utf-8') as f:
+                api_logs = json.load(f)
+            api_call_count = len(api_logs.get("all_calls", []))
+    except:
+        pass
 
     active_users = 0
     for uid, data in users_db.items():
@@ -3649,7 +3669,8 @@ def _stats_text():
         f"📱 *النشطين (7 أيام):* `{active_users}`\n"
         f"📂 *حسابات Dan.json:* `{accounts_count}` إجمالي\n"
         f"✅ *متبقية للاستخدام:* `{remaining}`\n"
-        f"🔴 *مستعملة:* `{used_count}`\n\n"
+        f"🔴 *مستعملة:* `{used_count}`\n"
+        f"📞 *مكالمات التطبيق:* `{api_call_count}`\n\n"
         f"📅 *آخر تحديث:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         f"{used_preview}"
     )
@@ -4886,6 +4907,92 @@ def run_bot(token_override: str = ""):
             )
 
         # ══════════════════════════════════════════════════════════════
+        # 🔑 إنشاء توكن — Create Fox Token
+        # ══════════════════════════════════════════════════════════════
+        elif data == "create_token":
+            if is_banned(cid):
+                bot.answer_callback_query(call.id, "🚫 أنت محظور")
+                return
+            try:
+                from foxapp_api import encode_token as _enc_token, PUBLIC_URL as _pub_url
+                fox_token = _enc_token(str(cid), _pub_url)
+                kb_tk = InlineKeyboardMarkup()
+                kb_tk.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
+                bot.send_message(
+                    cid,
+                    f"🔑 *توكن Fox Call الخاص بك:*\n\n`{fox_token}`\n\n"
+                    f"📋 انسخ التوكن وافتح تطبيق Fox Call\n"
+                    f"الصق التوكن في خانة الإدخال واضغط اتصال",
+                    parse_mode='Markdown',
+                    reply_markup=kb_tk
+                )
+                bot.answer_callback_query(call.id, "✅ تم إنشاء التوكن")
+            except Exception as e:
+                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
+                try:
+                    bot.send_message(cid, f"❌ فشل إنشاء التوكن: {e}")
+                except:
+                    pass
+
+        # ══════════════════════════════════════════════════════════════
+        # 📱 مستخدمي التطبيق — App Users
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_app_users":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "⏳ جاري التحميل...")
+            try:
+                users_db = load_users_db()
+                # Find users who logged in via the app (have last_ip or last_login)
+                app_users = {}
+                for uid, data_rec in users_db.items():
+                    has_ip = bool(data_rec.get("last_ip"))
+                    has_login = bool(data_rec.get("last_login"))
+                    has_refresh = bool(data_rec.get("refresh_token_hash"))
+                    if has_ip or has_login or has_refresh:
+                        app_users[uid] = {
+                            "ip": data_rec.get("last_ip", ""),
+                            "last_login": data_rec.get("last_login", ""),
+                            "last_seen": data_rec.get("last_seen", ""),
+                            "balance": data_rec.get("balance", 0),
+                            "first_name": data_rec.get("first_name", ""),
+                            "username": data_rec.get("username", ""),
+                        }
+                
+                if not app_users:
+                    bot.edit_message_text(
+                        "📱 لا يوجد مستخدمين مسجلين عبر التطبيق حتى الآن",
+                        cid, call.message.message_id,
+                        reply_markup=_admin_panel()
+                    )
+                    return
+                
+                lines = [f"📱 *مستخدمي التطبيق ({len(app_users)})*\n\n"]
+                for uid, info in app_users.items():
+                    name = info.get("first_name") or info.get("username") or uid
+                    ip = info.get("ip", "—")
+                    last = info.get("last_login") or info.get("last_seen") or "—"
+                    bal = info.get("balance", 0)
+                    lines.append(f"👤 `{uid}` | {name}")
+                    lines.append(f"   💰 `{bal:.2f}$` | 🌐 `{ip}`")
+                    lines.append(f"   🕐 {last}\n")
+                
+                text = "\n".join(lines)
+                # Split if too long
+                if len(text) > 4000:
+                    text = text[:3990] + "\n..."
+                
+                kb_au = InlineKeyboardMarkup()
+                kb_au.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
+                try:
+                    bot.edit_message_text(text, cid, call.message.message_id,
+                                          parse_mode='Markdown', reply_markup=kb_au)
+                except:
+                    bot.send_message(cid, text, parse_mode='Markdown', reply_markup=kb_au)
+            except Exception as e:
+                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
+
+        # ══════════════════════════════════════════════════════════════
         # ⚙️ زرار الإعدادات — DTMF Actions
         # ══════════════════════════════════════════════════════════════
         elif data == "check_sub":
@@ -6088,7 +6195,19 @@ def run_bot(token_override: str = ""):
                     else:
                         final_msg = "✅ انتهت المكالمة بنجاح!"
                 else:
-                    final_msg = "❌ فشلت المكالمة"
+                    # المكالمة فشلت - نرجع الفرق بين التكلفة الكاملة وتكلفة غير المردودة
+                    if cid not in ADMIN_IDS and not is_premium(cid) and not is_monthly_subscriber(cid):
+                        cost = get_call_cost()
+                        unanswered_cost = get_unanswered_call_cost()
+                        refund = round(cost - unanswered_cost, 2)
+                        if refund > 0:
+                            add_balance(cid, refund)
+                            new_bal = get_user_balance(cid)
+                            final_msg = f"❌ فشلت المكالمة\n💰 تم خصم ${unanswered_cost:.2f} فقط (غير مرحلة)\n💳 رصيدك: ${new_bal:.2f}"
+                        else:
+                            final_msg = "❌ فشلت المكالمة"
+                    else:
+                        final_msg = "❌ فشلت المكالمة"
 
                 bot.send_message(cid, final_msg)
 

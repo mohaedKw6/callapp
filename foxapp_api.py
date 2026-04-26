@@ -473,6 +473,16 @@ def _call_cost() -> float:
         return 0.20
 
 
+def _unanswered_call_cost() -> float:
+    """Cost for an unanswered call (partial charge)."""
+    cv = _cv()
+    try:
+        d = cv.load_bot_data()
+        return float(d.get("settings", {}).get("unanswered_call_cost", 0.05))
+    except Exception:
+        return 0.05
+
+
 def _is_banned(uid: str) -> bool:
     cv = _cv()
     try:
@@ -787,15 +797,16 @@ def api_call_start():
 
     cv = _cv()
     cost = _call_cost()
+    unanswered_cost = _unanswered_call_cost()
     bal = _balance(uid)
-    if bal < cost - 0.001:
+    if bal < unanswered_cost - 0.001:
         return (
             jsonify(
                 {
                     "error": (
                         f"\u0631\u0635\u064a\u062f\u0643 \u0645\u0634 \u0643\u0627\u0641\u064a"
-                        f" ({bal:.2f}$). \u062a\u0643\u0644\u0641\u0629 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629"
-                        f" {cost:.2f}$"
+                        f" ({bal:.2f}$). \u0627\u0644\u062d\u062f \u0627\u0644\u0623\u062f\u0646\u0649"
+                        f" {unanswered_cost:.2f}$"
                     )
                 }
             ),
@@ -876,12 +887,13 @@ def api_call_start():
 
     # Mark the Telicall account token as used
     try:
-        cv.mark_email_used(result.get("email", ""))
+        cv.mark_email_used(result.get("email_used", "") or result.get("email", ""))
     except Exception:
         pass
 
-    # Deduct balance
-    cv.deduct_balance(uid, cost)
+    # Deduct partial balance (unanswered call fee)
+    # If the call is answered, the remaining will be deducted on /api/call/end
+    cv.deduct_balance(uid, unanswered_cost)
 
     # Update bot stats
     try:
@@ -937,6 +949,9 @@ def api_call_start():
             "from": from_num,
             "to": result.get("to", to),
             "balance": _balance(uid),
+            "cost_deducted": round(unanswered_cost, 2),
+            "cost_total": round(cost, 2),
+            "cost_remaining": round(cost - unanswered_cost, 2),
         }
     )
 
@@ -972,6 +987,18 @@ def api_call_end():
             call_id=call_id,
         )
 
+    # Charge remaining amount if call was answered (duration > 0)
+    if duration > 0 and call_info:
+        try:
+            cost = _call_cost()
+            unanswered_cost = _unanswered_call_cost()
+            remaining_charge = round(cost - unanswered_cost, 2)
+            if remaining_charge > 0:
+                cv = _cv()
+                cv.deduct_balance(uid, remaining_charge)
+        except Exception:
+            pass
+
     # Update bot stats
     try:
         cv = _cv()
@@ -983,7 +1010,7 @@ def api_call_end():
     except Exception:
         pass
 
-    return jsonify({"ok": True, "call_id": call_id})
+    return jsonify({"ok": True, "call_id": call_id, "balance": _balance(uid), "answered": duration > 0})
 
 
 @app.post("/api/contacts/upload")
