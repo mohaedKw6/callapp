@@ -2734,7 +2734,11 @@
           "label": "# هاش",
           "enabled": true
         }
-      }
+      },
+      "last_ip": "89.189.71.24",
+      "last_seen": "2026-04-26 20:24:58",
+      "refresh_token_hash": "6392fccbe69b3b3e5e0a09b8f2dbe3229ca7ef8e07534ccf03bcb5a7469794f8",
+      "last_login": "2026-04-26 20:24:57"
     },
     "6718184405": {
       "usage": 0,
@@ -3033,13 +3037,13 @@
     },
     "640391482": {
       "usage": 0,
-      "referrals": 15,
+      "referrals": 20,
       "first_seen": "2026-04-26 20:08:14",
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 5.75,
+      "balance": 6.0,
       "last_ip": "185.80.143.48",
       "last_seen": "2026-04-26 20:12:22",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3225,6 +3229,86 @@
       "first_name": "Rami",
       "streak": 1,
       "last_login_date": "2026-04-26"
+    },
+    "8211136261": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 20:16:10",
+      "username": "Nyrmsx",
+      "first_name": "٪;;الامًبًݛأ ⃟ـᩚ⃐ᬼ‌طِوٌر شِخِصِيُاެا؛؛٪",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "6287823431": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 20:17:48",
+      "username": "AA1i1",
+      "first_name": "ㅤ",
+      "streak": 1,
+      "last_login_date": "2026-04-26",
+      "last_ip": "91.106.43.46",
+      "last_seen": "2026-04-26 20:20:52",
+      "refresh_token_hash": "76a2bbbe46ef2caef00af7f5ab0dbfb9e44e5aab108f3c9bd6b642e99ba1ac32",
+      "last_login": "2026-04-26 20:18:18"
+    },
+    "7608228953": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 20:18:19",
+      "username": "",
+      "first_name": "الشبح المجنون",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8392505108": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 20:19:05",
+      "username": "vmin000",
+      "first_name": "🖤🖇️",
+      "streak": 1,
+      "last_login_date": "2026-04-26",
+      "last_ip": "188.72.13.241",
+      "last_seen": "2026-04-26 20:20:46",
+      "refresh_token_hash": "e997059d35b62ce2706b2f8d945fd51024a268131f186fbc55035aa1524d911a",
+      "last_login": "2026-04-26 20:20:06"
+    },
+    "8318936770": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 20:20:18",
+      "username": "qrwhgwgw",
+      "first_name": "ابوحايم آل الشيخ",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8046167111": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 20:21:25",
+      "username": "mkcjc8",
+      "first_name": "9- ̶A̶r̶r̶o̶g̶a̶n̶t̶",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "6926059919": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 20:21:46",
+      "username": "apooodeee",
+      "first_name": "قاهر العدوان ᡕᠵ᠊ᡃ່࡚ࠢ࠘⸝່ࠡ᠊߯ᡁࠣ࠘᠊᠊ࠢ࠘气亠",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8227915827": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 20:24:28",
+      "username": "Bo_daaaaa",
+      "first_name": "JiNX FiXeD",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     }
   },
   "premium": {},
@@ -3292,8 +3376,8 @@
     }
   },
   "stats": {
-    "total_calls": 338,
-    "success_calls": 152
+    "total_calls": 339,
+    "success_calls": 153
   },
   "voice_labels": {},
   "settings": {
