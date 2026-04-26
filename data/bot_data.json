@@ -2788,8 +2788,8 @@
           "enabled": true
         },
         "9": {
-          "action": "hangup",
-          "label": "📴 قطع المكالمة",
+          "action": "confirm",
+          "label": "✅ موافق",
           "enabled": true
         },
         "*": {
