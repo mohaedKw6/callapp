@@ -71,15 +71,23 @@ except ImportError:
     TELEGRAM_AVAILABLE = False
 
 # ─── Config (كل حاجة من .env) ────────────────────────────────────────────────
-BOT_TOKEN   = (os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "")).strip('"')
+# Railway Variables > .env file > hardcoded fallback
+# الأسبقية: متغيرات Railway > ملف .env > القيمة الافتراضية
+_raw_bot_token = os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "")
+BOT_TOKEN = _raw_bot_token.strip('"').strip("'").strip()
+if not BOT_TOKEN:
+    BOT_TOKEN = "8652490171:AAFAIBW9V9WoeBB9kxcx_YyfMJLbwcavIro"  # fallback
+    print("[config] ⚠️ BOT_TOKEN not in env vars, using hardcoded fallback")
+else:
+    print(f"[config] ✅ BOT_TOKEN loaded from env ({BOT_TOKEN[:10]}...)")
 
 # أدمنات البوت - من ADMIN_IDS في .env (مفصولة بفاصلة)
-_admin_ids_str = os.environ.get("ADMIN_IDS", "962731079,7627857345").strip('"')
+_admin_ids_str = os.environ.get("ADMIN_IDS", "962731079,7627857345").strip('"').strip("'").strip()
 ADMIN_IDS = [int(x.strip()) for x in _admin_ids_str.split(",") if x.strip().isdigit()]
 
-SUPPORT_USER = os.environ.get("SUPPORT_USER", "@G_M_A_Q").strip('"')
+SUPPORT_USER = os.environ.get("SUPPORT_USER", "@G_M_A_Q").strip('"').strip("'").strip()
 
-API_URL = os.environ.get("API_URL", "https://api.telicall.com").strip('"')
+API_URL = os.environ.get("API_URL", "https://api.telicall.com").strip('"').strip("'").strip()
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__file__) else os.getcwd()
 
 # ─── Persistent Data Directory ──────────────────────────────────────────────────
@@ -90,7 +98,7 @@ DATA_DIR = os.environ.get("DATA_DIR", os.path.join(SCRIPT_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
 ACCOUNTS_FILE = os.path.join(DATA_DIR, "telicall_accounts.json")
-ACCOUNTS_PASSWORD = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"')   # كلمة سر ملف الحسابات
+ACCOUNTS_PASSWORD = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"').strip("'").strip()   # كلمة سر ملف الحسابات
 
 def _acc_key():
     return hashlib.sha256(ACCOUNTS_PASSWORD.encode()).digest()

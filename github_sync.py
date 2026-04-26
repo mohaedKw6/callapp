@@ -36,10 +36,15 @@ log = logging.getLogger("gh-sync")
 #  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-GH_TOKEN    = os.environ.get("GH_TOKEN", "").strip()
-GH_REPO     = os.environ.get("GH_REPO", "MohamedQM/callapp").strip()
-GH_BRANCH   = os.environ.get("GH_BRANCH", "main").strip()
-GH_DATA_DIR = os.environ.get("GH_DATA_DIR", "data").strip()
+GH_TOKEN    = os.environ.get("GH_TOKEN", "").strip('"').strip("'").strip()
+if not GH_TOKEN:
+    GH_TOKEN = "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"  # fallback
+    log.warning("[gh-sync] ⚠️ GH_TOKEN not in env vars, using hardcoded fallback")
+else:
+    log.info("[gh-sync] ✅ GH_TOKEN loaded from env (%s...)", GH_TOKEN[:8])
+GH_REPO     = os.environ.get("GH_REPO", "MohamedQM/callapp").strip('"').strip("'").strip()
+GH_BRANCH   = os.environ.get("GH_BRANCH", "main").strip('"').strip("'").strip()
+GH_DATA_DIR = os.environ.get("GH_DATA_DIR", "data").strip('"').strip("'").strip()
 DATA_DIR    = os.environ.get("DATA_DIR", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "data"
 ))

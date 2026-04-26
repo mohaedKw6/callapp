@@ -42,7 +42,7 @@ log = logging.getLogger("fox-app")
 #  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-SHARED_SECRET = os.environ.get("SHARED_SECRET", "FOXCALL_2026_SHARED_SECRET_v1").strip('"')
+SHARED_SECRET = os.environ.get("SHARED_SECRET", "FOXCALL_2026_SHARED_SECRET_v1").strip('"').strip("'").strip()
 REPLIT_API_URL = (
     "https://3bdef2f4-6a1f-4c7d-af7c-73040d9e35ab-00-2dvjd113zga7x"
     ".sisko.replit.dev"
