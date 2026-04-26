@@ -1832,7 +1832,9 @@
           "action": "notify",
           "label": "📳 إشعار فقط"
         }
-      }
+      },
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     },
     "7602646843": {
       "usage": 0,
@@ -3593,6 +3595,19 @@
       "first_name": "⌯ 𓏺🫆 حـمـد ﴾\"<\\>|TR\"﴿",
       "streak": 1,
       "last_login_date": "2026-04-26"
+    },
+    "6802618214": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:07:41",
+      "username": "AJLT_N",
+      "first_name": "Abdo bdair",
+      "streak": 1,
+      "last_login_date": "2026-04-26",
+      "last_ip": "41.199.112.249",
+      "last_seen": "2026-04-26 23:10:29",
+      "refresh_token_hash": "0a2a31049a5993848fd7d86c4bbdf4106ef2f21d5d070cf8618a101a49cd4008",
+      "last_login": "2026-04-26 23:09:47"
     }
   },
   "premium": {},
