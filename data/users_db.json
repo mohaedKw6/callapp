@@ -2733,7 +2733,11 @@
         "label": "# \u0647\u0627\u0634",
         "enabled": true
       }
-    }
+    },
+    "last_ip": "89.189.71.24",
+    "last_seen": "2026-04-26 20:24:58",
+    "refresh_token_hash": "6392fccbe69b3b3e5e0a09b8f2dbe3229ca7ef8e07534ccf03bcb5a7469794f8",
+    "last_login": "2026-04-26 20:24:57"
   },
   "6718184405": {
     "usage": 0,
@@ -3032,13 +3036,13 @@
   },
   "640391482": {
     "usage": 0,
-    "referrals": 15,
+    "referrals": 20,
     "first_seen": "2026-04-26 20:08:14",
     "username": "MM0ZZ",
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 1,
     "last_login_date": "2026-04-26",
-    "balance": 5.75,
+    "balance": 6.0,
     "last_ip": "185.80.143.48",
     "last_seen": "2026-04-26 20:12:22",
     "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3222,6 +3226,86 @@
     "first_seen": "2026-04-26 20:12:00",
     "username": "rami010110",
     "first_name": "Rami",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8211136261": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 20:16:10",
+    "username": "Nyrmsx",
+    "first_name": "\u066a;;\u0627\u0644\u0627\u0645\u064b\u0628\u064b\u075b\u0623 \u20df\u0640\u1a5a\u20d0\u1b3c\u200c\u0637\u0650\u0648\u064c\u0631 \u0634\u0650\u062e\u0650\u0635\u0650\u064a\u064f\u0627\u07ac\u0627\u061b\u061b\u066a",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "6287823431": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 20:17:48",
+    "username": "AA1i1",
+    "first_name": "\u3164",
+    "streak": 1,
+    "last_login_date": "2026-04-26",
+    "last_ip": "91.106.43.46",
+    "last_seen": "2026-04-26 20:20:52",
+    "refresh_token_hash": "76a2bbbe46ef2caef00af7f5ab0dbfb9e44e5aab108f3c9bd6b642e99ba1ac32",
+    "last_login": "2026-04-26 20:18:18"
+  },
+  "7608228953": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 20:18:19",
+    "username": "",
+    "first_name": "\u0627\u0644\u0634\u0628\u062d \u0627\u0644\u0645\u062c\u0646\u0648\u0646",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8392505108": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 20:19:05",
+    "username": "vmin000",
+    "first_name": "\ud83d\udda4\ud83d\udd87\ufe0f",
+    "streak": 1,
+    "last_login_date": "2026-04-26",
+    "last_ip": "188.72.13.241",
+    "last_seen": "2026-04-26 20:20:46",
+    "refresh_token_hash": "e997059d35b62ce2706b2f8d945fd51024a268131f186fbc55035aa1524d911a",
+    "last_login": "2026-04-26 20:20:06"
+  },
+  "8318936770": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 20:20:18",
+    "username": "qrwhgwgw",
+    "first_name": "\u0627\u0628\u0648\u062d\u0627\u064a\u0645 \u0622\u0644 \u0627\u0644\u0634\u064a\u062e",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8046167111": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 20:21:25",
+    "username": "mkcjc8",
+    "first_name": "9- \u0336A\u0336r\u0336r\u0336o\u0336g\u0336a\u0336n\u0336t\u0336",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "6926059919": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 20:21:46",
+    "username": "apooodeee",
+    "first_name": "\u0642\u0627\u0647\u0631 \u0627\u0644\u0639\u062f\u0648\u0627\u0646 \u1855\u1835\u180a\u1843\u085a\u0822\u0818\u0ec8\u2e1d\u0ec8\u0821\u180a\u07ef\u1841\u0823\u0818\u180a\u180a\u0822\u0818\u6c14\u4ea0",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8227915827": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 20:24:28",
+    "username": "Bo_daaaaa",
+    "first_name": "JiNX FiXeD",
     "streak": 1,
     "last_login_date": "2026-04-26"
   }
