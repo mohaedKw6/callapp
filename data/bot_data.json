@@ -2206,7 +2206,7 @@
       "bot_source": "sub_@Sjxijsjszijbot",
       "balance": 0.9,
       "last_ip": "102.46.160.248",
-      "last_seen": "2026-04-26 19:41:44",
+      "last_seen": "2026-04-26 19:44:47",
       "refresh_token_hash": "201a4fa7152440a5474686ff274971adc6d77b7c955b16fab34bd552ec4d9307",
       "last_login": "2026-04-26 19:37:53"
     },
@@ -2694,7 +2694,39 @@
       "last_login_date": "2026-04-26",
       "balance": 0.15,
       "last_use": "2026-04-26 17:54:51",
-      "successful_calls": 1
+      "successful_calls": 1,
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      }
     },
     "6718184405": {
       "usage": 0,
@@ -2941,7 +2973,7 @@
   },
   "stats": {
     "total_calls": 338,
-    "success_calls": 148
+    "success_calls": 149
   },
   "voice_labels": {},
   "settings": {
