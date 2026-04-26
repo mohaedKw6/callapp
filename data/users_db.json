@@ -2073,7 +2073,7 @@
     "username": "Hfffnd",
     "first_name": "\u0645\u0634\u0627\u0643\u0633 \ud83d\ude0e",
     "last_ip": "31.31.184.54",
-    "last_seen": "2026-04-26 22:02:46",
+    "last_seen": "2026-04-26 22:09:15",
     "refresh_token_hash": "1b24772194fe00b4034d673e032ae71592fcee926f1a05ebe3b34f72d3a6b830",
     "last_login": "2026-04-26 22:02:15",
     "streak": 1,
@@ -3042,13 +3042,13 @@
   },
   "640391482": {
     "usage": 0,
-    "referrals": 27,
+    "referrals": 28,
     "first_seen": "2026-04-26 20:08:14",
     "username": "MM0ZZ",
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 1,
     "last_login_date": "2026-04-26",
-    "balance": 6.35,
+    "balance": 6.4,
     "last_ip": "185.80.143.48",
     "last_seen": "2026-04-26 21:41:35",
     "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3527,6 +3527,24 @@
     "first_seen": "2026-04-26 22:05:07",
     "username": "YoussefElnagar",
     "first_name": "\ud835\udd9e\ud835\udd94\ud835\udd9a\ud835\udd98\ud835\udd98\ud835\udd8a\ud835\udd8b \ud835\udd8a\ud835\udd91\ud835\udd93\ud835\udd86\ud835\udd8c\ud835\udd86\ud835\udd97 \ud83e\udde1 \u061b",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "7977720465": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 22:09:10",
+    "username": "",
+    "first_name": ".. ...",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8534140152": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 22:17:17",
+    "username": "alghazaliu711",
+    "first_name": "\u0627\u0628\u0640\u0338\u0640\u06e7\u0640\u0640\u0f74\u0640\u0627\u20e0\u0642\u08aa\u0635\u0640\u0338\u0640\u06e7\u2e19\u0640\u0671\u0646\u064f",
     "streak": 1,
     "last_login_date": "2026-04-26"
   }
