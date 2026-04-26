@@ -3043,13 +3043,13 @@
     },
     "640391482": {
       "usage": 0,
-      "referrals": 30,
+      "referrals": 31,
       "first_seen": "2026-04-26 20:08:14",
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 6.5,
+      "balance": 6.55,
       "last_ip": "185.80.143.48",
       "last_seen": "2026-04-26 21:41:35",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3566,6 +3566,33 @@
       "first_name": "↓ابـــ™ــو° حـــ™ـمــد↑",
       "streak": 1,
       "last_login_date": "2026-04-26"
+    },
+    "8390086897": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 22:57:55",
+      "username": "C_33_M",
+      "first_name": "𝓗𝓪𝓶𝓸𝓭𝔂🖤",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8202826451": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 22:59:23",
+      "username": "kjhg674",
+      "first_name": "محمد الاهدل",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "1786031358": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:00:37",
+      "username": "TO_LS",
+      "first_name": "⌯ 𓏺🫆 حـمـد ﴾\"<\\>|TR\"﴿",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     }
   },
   "premium": {},
@@ -3634,7 +3661,7 @@
   },
   "stats": {
     "total_calls": 339,
-    "success_calls": 155
+    "success_calls": 156
   },
   "voice_labels": {},
   "settings": {
