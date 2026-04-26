@@ -2521,7 +2521,7 @@
     "username": "W7W_W7",
     "first_name": "\u0627\u0644\u0628\u062f\u0648\u064a",
     "streak": 1,
-    "last_login_date": "2026-04-23"
+    "last_login_date": "2026-04-26"
   },
   "8146343120": {
     "usage": 0,
@@ -3036,13 +3036,13 @@
   },
   "640391482": {
     "usage": 0,
-    "referrals": 23,
+    "referrals": 24,
     "first_seen": "2026-04-26 20:08:14",
     "username": "MM0ZZ",
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 1,
     "last_login_date": "2026-04-26",
-    "balance": 6.15,
+    "balance": 6.2,
     "last_ip": "185.80.143.48",
     "last_seen": "2026-04-26 20:12:22",
     "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3392,12 +3392,13 @@
   },
   "8582137727": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 1,
     "first_seen": "2026-04-26 20:52:30",
     "username": "Gahdjjbd",
     "first_name": "\u062c\u0647\u0627\u062f \u0627\u0644\u0642\u062d\u0637\u0627\u0646\u064a",
     "streak": 1,
-    "last_login_date": "2026-04-26"
+    "last_login_date": "2026-04-26",
+    "balance": 0.05
   },
   "7550709838": {
     "usage": 0,
@@ -3443,5 +3444,48 @@
     "first_name": "\u0645\u062c\u0647\u0648\u0644",
     "streak": 1,
     "last_login_date": "2026-04-26"
+  },
+  "8209835953": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 21:23:04",
+    "username": "",
+    "first_name": "\ud835\ude4d\ud835\ude3c\ud835\ude46\ud835\ude3c\ud835\ude49\u08aa\u0671\ufedb\u0640|\u0640\u0627\u0646\u0650 \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud835\ude4d\ud835\ude3c\ud835\ude46\ud835\ude3c\ud835\ude49\u08aa\u0671\ufedb\u0640|\u0640\u0627\u0646\u0650 \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d \ud81a\udd0d",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8230508271": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 21:24:36",
+    "username": "taha345g",
+    "first_name": "\u0627\u0644\u0637\u0648\u0641\u0627\u0646",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8050236744": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 21:26:13",
+    "username": "GDYEUBFW",
+    "first_name": "\u0635\u0639\u0644\u0648\u0643 \u2655\u2661",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "7510688652": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 21:28:06",
+    "username": "XFX_R",
+    "first_name": "\ud835\udde2\ud835\uddea\ud835\udde1\ud835\uddd8\ud835\udde5",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "7137369709": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 21:32:54",
+    "username": "im5aR",
+    "first_name": "Rami Rami"
   }
 }
