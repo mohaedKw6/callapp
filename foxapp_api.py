@@ -576,7 +576,7 @@ def _admin_panel():
 
 @app.get("/api/health")
 def _health():
-    return {"ok": True, "service": "callapp-bot", "version": "2.0.0"}
+    return {"ok": True, "service": "callapp-bot", "version": "3.0.0"}
 
 
 # ─── Auth endpoints ─────────────────────────────────────────────────────────
