@@ -76,7 +76,7 @@
       "first_name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥",
       "streak": 6,
       "last_login_date": "2026-04-25",
-      "balance": 0.6,
+      "balance": 5.6,
       "dan_calls": 122,
       "last_daily_bonus": "2026-04-25",
       "last_ip": "102.46.160.248",
@@ -2195,9 +2195,10 @@
       "first_seen": "2026-04-20 20:16:33",
       "username": "G_iMi_Q",
       "first_name": "⛥ـ𝔾_𝕚𝕄𝕚_ℚ-⛥",
-      "streak": 1,
-      "last_login_date": "2026-04-25",
-      "bot_source": "sub_@Sjxijsjszijbot"
+      "streak": 2,
+      "last_login_date": "2026-04-26",
+      "bot_source": "sub_@Sjxijsjszijbot",
+      "balance": 1.0
     },
     "8090445921": {
       "usage": 0,
@@ -2814,8 +2815,8 @@
     }
   },
   "stats": {
-    "total_calls": 326,
-    "success_calls": 130
+    "total_calls": 327,
+    "success_calls": 131
   },
   "voice_labels": {},
   "settings": {
@@ -4116,7 +4117,8 @@
     "foyole2716@whyknapp.com",
     "fisey74244@pbsan.com",
     "sidate7024@uscopt.com",
-    "teliw30847@wianbv.com"
+    "teliw30847@wianbv.com",
+    "rilepa3721@uscopt.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
