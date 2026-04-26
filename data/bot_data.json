@@ -1140,7 +1140,9 @@
       "referrals": 0,
       "first_seen": "2026-04-14 18:33:32",
       "username": "u_1lr",
-      "first_name": "【﻿VOID】"
+      "first_name": "【﻿VOID】",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     },
     "7043815546": {
       "usage": 0,
@@ -3651,12 +3653,13 @@
     },
     "8677832354": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 1,
       "first_seen": "2026-04-26 23:24:15",
       "username": "",
       "first_name": "حمودي",
       "streak": 1,
-      "last_login_date": "2026-04-26"
+      "last_login_date": "2026-04-26",
+      "balance": 0.05
     },
     "8502219670": {
       "usage": 0,
@@ -3664,6 +3667,24 @@
       "first_seen": "2026-04-26 23:24:29",
       "username": "",
       "first_name": "مرام",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "7873353699": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:30:19",
+      "username": "",
+      "first_name": "....",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8765700272": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:32:22",
+      "username": "Im2happy",
+      "first_name": "Hussein shams",
       "streak": 1,
       "last_login_date": "2026-04-26"
     }
@@ -3733,8 +3754,8 @@
     }
   },
   "stats": {
-    "total_calls": 339,
-    "success_calls": 156
+    "total_calls": 341,
+    "success_calls": 164
   },
   "voice_labels": {},
   "settings": {
@@ -5040,7 +5061,8 @@
     "yopewab388@uscopt.com",
     "xexip89124@xnudeart.com",
     "ceboyib317@xnudeart.com",
-    "medote3095@uscopt.com"
+    "medote3095@uscopt.com",
+    "pavavi7951@pbsan.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
