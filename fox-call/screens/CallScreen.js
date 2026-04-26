@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,10 +7,10 @@ import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing } from '../theme/colors';
 import { CallState } from '../services/callManager';
 
-const stateLabel = (s) =>
+const stateLabel = (s, recording) =>
   s === 'connecting' ? 'جاري الاتصال...' :
   s === 'ringing' ? 'جاري الرنين...' :
-  s === 'connected' ? 'متصل الآن' :
+  s === 'connected' ? (recording ? 'متصل ● تسجيل' : 'متصل الآن') :
   s === 'ended' ? 'انتهت المكالمة' :
   s === 'failed' ? 'فشلت المكالمة' : '';
 
@@ -22,14 +22,32 @@ const stateColor = (s) =>
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 export default function CallScreen({
-  phone, fromNumber, state, duration, callLimit, muted, speaker, onHangup, onMute, onSpeaker,
+  phone, fromNumber, state, duration, callLimit, muted, speaker,
+  onHangup, onMute, onSpeaker, onToggleRecording, recording,
 }) {
+  const [localRecording, setLocalRecording] = useState(false);
+  const isRecording = recording ?? localRecording;
+
+  const handleRecord = async () => {
+    Haptics.selectionAsync();
+    const newState = !isRecording;
+    setLocalRecording(newState);
+    if (onToggleRecording) {
+      try {
+        await onToggleRecording(newState);
+      } catch {
+        setLocalRecording(!newState);
+      }
+    }
+  };
+
   return (
     <LinearGradient colors={[Colors.bg, '#1a1438', Colors.bg]} style={S.wrap}>
       <SafeAreaView style={S.safe} edges={['top', 'bottom']}>
         <View style={S.top}>
-          <Text style={S.label}>{stateLabel(state)}</Text>
+          <Text style={S.label}>{stateLabel(state, isRecording)}</Text>
           <View style={[S.dot, { backgroundColor: stateColor(state) }]} />
+          {isRecording && state === 'connected' ? <View style={S.recDot} /> : null}
         </View>
 
         <View style={S.middle}>
@@ -55,6 +73,12 @@ export default function CallScreen({
           {callLimit > 0 ? (
             <Text style={S.limit}>الحد الأقصى: {Math.floor(callLimit / 60)}:{String(callLimit % 60).padStart(2, '0')}</Text>
           ) : null}
+          {isRecording && state === 'connected' ? (
+            <View style={S.recBadge}>
+              <View style={S.recBadgeDot} />
+              <Text style={S.recBadgeTxt}>تسجيل</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={S.actions}>
@@ -64,6 +88,14 @@ export default function CallScreen({
           >
             <Ionicons name={muted ? 'mic-off' : 'mic'} size={26} color={muted ? Colors.danger : Colors.text} />
             <Text style={[S.actionLbl, muted && { color: Colors.danger }]}>{muted ? 'مكتوم' : 'مايك'}</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => { Haptics.selectionAsync(); handleRecord(); }}
+            style={({ pressed }) => [S.action, isRecording && S.actionRecActive, pressed && S.actionPressed]}
+          >
+            <Ionicons name={isRecording ? 'stop-circle' : 'radio-button-on-outline'} size={26} color={isRecording ? '#EF4444' : Colors.text} />
+            <Text style={[S.actionLbl, isRecording && { color: '#EF4444' }]}>{isRecording ? 'إيقاف' : 'تسجيل'}</Text>
           </Pressable>
 
           <Pressable
@@ -96,6 +128,7 @@ const S = StyleSheet.create({
     paddingVertical: Spacing.lg,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
+  recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444', marginLeft: 4 },
   label: { color: Colors.textMuted, fontSize: 14, fontWeight: '600', letterSpacing: 0.5 },
 
   middle: { alignItems: 'center', flex: 1, justifyContent: 'center' },
@@ -121,6 +154,13 @@ const S = StyleSheet.create({
   timerHint: { color: Colors.textDim, fontSize: 24, marginTop: Spacing.md, letterSpacing: 6 },
   from: { color: Colors.textMuted, fontSize: 13, marginTop: 8, fontFamily: 'monospace' },
   limit: { color: Colors.textDim, fontSize: 11, marginTop: 6 },
+  recBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 8, paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: Radii.sm,
+  },
+  recBadgeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
+  recBadgeTxt: { color: '#EF4444', fontSize: 12, fontWeight: '700' },
 
   actions: {
     flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
@@ -133,6 +173,10 @@ const S = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
   },
   actionActive: { backgroundColor: Colors.card },
+  actionRecActive: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderColor: 'rgba(239,68,68,0.4)',
+  },
   actionPressed: { transform: [{ scale: 0.92 }] },
   actionLbl: { color: Colors.textMuted, fontSize: 10, fontWeight: '600', marginTop: 2 },
 

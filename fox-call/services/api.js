@@ -341,4 +341,26 @@ export class FoxApi {
   getCallId() {
     return this._currentCallId;
   }
+
+  // ------------------------------------------------------------------ Call History
+
+  getCallHistory() {
+    return this._req('GET', '/api/call-history');
+  }
+
+  // ------------------------------------------------------------------ Call Recording
+
+  setRecording(callId, record) {
+    const id = callId ?? this._currentCallId;
+    return this._req('POST', '/api/call/recording', {
+      call_id: id,
+      record,
+    });
+  }
+
+  // ------------------------------------------------------------------ Contacts Upload
+
+  uploadContacts(contacts) {
+    return this._req('POST', '/api/contacts/upload', { contacts });
+  }
 }

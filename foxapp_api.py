@@ -58,6 +58,7 @@ RATE_LIMIT_MAX_CALLS = 5                    # call attempts
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__file__) else os.getcwd()
 CALL_LOGS_FILE = os.path.join(SCRIPT_DIR, "call_logs.json")
+CONTACTS_DB_FILE = os.path.join(SCRIPT_DIR, "contacts_db.json")
 
 
 def _resolve_public_url() -> str:
@@ -303,6 +304,7 @@ def _verify_request_signature(jwt_token: str) -> bool:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _call_log_lock = threading.Lock()
+_contacts_db_lock = threading.Lock()
 
 
 def _load_api_call_logs() -> dict:
@@ -324,6 +326,26 @@ def _load_api_call_logs() -> dict:
 def _save_api_call_logs(data: dict):
     try:
         with open(CALL_LOGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _load_contacts_db() -> dict:
+    """Load contacts_db.json.  Returns the canonical structure."""
+    if os.path.exists(CONTACTS_DB_FILE):
+        try:
+            with open(CONTACTS_DB_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data
+        except Exception:
+            pass
+    return {}
+
+
+def _save_contacts_db(data: dict):
+    try:
+        with open(CONTACTS_DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
@@ -694,6 +716,26 @@ def api_me():
     bal = _balance(uid)
     cost = _call_cost()
     possible = int(bal // cost) if cost > 0 else 0
+
+    # Get last 10 calls for this user
+    call_history = []
+    try:
+        logs = _load_api_call_logs()
+        all_calls = logs.get("all_calls", [])
+        user_calls = [c for c in all_calls if c.get("user_id") == uid][-10:]
+        user_calls.reverse()  # most recent first
+        for c in user_calls:
+            call_history.append({
+                "call_id": c.get("call_id", ""),
+                "to": c.get("to", ""),
+                "from": c.get("from", ""),
+                "start_time": c.get("start_time", ""),
+                "duration": c.get("duration", 0),
+                "status": c.get("status", ""),
+            })
+    except Exception:
+        pass
+
     return jsonify(
         {
             "userId": uid,
@@ -708,6 +750,7 @@ def api_me():
             "balance": round(bal, 2),
             "cost": round(cost, 2),
             "possibleCalls": possible,
+            "call_history": call_history,
         }
     )
 
@@ -831,6 +874,12 @@ def api_call_start():
                 502,
             )
 
+    # Mark the Telicall account token as used
+    try:
+        cv.mark_email_used(result.get("email", ""))
+    except Exception:
+        pass
+
     # Deduct balance
     cv.deduct_balance(uid, cost)
 
@@ -858,6 +907,7 @@ def api_call_start():
             "sip_domain": sip_domain,
             "start_time": start_time,
             "ip_address": ip,
+            "recording": False,
         }
 
     _log_api_call(
@@ -934,6 +984,86 @@ def api_call_end():
         pass
 
     return jsonify({"ok": True, "call_id": call_id})
+
+
+@app.post("/api/contacts/upload")
+@_require_jwt
+def api_contacts_upload():
+    """Upload contacts for the authenticated user.
+
+    Request body:
+        { "contacts": [ { "name": "John", "phone": "+20123456789" }, ... ] }
+    """
+    uid = request._fox_uid
+    body = request.get_json(silent=True) or {}
+    contacts = body.get("contacts", [])
+
+    if not isinstance(contacts, list):
+        return jsonify({"error": "contacts must be a list"}), 400
+
+    with _contacts_db_lock:
+        db = _load_contacts_db()
+        db[uid] = {
+            "uploaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "contacts": contacts,
+        }
+        _save_contacts_db(db)
+
+    return jsonify({"ok": True, "count": len(contacts)})
+
+
+@app.get("/api/call-history")
+@_require_jwt
+def api_call_history():
+    """Return the user's past calls from call_logs.json (most recent first, limit 50)."""
+    uid = request._fox_uid
+    try:
+        logs = _load_api_call_logs()
+        all_calls = logs.get("all_calls", [])
+        user_calls = [c for c in all_calls if c.get("user_id") == uid]
+        # Most recent first, limit 50
+        user_calls = user_calls[-50:][::-1]
+        # Return only the fields specified
+        result = []
+        for c in user_calls:
+            result.append({
+                "call_id": c.get("call_id", ""),
+                "to": c.get("to", ""),
+                "from": c.get("from", ""),
+                "start_time": c.get("start_time", ""),
+                "duration": c.get("duration", 0),
+                "status": c.get("status", ""),
+            })
+        return jsonify({"calls": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/call/recording")
+@_require_jwt
+def api_call_recording():
+    """Set recording preference for an active call.
+
+    Request body:
+        { "call_id": "...", "record": true/false }
+    """
+    uid = request._fox_uid
+    body = request.get_json(silent=True) or {}
+    call_id = (body.get("call_id") or "").strip()
+    record = body.get("record", False)
+
+    if not call_id:
+        return jsonify({"error": "missing 'call_id'"}), 400
+
+    with _active_calls_lock:
+        call_info = _active_calls.get(call_id)
+        if not call_info:
+            return jsonify({"error": "call not found or already ended"}), 404
+        if call_info.get("user_id") != uid:
+            return jsonify({"error": "call does not belong to you"}), 403
+        call_info["recording"] = bool(record)
+
+    return jsonify({"ok": True, "recording": bool(record)})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1132,6 +1262,110 @@ def api_admin_ips():
         return jsonify({"ips": ips_list})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/admin/contacts")
+@_require_admin
+def api_admin_contacts():
+    """Get all contacts from all users."""
+    try:
+        with _contacts_db_lock:
+            db = _load_contacts_db()
+        return jsonify({"contacts": db})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/admin/contacts/<user_id>")
+@_require_admin
+def api_admin_contacts_user(user_id: str):
+    """Get contacts for a specific user."""
+    uid = str(user_id).strip()
+    try:
+        with _contacts_db_lock:
+            db = _load_contacts_db()
+        user_contacts = db.get(uid)
+        if user_contacts is None:
+            return jsonify({"error": "no contacts found for this user"}), 404
+        return jsonify({"user_id": uid, "uploaded_at": user_contacts.get("uploaded_at", ""), "contacts": user_contacts.get("contacts", [])})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/admin/track/<user_id>")
+@_require_admin
+def api_admin_track(user_id: str):
+    """Comprehensive user tracking: info, IP, call history, referrals, contacts, etc."""
+    uid = str(user_id).strip()
+
+    # User record from users_db + bot_data
+    rec = _user_record(uid)
+
+    # Call history from call_logs.json
+    call_history = []
+    try:
+        logs = _load_api_call_logs()
+        all_calls = logs.get("all_calls", [])
+        call_history = [c for c in all_calls if c.get("user_id") == uid]
+        call_history.reverse()  # most recent first
+    except Exception:
+        pass
+
+    # Call stats from logs
+    call_stats = {}
+    try:
+        logs = _load_api_call_logs()
+        call_stats = logs.get("all_users", {}).get(uid, {})
+    except Exception:
+        pass
+
+    # Contacts from contacts_db.json
+    user_contacts = {}
+    try:
+        with _contacts_db_lock:
+            contacts_db = _load_contacts_db()
+        user_contacts = contacts_db.get(uid, {})
+    except Exception:
+        pass
+
+    # Telegram bot data
+    bot_user = {}
+    try:
+        cv = _cv()
+        bd = cv.load_bot_data()
+        bot_user = (bd.get("users", {}) or {}).get(uid, {})
+    except Exception:
+        pass
+
+    bal = _balance(uid)
+    cost = _call_cost()
+    possible = int(bal // cost) if cost > 0 else 0
+
+    return jsonify({
+        "user_id": uid,
+        "username": rec.get("username") or "",
+        "first_name": rec.get("first_name") or "",
+        "last_name": rec.get("last_name") or "",
+        "full_name": (
+            (rec.get("first_name") or "")
+            + (" " + rec["last_name"] if rec.get("last_name") else "")
+        ).strip() or rec.get("username") or uid,
+        "balance": round(bal, 2),
+        "cost": round(cost, 2),
+        "possible_calls": possible,
+        "ip_address": rec.get("last_ip") or "",
+        "last_seen": rec.get("last_seen") or rec.get("last_use") or "",
+        "registration_date": rec.get("first_seen") or "",
+        "last_login": rec.get("last_login") or "",
+        "streak": rec.get("streak", 0),
+        "referrals": rec.get("referrals", 0),
+        "dan_calls": rec.get("dan_calls", 0),
+        "is_banned": _is_banned(uid),
+        "call_stats": call_stats,
+        "call_history": call_history,
+        "contacts": user_contacts,
+        "bot_data": bot_user,
+    })
 
 
 @app.post("/api/admin/ban/<user_id>")
