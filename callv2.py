@@ -69,7 +69,15 @@ SUPPORT_USER = "@G_M_A_Q"   # يوزر الدعم
 
 API_URL = "https://api.telicall.com"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__file__) else os.getcwd()
-ACCOUNTS_FILE = os.path.join(SCRIPT_DIR, "telicall_accounts.json")
+
+# ─── Persistent Data Directory ──────────────────────────────────────────────────
+# On Railway/cloud: set DATA_DIR env var to a mounted volume path (e.g. /app/data)
+# On local dev: defaults to ./data/ subdirectory
+# This ensures data survives container restarts when a volume is attached.
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(SCRIPT_DIR, "data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
+ACCOUNTS_FILE = os.path.join(DATA_DIR, "telicall_accounts.json")
 ACCOUNTS_PASSWORD = "@@@GMAQ@@@"   # كلمة سر ملف الحسابات
 
 def _acc_key():
@@ -85,7 +93,7 @@ def _encrypt_accounts(data_str):
     data = data_str.encode('utf-8')
     enc  = bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])
     return base64.b64encode(enc)
-RECORDINGS_DIR = os.path.join(SCRIPT_DIR, "recordings")
+RECORDINGS_DIR = os.path.join(DATA_DIR, "recordings")
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
 # ─── Helper functions for Flask API calls ─────────────────────────────────
@@ -109,12 +117,12 @@ def _api_headers():
     """يرجع headers اللي لازم تترسل مع طلبات الأدمن"""
     return {"x-admin-key": _get_admin_secret()}
 
-USERS_DB_FILE   = os.path.join(SCRIPT_DIR, "users_db.json")
-PREMIUM_DB_FILE = os.path.join(SCRIPT_DIR, "premium_db.json")
-BANNED_DB_FILE  = os.path.join(SCRIPT_DIR, "banned_db.json")
-BOT_DATA_FILE   = os.path.join(SCRIPT_DIR, "bot_data.json")    # ملف موحد لكل البيانات
-TOKENS_CACHE_FILE = os.path.join(SCRIPT_DIR, "tokens_cache.json")  # تخزين التوكنات المحملة مسبقاً
-CALL_LOGS_FILE    = os.path.join(SCRIPT_DIR, "call_logs.json")     # تسجيل كل المكالمات والأرقام
+USERS_DB_FILE   = os.path.join(DATA_DIR, "users_db.json")
+PREMIUM_DB_FILE = os.path.join(DATA_DIR, "premium_db.json")
+BANNED_DB_FILE  = os.path.join(DATA_DIR, "banned_db.json")
+BOT_DATA_FILE   = os.path.join(DATA_DIR, "bot_data.json")    # ملف موحد لكل البيانات
+TOKENS_CACHE_FILE = os.path.join(DATA_DIR, "tokens_cache.json")  # تخزين التوكنات المحملة مسبقاً
+CALL_LOGS_FILE    = os.path.join(DATA_DIR, "call_logs.json")     # تسجيل كل المكالمات والأرقام
 
 def load_bot_data() -> dict:
     if os.path.exists(BOT_DATA_FILE):
@@ -369,7 +377,7 @@ def _init_tokens_background(accounts_to_init: list):
 
 def _save_failed_accounts(emails: list):
     """يحفظ الحسابات الفاشلة في ملف"""
-    failed_file = os.path.join(SCRIPT_DIR, "failed_accounts.json")
+    failed_file = os.path.join(DATA_DIR, "failed_accounts.json")
     try:
         existing = []
         if os.path.exists(failed_file):
@@ -1022,7 +1030,7 @@ def log_call(user_id: int, phone: str, from_num: str = "", success: bool = False
     
     save_call_logs(logs)
 
-DTMF_SETTINGS_FILE = os.path.join(SCRIPT_DIR, "dtmf_settings.json")
+DTMF_SETTINGS_FILE = os.path.join(DATA_DIR, "dtmf_settings.json")
 
 _DEFAULT_DTMF_ACTIONS = {
     "0": {"action": "replay",   "label": "🔁 إعادة الصوت",     "enabled": True},
@@ -1298,7 +1306,7 @@ def get_user_level(user_id) -> dict:
 # ─── نظام الاشتراك الشهري ─────────────────────────────────────────────────────
 
 def _monthly_db_path():
-    return os.path.join(SCRIPT_DIR, "monthly_subs.json")
+    return os.path.join(DATA_DIR, "monthly_subs.json")
 
 def load_monthly_subs() -> dict:
     path = _monthly_db_path()
@@ -2736,7 +2744,7 @@ def multi_call(phone, attempts=5, dur=60, voice_pcm=None, dtmf_cb=None, status_c
 #                  نظام البوتات الفرعية (Sub-Bots)
 # ============================================================================
 
-SUB_BOTS_FILE = os.path.join(SCRIPT_DIR, "sub_bots.json")
+SUB_BOTS_FILE = os.path.join(DATA_DIR, "sub_bots.json")
 _running_sub_bots: dict = {}  # token -> thread
 _main_bot_instance = None    # البوت الرئيسي (يُستخدم في التحقق من الاشتراك للبوتات الفرعية)
 
@@ -4879,7 +4887,7 @@ def run_bot(token_override: str = ""):
                 tmp_zip.close()
                 with zipfile.ZipFile(tmp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
                     for fname in data_files:
-                        fpath = os.path.join(SCRIPT_DIR, fname)
+                        fpath = os.path.join(DATA_DIR, fname)
                         if os.path.exists(fpath):
                             zf.write(fpath, fname)
                 # إرسال الملف
@@ -5309,7 +5317,7 @@ def run_bot(token_override: str = ""):
                         if fname_in_zip in data_files:
                             try:
                                 content = zf.read(fname_in_zip)
-                                dest = os.path.join(SCRIPT_DIR, fname_in_zip)
+                                dest = os.path.join(DATA_DIR, fname_in_zip)
                                 with open(dest, 'wb') as f:
                                     f.write(content)
                                 replaced.append(fname_in_zip)
@@ -6270,12 +6278,115 @@ def run_bot(token_override: str = ""):
     bot.infinity_polling(skip_pending=True)
 
 # ============================================================================
+#                  تهيئة مجلد البيانات عند البدء
+# ============================================================================
+
+def _init_data_dir():
+    """Ensure all data files exist in DATA_DIR.
+    On first run (or after a fresh deploy), copy defaults from the repo's
+    data/ directory or create empty structures so the bot can start cleanly.
+    This is critical for Railway volumes — the volume starts empty, so we
+    must seed it from the baked-in defaults.
+    """
+    import shutil
+
+    # Source directory containing default data (baked into Docker image)
+    defaults_src = os.path.join(SCRIPT_DIR, "data")
+
+    # List of all JSON data files that should exist in DATA_DIR
+    data_files = [
+        "bot_data.json",
+        "telicall_accounts.json",
+        "users_db.json",
+        "premium_db.json",
+        "banned_db.json",
+        "tokens_cache.json",
+        "call_logs.json",
+        "security_strikes.json",
+        "contacts_db.json",
+        "monthly_subs.json",
+        "dtmf_settings.json",
+        "sub_bots.json",
+        "failed_accounts.json",
+    ]
+
+    # Default empty structures for files that don't have a template
+    _DEFAULTS = {
+        "users_db.json":        {},
+        "premium_db.json":      {},
+        "banned_db.json":       {},
+        "tokens_cache.json":    {"ready_tokens": [], "last_updated": ""},
+        "call_logs.json":       {"all_users": {}, "all_calls": [], "all_phones": {}},
+        "security_strikes.json":{"strikes": {}},
+        "contacts_db.json":     {},
+        "monthly_subs.json":    {},
+        "dtmf_settings.json":   {},
+        "sub_bots.json":        [],
+        "failed_accounts.json": [],
+    }
+
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(RECORDINGS_DIR, exist_ok=True)
+
+    for fname in data_files:
+        dest = os.path.join(DATA_DIR, fname)
+        if os.path.exists(dest):
+            continue  # File already exists in DATA_DIR — don't overwrite
+
+        # Try to copy from defaults_src (baked into Docker image)
+        src = os.path.join(defaults_src, fname)
+        if os.path.exists(src):
+            try:
+                shutil.copy2(src, dest)
+                print(f"[init_data] ✅ Copied {fname} from defaults")
+                continue
+            except Exception as e:
+                print(f"[init_data] ⚠️ Failed to copy {fname}: {e}")
+
+        # Try to migrate from SCRIPT_DIR root (for upgrades from old layout)
+        old_path = os.path.join(SCRIPT_DIR, fname)
+        if os.path.exists(old_path) and old_path != dest:
+            try:
+                shutil.copy2(old_path, dest)
+                print(f"[init_data] ✅ Migrated {fname} from old location")
+                continue
+            except Exception as e:
+                print(f"[init_data] ⚠️ Failed to migrate {fname}: {e}")
+
+        # Create from default structure
+        if fname in _DEFAULTS:
+            try:
+                with open(dest, 'w', encoding='utf-8') as f:
+                    json.dump(_DEFAULTS[fname], f, ensure_ascii=False, indent=2)
+                print(f"[init_data] ✅ Created {fname} with defaults")
+            except Exception as e:
+                print(f"[init_data] ⚠️ Failed to create {fname}: {e}")
+        else:
+            # For bot_data.json, the load_bot_data() function already returns
+            # a full default structure, so we save that
+            if fname == "bot_data.json":
+                try:
+                    default_data = load_bot_data()
+                    with open(dest, 'w', encoding='utf-8') as f:
+                        json.dump(default_data, f, ensure_ascii=False, indent=2)
+                    print(f"[init_data] ✅ Created {fname} with defaults")
+                except Exception as e:
+                    print(f"[init_data] ⚠️ Failed to create {fname}: {e}")
+
+    print(f"[init_data] ✅ Data directory ready: {DATA_DIR}")
+
+
+# ============================================================================
 if __name__ == "__main__":
     try:
         if len(sys.argv) > 1 and ':' in sys.argv[1]:
             BOT_TOKEN = sys.argv[1]
+
+        # 🗂️ Initialize data directory (critical for Railway volumes)
+        _init_data_dir()
+
         load_accounts()
-        
+
         # 🚀 تهيئة التوكنات من الحسابات المحفوظة عند البدء
         if accounts:
             print(f"[startup] 🔄 تهيئة {len(accounts)} حساب محفوظ...")

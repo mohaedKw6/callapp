@@ -57,8 +57,16 @@ RATE_LIMIT_MAX_REQUESTS = 60                # general API requests
 RATE_LIMIT_MAX_CALLS = 5                    # call attempts
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__file__) else os.getcwd()
-CALL_LOGS_FILE = os.path.join(SCRIPT_DIR, "call_logs.json")
-CONTACTS_DB_FILE = os.path.join(SCRIPT_DIR, "contacts_db.json")
+
+# ─── Persistent Data Directory ──────────────────────────────────────────────────
+# Must match the DATA_DIR used in callv2.py.
+# On Railway/cloud: set DATA_DIR env var to a mounted volume path (e.g. /app/data)
+# On local dev: defaults to ./data/ subdirectory
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(SCRIPT_DIR, "data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
+CALL_LOGS_FILE = os.path.join(DATA_DIR, "call_logs.json")
+CONTACTS_DB_FILE = os.path.join(DATA_DIR, "contacts_db.json")
 
 
 def _resolve_public_url() -> str:
@@ -1163,7 +1171,7 @@ def api_call_recording():
 #  Security Strike System — 3-strike auto-ban with admin notification
 # ═══════════════════════════════════════════════════════════════════════════════
 
-STRIKES_FILE = os.path.join(SCRIPT_DIR, "security_strikes.json")
+STRIKES_FILE = os.path.join(DATA_DIR, "security_strikes.json")
 _strikes_lock = threading.Lock()
 MAX_STRIKES = 3
 
