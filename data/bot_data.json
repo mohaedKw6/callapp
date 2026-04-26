@@ -92,9 +92,9 @@
       "streak": 1,
       "last_login_date": "2026-04-26",
       "last_daily_bonus": "2026-04-22",
-      "balance": 4.35,
+      "balance": 4.3,
       "last_ip": "185.80.143.48",
-      "last_seen": "2026-04-26 17:49:20",
+      "last_seen": "2026-04-26 17:57:04",
       "refresh_token_hash": "438d05b507a4223198dd20a60110daf8e21f1228d83e4c588e36c8f92db3a36e",
       "last_login": "2026-04-26 17:49:12"
     },
@@ -2690,8 +2690,8 @@
       "first_name": "ساره",
       "streak": 2,
       "last_login_date": "2026-04-26",
-      "balance": 0.2,
-      "last_use": "2026-04-26 12:08:29",
+      "balance": 0.15,
+      "last_use": "2026-04-26 17:54:51",
       "successful_calls": 1
     },
     "6718184405": {
