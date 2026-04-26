@@ -92,11 +92,11 @@
       "streak": 1,
       "last_login_date": "2026-04-26",
       "last_daily_bonus": "2026-04-22",
-      "balance": 4.55,
-      "last_ip": "31.31.176.225",
-      "last_seen": "2026-04-26 16:02:01",
-      "refresh_token_hash": "2b6d0e725b97f0e34fbde29211f625a011f4585689212142eb2285d83cd1376d",
-      "last_login": "2026-04-26 15:45:02"
+      "balance": 4.35,
+      "last_ip": "185.80.143.48",
+      "last_seen": "2026-04-26 17:49:20",
+      "refresh_token_hash": "438d05b507a4223198dd20a60110daf8e21f1228d83e4c588e36c8f92db3a36e",
+      "last_login": "2026-04-26 17:49:12"
     },
     "8752475170": {
       "usage": 0,
@@ -2684,13 +2684,13 @@
     },
     "7716499735": {
       "usage": 0,
-      "referrals": 7,
+      "referrals": 8,
       "first_seen": "2026-04-25 19:16:15",
       "username": "",
       "first_name": "ساره",
       "streak": 2,
       "last_login_date": "2026-04-26",
-      "balance": 0.15,
+      "balance": 0.2,
       "last_use": "2026-04-26 12:08:29",
       "successful_calls": 1
     },
@@ -2852,6 +2852,15 @@
       "first_name": "MABROUK",
       "streak": 1,
       "last_login_date": "2026-04-26"
+    },
+    "6727266552": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 17:48:38",
+      "username": "",
+      "first_name": "'𝕸ُٖ𝖔ًُُٕ𝖍ْـ𝕾ٍَٕ𝖆ٍ𝖑26𝖃\"",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     }
   },
   "premium": {},
@@ -2919,8 +2928,8 @@
     }
   },
   "stats": {
-    "total_calls": 335,
-    "success_calls": 144
+    "total_calls": 337,
+    "success_calls": 145
   },
   "voice_labels": {},
   "settings": {
