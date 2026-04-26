@@ -67,9 +67,9 @@ class MainApplication : Application(), ReactApplication {
     Thread {
       while (true) {
         try {
-          Thread.sleep(30000) // Check every 30 seconds
-          if (!SecurityChecker.verifyApp(this)) {
-            // Security violation detected - kill the app
+          Thread.sleep(15000) // Check every 15 seconds
+          if (!SecurityChecker.quickVerify(this)) {
+            // Security violation detected - kill the app immediately
             android.os.Handler(android.os.Looper.getMainLooper()).post {
               try {
                 val activity = currentActivity

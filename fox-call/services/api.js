@@ -195,8 +195,19 @@ export class FoxApi {
   // ------------------------------------------------------------------ Headers
 
   _computeSignature(requestBody) {
-    const message = (this._accessToken ?? '') + requestBody;
-    return hmacSha256(SHARED_SECRET, message);
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const nonce = this._generateNonce();
+    // Include timestamp + nonce in signature to prevent replay attacks
+    const message = (this._accessToken ?? '') + timestamp + nonce + requestBody;
+    const sig = hmacSha256(SHARED_SECRET, message);
+    return { sig, timestamp, nonce };
+  }
+
+  _generateNonce() {
+    const chars = '0123456789abcdef';
+    let nonce = '';
+    for (let i = 0; i < 16; i++) nonce += chars[Math.floor(Math.random() * 16)];
+    return nonce;
   }
 
   _authHeaders(body) {
@@ -204,9 +215,11 @@ export class FoxApi {
       'Authorization': 'Bearer ' + this._accessToken,
       'content-type': 'application/json',
     };
-    // Always send x-signature — the server requires it for ALL requests,
-    // including GET requests where the body is empty.
-    h['x-signature'] = this._computeSignature(body ?? '');
+    // Compute signature with timestamp and nonce for anti-replay protection
+    const { sig, timestamp, nonce } = this._computeSignature(body ?? '');
+    h['x-signature'] = sig;
+    h['x-timestamp'] = timestamp;
+    h['x-nonce'] = nonce;
     return h;
   }
 

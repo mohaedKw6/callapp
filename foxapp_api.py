@@ -280,17 +280,58 @@ def _check_rate_limit(
 #  Request Signing verification
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _verify_request_signature(jwt_token: str) -> bool:
-    """Verify the HMAC-SHA256 signature of the request body.
+# ─── Anti-replay nonce store (in-memory, with auto-cleanup) ──────────────────
+_used_nonces: dict[str, float] = {}
+_nonce_lock = threading.Lock()
+NONCE_EXPIRY_SECONDS = 300  # Nonces expire after 5 minutes
 
-    Client must send header ``x-signature`` where:
-        signature = HMAC-SHA256(jwt_token + request_body, SHARED_SECRET)
+
+def _cleanup_old_nonces():
+    """Remove expired nonces from the store."""
+    now = time.time()
+    expired = [k for k, v in _used_nonces.items() if now - v > NONCE_EXPIRY_SECONDS]
+    for k in expired:
+        _used_nonces.pop(k, None)
+
+
+def _verify_request_signature(jwt_token: str) -> bool:
+    """Verify the HMAC-SHA256 signature of the request body with anti-replay.
+
+    Client must send headers:
+        x-signature: HMAC-SHA256(jwt_token + timestamp + nonce + body, SHARED_SECRET)
+        x-timestamp: Unix timestamp (seconds)
+        x-nonce: Random unique identifier
+
+    Anti-replay: rejects requests with timestamps older than 5 minutes
+    or previously-used nonces.
     """
     sig = request.headers.get("x-signature", "")
-    if not sig:
+    timestamp_str = request.headers.get("x-timestamp", "")
+    nonce = request.headers.get("x-nonce", "")
+
+    if not sig or not timestamp_str or not nonce:
         return False
+
+    # Validate timestamp (must be within 5 minutes)
+    try:
+        ts = int(timestamp_str)
+    except ValueError:
+        return False
+
+    now = int(time.time())
+    if abs(now - ts) > 300:  # 5-minute window
+        return False
+
+    # Anti-replay: check nonce hasn't been used before
+    with _nonce_lock:
+        _cleanup_old_nonces()
+        if nonce in _used_nonces:
+            return False
+        _used_nonces[nonce] = time.time()
+
+    # Verify HMAC signature
     body = request.get_data(as_text=True)
-    signing_input = f"{jwt_token}{body}"
+    signing_input = f"{jwt_token}{timestamp_str}{nonce}{body}"
     expected = hmac_mod.new(
         SHARED_SECRET.encode(),
         signing_input.encode(),
