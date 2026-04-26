@@ -93,7 +93,7 @@
     "last_daily_bonus": "2026-04-22",
     "balance": 4.3,
     "last_ip": "185.80.143.48",
-    "last_seen": "2026-04-26 17:57:04",
+    "last_seen": "2026-04-26 19:55:37",
     "refresh_token_hash": "438d05b507a4223198dd20a60110daf8e21f1228d83e4c588e36c8f92db3a36e",
     "last_login": "2026-04-26 17:49:12"
   },
@@ -1112,7 +1112,9 @@
     "referrals": 0,
     "first_seen": "2026-04-14 18:33:09",
     "username": "AZMA_S1",
-    "first_name": "\ud835\ude3c\ud835\ude55\ud835\ude48\ud835\ude3c-\ud835\ude53 | \ud835\ude3c\ud835\ude47\ud835\ude4e\ud835\ude43\ud835\ude3c\ud835\ude4f\ud835\ude3c\ud835\ude49"
+    "first_name": "\ud835\ude3c\ud835\ude55\ud835\ude48\ud835\ude3c-\ud835\ude53 | \ud835\ude3c\ud835\ude47\ud835\ude4e\ud835\ude43\ud835\ude3c\ud835\ude4f\ud835\ude3c\ud835\ude49",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
   },
   "7076403589": {
     "usage": 0,
@@ -2205,7 +2207,7 @@
     "bot_source": "sub_@Sjxijsjszijbot",
     "balance": 0.9,
     "last_ip": "102.46.160.248",
-    "last_seen": "2026-04-26 19:44:47",
+    "last_seen": "2026-04-26 19:55:15",
     "refresh_token_hash": "201a4fa7152440a5474686ff274971adc6d77b7c955b16fab34bd552ec4d9307",
     "last_login": "2026-04-26 19:37:53"
   },
@@ -2346,7 +2348,7 @@
     "username": "Jd8ep",
     "first_name": "\u062d\u0645\u0632\u0647",
     "streak": 1,
-    "last_login_date": "2026-04-22"
+    "last_login_date": "2026-04-26"
   },
   "6811156542": {
     "usage": 0,
