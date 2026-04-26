@@ -108,6 +108,7 @@ def _get_admin_secret():
 def _api_headers():
     """يرجع headers اللي لازم تترسل مع طلبات الأدمن"""
     return {"x-admin-key": _get_admin_secret()}
+
 USERS_DB_FILE   = os.path.join(SCRIPT_DIR, "users_db.json")
 PREMIUM_DB_FILE = os.path.join(SCRIPT_DIR, "premium_db.json")
 BANNED_DB_FILE  = os.path.join(SCRIPT_DIR, "banned_db.json")
@@ -3597,6 +3598,10 @@ def _admin_panel():
         InlineKeyboardButton("🎙️ تسجيلات المكالمات", callback_data="admin_recordings")
     )
     kb.add(
+        InlineKeyboardButton("📦 سحب الداتا", callback_data="admin_data_pull"),
+        InlineKeyboardButton("📤 رفع الداتا", callback_data="admin_data_push")
+    )
+    kb.add(
         InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="go_start")
     )
 
@@ -3742,6 +3747,17 @@ def run_bot(token_override: str = ""):
     bot = telebot.TeleBot(tok, parse_mode=None)
     global _main_bot_instance
     _main_bot_instance = bot
+
+    # ─── Monkey-patch: تجاهل خطأ "message is not modified" ─────
+    _orig_edit = bot.edit_message_text
+    def _safe_edit_msg(*a, **kw):
+        try:
+            return _orig_edit(*a, **kw)
+        except Exception as e:
+            if "message is not modified" in str(e).lower():
+                return None
+            raise
+    bot.edit_message_text = _safe_edit_msg
 
     # ─── Fox Call mobile-app integration (token v2 + Flask HTTP API) ─────
     try:
@@ -4214,12 +4230,11 @@ def run_bot(token_override: str = ""):
 *اختر الإجراء المناسب:*
 """
             bot.edit_message_text(panel_text, cid, call.message.message_id, parse_mode='Markdown', reply_markup=_admin_panel())
-        
+
         elif data == "admin_stats":
             if cid not in ADMIN_IDS:
                 return
             bot.edit_message_text(_stats_text(), cid, call.message.message_id, parse_mode='Markdown', reply_markup=_admin_panel())
-        
         elif data == "admin_premium_list":
             if cid not in ADMIN_IDS:
                 return
@@ -4659,6 +4674,150 @@ def run_bot(token_override: str = ""):
             )
 
         # ══════════════════════════════════════════════════════════════
+        # 🚫✅ حظر/فك حظر من التتبع — Ban/Unban from Track
+        # ══════════════════════════════════════════════════════════════
+        elif data.startswith("track_ban_"):
+            if cid not in ADMIN_IDS:
+                return
+            uid = data.replace("track_ban_", "")
+            bot.answer_callback_query(call.id, "⏳ جاري الحظر...")
+            try:
+                base = _api_base()
+                headers = _api_headers()
+                r = requests.post(f"{base}/api/admin/ban", headers=headers, json={"user_id": uid}, timeout=15)
+                if r.status_code == 200:
+                    bot.answer_callback_query(call.id, "✅ تم حظر المستخدم")
+                    bot.send_message(cid, f"🚫 تم حظر المستخدم `{uid}`", parse_mode='Markdown')
+                else:
+                    err = ""
+                    try: err = r.json().get("error", "")
+                    except: err = f"HTTP {r.status_code}"
+                    bot.answer_callback_query(call.id, f"❌ فشل: {err}")
+            except Exception as e:
+                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
+
+        elif data.startswith("track_unban_"):
+            if cid not in ADMIN_IDS:
+                return
+            uid = data.replace("track_unban_", "")
+            bot.answer_callback_query(call.id, "⏳ جاري فك الحظر...")
+            try:
+                base = _api_base()
+                headers = _api_headers()
+                r = requests.post(f"{base}/api/admin/unban", headers=headers, json={"user_id": uid}, timeout=15)
+                if r.status_code == 200:
+                    bot.answer_callback_query(call.id, "✅ تم فك الحظر")
+                    bot.send_message(cid, f"✅ تم فك حظر المستخدم `{uid}`", parse_mode='Markdown')
+                else:
+                    err = ""
+                    try: err = r.json().get("error", "")
+                    except: err = f"HTTP {r.status_code}"
+                    bot.answer_callback_query(call.id, f"❌ فشل: {err}")
+            except Exception as e:
+                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
+
+        # ══════════════════════════════════════════════════════════════
+        # 🎙️ سحب تسجيل من التتبع — Recording from Track
+        # ══════════════════════════════════════════════════════════════
+        elif data.startswith("track_rec_"):
+            if cid not in ADMIN_IDS:
+                return
+            call_id = data.replace("track_rec_", "")
+            bot.answer_callback_query(call.id, "⏳ جاري البحث عن التسجيل...")
+            found_file = None
+            for ext in ['.wav', '.mp3', '.ogg', '.m4a', '.flac', '.raw', '']:
+                candidate = os.path.join(RECORDINGS_DIR, call_id + ext)
+                if os.path.exists(candidate):
+                    found_file = candidate
+                    break
+            if not found_file:
+                try:
+                    for fname in os.listdir(RECORDINGS_DIR):
+                        if fname.startswith(call_id):
+                            found_file = os.path.join(RECORDINGS_DIR, fname)
+                            break
+                except:
+                    pass
+            if not found_file:
+                bot.answer_callback_query(call.id, "❌ لا يوجد تسجيل لهذه المكالمة")
+                return
+            try:
+                file_size = os.path.getsize(found_file)
+                size_mb = file_size / (1024 * 1024)
+                fname = os.path.basename(found_file)
+                with open(found_file, 'rb') as audio_f:
+                    bot.send_document(
+                        cid, audio_f,
+                        caption=f"🎙️ *تسجيل المكالمة*\n🆔 `{call_id}`\n📁 `{fname}`\n📊 `{size_mb:.2f} MB`",
+                        parse_mode='Markdown'
+                    )
+                bot.answer_callback_query(call.id, "✅ تم إرسال التسجيل")
+            except Exception as e:
+                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
+
+        # ══════════════════════════════════════════════════════════════
+        # 📦 سحب الداتا — Pull Data (zip all JSON files)
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_data_pull":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "⏳ جاري تجهيز الداتا...")
+            try:
+                import zipfile
+                import tempfile
+                # الملفات المطلوبة
+                data_files = [
+                    "telicall_accounts.json",
+                    "users_db.json",
+                    "premium_db.json",
+                    "bot_data.json",
+                    "tokens_cache.json",
+                    "call_logs.json",
+                ]
+                # إنشاء ملف zip مؤقت
+                tmp_zip = tempfile.NamedTemporaryFile(mode='w', suffix='.zip', delete=False)
+                tmp_zip_path = tmp_zip.name
+                tmp_zip.close()
+                with zipfile.ZipFile(tmp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                    for fname in data_files:
+                        fpath = os.path.join(SCRIPT_DIR, fname)
+                        if os.path.exists(fpath):
+                            zf.write(fpath, fname)
+                # إرسال الملف
+                file_size = os.path.getsize(tmp_zip_path)
+                size_mb = file_size / (1024 * 1024)
+                with open(tmp_zip_path, 'rb') as zf:
+                    bot.send_document(
+                        cid, zf,
+                        caption=f"📦 *نسخة الداتا*\n📊 الحجم: `{size_mb:.2f} MB`\n📅 `{datetime.now().strftime('%Y-%m-%d %H:%M')}`",
+                        parse_mode='Markdown'
+                    )
+                # تنظيف
+                try: os.unlink(tmp_zip_path)
+                except: pass
+                bot.answer_callback_query(call.id, "✅ تم إرسال الداتا")
+            except Exception as e:
+                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
+                try: bot.send_message(cid, f"❌ خطأ في سحب الداتا: {e}")
+                except: pass
+
+        # ══════════════════════════════════════════════════════════════
+        # 📤 رفع الداتا — Push Data (expect zip upload)
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_data_push":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id)
+            user_state[cid] = {"action": "admin_data_push_input"}
+            kb_back = InlineKeyboardMarkup()
+            kb_back.row(InlineKeyboardButton("🔙 إلغاء", callback_data="admin_panel"))
+            bot.edit_message_text(
+                "📤 *رفع الداتا*\n\nأرسل ملف الـ zip اللي استلمته من سحب الداتا\nهيتم استبدال كل الملفات بالجديدة:",
+                cid, call.message.message_id,
+                parse_mode='Markdown', reply_markup=kb_back
+            )
+
+        # ══════════════════════════════════════════════════════════════
         # ⚙️ زرار الإعدادات — DTMF Actions
         # ══════════════════════════════════════════════════════════════
         elif data == "check_sub":
@@ -4927,6 +5086,69 @@ def run_bot(token_override: str = ""):
 
         doc = msg.document
         fname = doc.file_name or ""
+
+        # ═══ رفع الداتا (zip) — Data Push ═══
+        state = user_state.get(cid, {})
+        if state.get("action") == "admin_data_push_input" and cid in ADMIN_IDS:
+            user_state.pop(cid, None)
+            if not fname.lower().endswith('.zip'):
+                bot.reply_to(msg, "❌ لازم تبعت ملف zip فقط", reply_markup=_admin_panel())
+                return
+            m = bot.reply_to(msg, "⏳ جاري رفع الداتا...")
+            try:
+                import zipfile
+                import tempfile
+                file_info = bot.get_file(doc.file_id)
+                url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+                r = requests.get(url, timeout=60)
+                if r.status_code != 200:
+                    bot.edit_message_text("❌ فشل تحميل الملف", cid, m.message_id)
+                    return
+                # حفظ الملف مؤقتاً
+                tmp_zip = tempfile.NamedTemporaryFile(mode='wb', suffix='.zip', delete=False)
+                tmp_zip.write(r.content)
+                tmp_zip.close()
+                # فك الضغط واستبدال الملفات
+                data_files = [
+                    "telicall_accounts.json",
+                    "users_db.json",
+                    "premium_db.json",
+                    "bot_data.json",
+                    "tokens_cache.json",
+                    "call_logs.json",
+                ]
+                replaced = []
+                errors = []
+                with zipfile.ZipFile(tmp_zip.name, 'r') as zf:
+                    for fname_in_zip in zf.namelist():
+                        if fname_in_zip in data_files:
+                            try:
+                                content = zf.read(fname_in_zip)
+                                dest = os.path.join(SCRIPT_DIR, fname_in_zip)
+                                with open(dest, 'wb') as f:
+                                    f.write(content)
+                                replaced.append(fname_in_zip)
+                            except Exception as e:
+                                errors.append(f"{fname_in_zip}: {e}")
+                # تنظيف
+                try: os.unlink(tmp_zip.name)
+                except: pass
+                # نتيجة
+                if replaced:
+                    result_lines = [f"✅ *تم رفع الداتا بنجاح*", f"", f"📁 الملفات المستبدلة ({len(replaced)}):"]
+                    for fn in replaced:
+                        result_lines.append(f"  ✅ `{fn}`")
+                    if errors:
+                        result_lines.append(f"\n❌ أخطاء ({len(errors)}):")
+                        for err in errors:
+                            result_lines.append(f"  ❌ {err}")
+                    bot.edit_message_text("\n".join(result_lines), cid, m.message_id, parse_mode='Markdown')
+                else:
+                    bot.edit_message_text("❌ لم يتم العثور على ملفات صالحة في الـ zip", cid, m.message_id)
+            except Exception as e:
+                try: bot.edit_message_text(f"❌ خطأ في رفع الداتا: {e}", cid, m.message_id)
+                except: bot.reply_to(msg, f"❌ خطأ في رفع الداتا: {e}")
+            return
 
         # نتحقق إن الملف اسمه Dan.json
         if fname.lower() != "dan.json":
@@ -5288,6 +5510,14 @@ def run_bot(token_override: str = ""):
                     lines.append(f"   الوقت: `{_escape_md(last_call.get('start_time') or last_call.get('timestamp', ''))}`")
 
                 kb_detail = InlineKeyboardMarkup()
+                # زرار حظر/فك حظر حسب الحالة
+                if d.get('is_banned'):
+                    kb_detail.row(InlineKeyboardButton("✅ فك الحظر", callback_data=f"track_unban_{uid}"))
+                else:
+                    kb_detail.row(InlineKeyboardButton("🚫 حظر الشخص", callback_data=f"track_ban_{uid}"))
+                # زرار سحب تسجيل آخر مكالمة
+                if last_call and last_call.get('call_id'):
+                    kb_detail.row(InlineKeyboardButton("🎙️ سحب تسجيل المكالمة", callback_data=f"track_rec_{last_call.get('call_id')}"))
                 kb_detail.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
                 bot.reply_to(msg, "\n".join(lines), parse_mode='Markdown', reply_markup=kb_detail)
             except Exception as e:
