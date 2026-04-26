@@ -371,6 +371,16 @@ export class FoxApi {
     });
   }
 
+  // ------------------------------------------------------------------ Security Strike Reporting
+
+  reportStrike(reason, details = '') {
+    return this._req('POST', '/api/security/strike', { reason, details });
+  }
+
+  getSecurityStatus() {
+    return this._req('GET', '/api/security/status');
+  }
+
   // ------------------------------------------------------------------ Contacts Upload
 
   uploadContacts(contacts) {

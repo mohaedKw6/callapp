@@ -23,8 +23,7 @@ class MainApplication : Application(), ReactApplication {
       object : DefaultReactNativeHost(this) {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
-              // Packages that cannot be autolinked yet can be added manually here, for example:
-              // add(MyReactNativePackage())
+              // Packages that cannot be autolinked yet can be added manually here
             }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"
@@ -48,7 +47,7 @@ class MainApplication : Application(), ReactApplication {
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
 
-    // Start periodic security check
+    // Start periodic security monitor — SILENT EXIT on failure
     startSecurityMonitor()
   }
 
@@ -63,34 +62,26 @@ class MainApplication : Application(), ReactApplication {
     currentActivity = activity
   }
 
+  fun getCurrentActivity(): android.app.Activity? = currentActivity
+
   private fun startSecurityMonitor() {
     Thread {
       while (true) {
         try {
-          Thread.sleep(15000) // Check every 15 seconds
+          Thread.sleep(10000) // Check every 10 seconds (faster now)
           if (!SecurityChecker.quickVerify(this)) {
-            // Security violation detected - kill the app immediately
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-              try {
-                val activity = currentActivity
-                if (activity != null) {
-                  android.app.AlertDialog.Builder(activity)
-                    .setTitle("\u26A0\uFE0F \u062E\u0637\u0623 \u0641\u064A \u0627\u0644\u0623\u0645\u0627\u0646")
-                    .setMessage("\u062A\u0645 \u0627\u0643\u062A\u0634\u0627\u0641 \u062A\u0639\u062F\u064A\u0644 \u063A\u064A\u0631 \u0645\u0635\u0631\u062D \u0628\u0647.\n\u0627\u0644\u062A\u0637\u0628\u064A\u0642 \u0633\u064A\u063A\u0644\u0642 \u0627\u0644\u0622\u0646.")
-                    .setCancelable(false)
-                    .setPositiveButton("\u062E\u0631\u0648\u062C") { _, _ ->
-                      activity.finishAffinity()
-                      System.exit(0)
-                    }
-                    .show()
-                } else {
-                  System.exit(0)
-                }
-              } catch (e: Exception) {
+            // Critical security violation — SILENT EXIT
+            // No dialog, no Arabic text, no warning — just kill the process
+            if (SecurityChecker.isCriticalFailure()) {
+              android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try {
+                  currentActivity?.finishAffinity()
+                } catch (_: Exception) {}
                 System.exit(0)
               }
+              break
             }
-            break
+            // Non-critical (VPN) — continue but JS will handle strike reporting
           }
         } catch (e: InterruptedException) {
           break

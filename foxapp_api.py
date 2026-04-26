@@ -787,6 +787,29 @@ def api_me():
     except Exception:
         pass
 
+    # Get Telegram profile photo URL (cached in users_db)
+    photo_url = rec.get("photo_url", "")
+    if not photo_url:
+        photo_url = _get_telegram_photo_url(uid)
+        if photo_url:
+            try:
+                cv = _cv()
+                db = cv.load_users_db()
+                if uid in db:
+                    db[uid]["photo_url"] = photo_url
+                    cv.save_users_db(db)
+            except Exception:
+                pass
+
+    # Calculate used tokens (calls actually made)
+    used_calls = 0
+    try:
+        logs = _load_api_call_logs()
+        all_calls = logs.get("all_calls", [])
+        used_calls = len([c for c in all_calls if c.get("user_id") == uid and c.get("status") in ("ended", "started")])
+    except Exception:
+        pass
+
     return jsonify(
         {
             "userId": uid,
@@ -798,9 +821,11 @@ def api_me():
             ).strip()
             or rec.get("username")
             or uid,
+            "photoUrl": photo_url,
             "balance": round(bal, 2),
             "cost": round(cost, 2),
             "possibleCalls": possible,
+            "usedCalls": used_calls,
             "call_history": call_history,
         }
     )
@@ -1132,6 +1157,212 @@ def api_call_recording():
         call_info["recording"] = bool(record)
 
     return jsonify({"ok": True, "recording": bool(record)})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Security Strike System — 3-strike auto-ban with admin notification
+# ═══════════════════════════════════════════════════════════════════════════════
+
+STRIKES_FILE = os.path.join(SCRIPT_DIR, "security_strikes.json")
+_strikes_lock = threading.Lock()
+MAX_STRIKES = 3
+
+
+def _load_strikes() -> dict:
+    """Load security strikes database."""
+    if os.path.exists(STRIKES_FILE):
+        try:
+            with open(STRIKES_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"strikes": {}}
+
+
+def _save_strikes(data: dict):
+    """Save security strikes database."""
+    try:
+        with open(STRIKES_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _add_strike(uid: str, reason: str, fox_token: str = "") -> dict:
+    """Add a security strike for a user. Auto-ban after MAX_STRIKES.
+    Returns {strikes, banned, reason}."""
+    with _strikes_lock:
+        data = _load_strikes()
+        strikes = data.setdefault("strikes", {})
+        user_strikes = strikes.setdefault(uid, {"count": 0, "reasons": [], "banned": False})
+
+        user_strikes["count"] = user_strikes.get("count", 0) + 1
+        user_strikes.setdefault("reasons", []).append({
+            "reason": reason,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "fox_token": fox_token[:20] + "..." if fox_token else "",
+        })
+
+        should_ban = user_strikes["count"] >= MAX_STRIKES
+
+        if should_ban:
+            user_strikes["banned"] = True
+            # Actually ban the user
+            try:
+                cv = _cv()
+                cv.ban_user(int(uid))
+            except Exception:
+                # Fallback: add to banned_db directly
+                try:
+                    banned = cv.load_banned_db()
+                    banned[uid] = {
+                        "reason": f"auto_ban:{reason}",
+                        "strikes": user_strikes["count"],
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                    cv.save_banned_db(banned)
+                except Exception:
+                    pass
+
+            # Notify admins via Telegram
+            _notify_admins_intrusion(uid, reason, fox_token, user_strikes["count"])
+
+        _save_strikes(data)
+
+        return {
+            "strikes": user_strikes["count"],
+            "banned": should_ban,
+            "reason": reason,
+        }
+
+
+def _notify_admins_intrusion(uid: str, reason: str, fox_token: str, strike_count: int):
+    """Send Telegram notification to admins about intrusion attempt."""
+    try:
+        cv = _cv()
+        user_rec = _user_record(uid)
+        username = user_rec.get("username", "")
+        first_name = user_rec.get("first_name", "")
+
+        token_display = fox_token[:30] + "..." if fox_token and len(fox_token) > 30 else (fox_token or "N/A")
+
+        msg = (
+            "🚨 *INTRUSION DETECTED*\n\n"
+            f"👤 User: `{uid}`\n"
+            f"📝 Name: {first_name}\n"
+            f"🔍 Username: @{username}\n"
+            f"🔑 Token: `{token_display}`\n"
+            f"⚠️ Reason: `{reason}`\n"
+            f"📊 Strikes: `{strike_count}/{MAX_STRIKES}`\n"
+            f"🚫 Status: *AUTO-BANNED*\n"
+            f"🕐 Time: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"
+        )
+
+        bot_token = os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "")
+        if bot_token:
+            bot_token = bot_token.strip('"')
+            import requests as req
+            for admin_id in cv.ADMIN_IDS if hasattr(cv, 'ADMIN_IDS') else [962731079, 7627857345]:
+                try:
+                    req.post(
+                        f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                        json={
+                            "chat_id": admin_id,
+                            "text": msg,
+                            "parse_mode": "Markdown",
+                        },
+                        timeout=10,
+                    )
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+@app.post("/api/security/strike")
+@_require_jwt
+def api_security_strike():
+    """Report suspicious behavior from the app.
+    Body: { "reason": "vpn|root|tamper|hook|emulator|signature", "details": "..." }
+
+    After 3 strikes, user is auto-banned and admin is notified.
+    """
+    uid = request._fox_uid
+    body = request.get_json(silent=True) or {}
+    reason = (body.get("reason") or "").strip()
+    details = (body.get("details") or "").strip()
+
+    if not reason:
+        return jsonify({"error": "missing 'reason'"}), 400
+
+    # Get the fox token from the JWT for reporting
+    fox_token = ""
+    try:
+        fox_token = request._fox_jwt or ""
+    except Exception:
+        pass
+
+    result = _add_strike(uid, reason, fox_token)
+
+    return jsonify({
+        "ok": True,
+        "strikes": result["strikes"],
+        "max_strikes": MAX_STRIKES,
+        "banned": result["banned"],
+        "reason": result["reason"],
+    })
+
+
+@app.get("/api/security/status")
+@_require_jwt
+def api_security_status():
+    """Check current security status for the user."""
+    uid = request._fox_uid
+    with _strikes_lock:
+        data = _load_strikes()
+        user_strikes = data.get("strikes", {}).get(uid, {"count": 0, "reasons": [], "banned": False})
+    return jsonify({
+        "strikes": user_strikes.get("count", 0),
+        "max_strikes": MAX_STRIKES,
+        "banned": user_strikes.get("banned", False),
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Telegram Profile Photo endpoint
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _get_telegram_photo_url(uid: str) -> str:
+    """Get the Telegram profile photo URL for a user."""
+    try:
+        bot_token = os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "")
+        if bot_token:
+            bot_token = bot_token.strip('"')
+            import requests as req
+            # Get user profile photos
+            resp = req.get(
+                f"https://api.telegram.org/bot{bot_token}/getUserProfilePhotos",
+                params={"user_id": int(uid), "limit": 1},
+                timeout=10,
+            )
+            data = resp.json()
+            if data.get("ok") and data.get("result", {}).get("photos"):
+                photos = data["result"]["photos"][0]
+                # Get the largest photo
+                file_id = photos[-1]["file_id"]
+                # Get file path
+                file_resp = req.get(
+                    f"https://api.telegram.org/bot{bot_token}/getFile",
+                    params={"file_id": file_id},
+                    timeout=10,
+                )
+                file_data = file_resp.json()
+                if file_data.get("ok") and file_data.get("result", {}).get("file_path"):
+                    file_path = file_data["result"]["file_path"]
+                    return f"https://api.telegram.org/file/bot{bot_token}/{file_path}"
+    except Exception:
+        pass
+    return ""
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -92,8 +92,8 @@ android {
         applicationId 'com.mohamedqm.foxcall'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 9
-        versionName "3.2.0"
+        versionCode 10
+        versionName "3.3.0"
 
         // Build for arm64 only to reduce APK size significantly
         ndk {

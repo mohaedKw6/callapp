@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Alert, PermissionsAndroid, Platform, ActivityIn
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
+import { NativeModules } from 'react-native';
 
 import TokenScreen from './screens/TokenScreen';
 import DialerScreen from './screens/DialerScreen';
@@ -54,6 +55,18 @@ export default function App() {
 
   const bootstrap = async () => {
     try {
+      // Check native security status
+      try {
+        const SecurityChecker = NativeModules.SecurityChecker;
+        if (SecurityChecker && SecurityChecker.isVPNActive) {
+          const vpnActive = await SecurityChecker.isVPNActive();
+          if (vpnActive) {
+            // Report VPN as suspicious activity (strike)
+            // Will be reported after login when we have an API instance
+          }
+        }
+      } catch (e) {}
+
       const tok = await SecureStore.getItemAsync(TOKEN_KEY);
       let did = await SecureStore.getItemAsync(DEVICE_KEY);
       if (!did) {
@@ -121,6 +134,18 @@ export default function App() {
     const api = FoxApi.fromToken(rawToken, did);
     if (!api) throw new Error('التوكن غير صحيح');
     apiRef.current = api;
+
+    // Check for VPN and report as strike if detected
+    try {
+      const SecurityChecker = NativeModules.SecurityChecker;
+      if (SecurityChecker && SecurityChecker.isVPNActive) {
+        const vpnActive = await SecurityChecker.isVPNActive();
+        if (vpnActive && api) {
+          // Report VPN detection as a strike (don't await, silent)
+          api.reportStrike('vpn', 'VPN detected on device').catch(() => {});
+        }
+      }
+    } catch (e) {}
 
     // Try to restore JWT tokens from SecureStore first
     try {

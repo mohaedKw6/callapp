@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, RefreshControl, ScrollView, Modal, FlatList, Keyboard } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, RefreshControl, ScrollView, Modal, FlatList, Keyboard, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,11 +62,15 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
         {/* Header */}
         <View style={S.header}>
           <View style={S.headerLeft}>
-            <View style={S.avatar}>
-              <Text style={S.avatarTxt}>
-                {(user?.fullName || user?.username || 'U').slice(0, 1).toUpperCase()}
-              </Text>
-            </View>
+            {user?.photoUrl ? (
+              <Image source={{ uri: user.photoUrl }} style={S.avatarImg} />
+            ) : (
+              <View style={S.avatar}>
+                <Text style={S.avatarTxt}>
+                  {(user?.fullName || user?.username || 'U').slice(0, 1).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <View>
               <Text style={S.hello}>أهلاً</Text>
               <Text style={S.name} numberOfLines={1}>
@@ -241,6 +245,10 @@ const S = StyleSheet.create({
     backgroundColor: Colors.primarySoft,
     borderWidth: 1.5, borderColor: Colors.primary,
     justifyContent: 'center', alignItems: 'center',
+  },
+  avatarImg: {
+    width: 44, height: 44, borderRadius: Radii.full,
+    borderWidth: 1.5, borderColor: Colors.primary,
   },
   avatarTxt: { color: Colors.primary, fontSize: 18, fontWeight: '800' },
   hello: { color: Colors.textMuted, fontSize: 12 },

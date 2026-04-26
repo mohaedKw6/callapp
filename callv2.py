@@ -1208,6 +1208,16 @@ def is_banned(user_id):
     banned_db = load_banned_db()
     return str(user_id) in banned_db
 
+def ban_user(user_id, reason=""):
+    """حظر مستخدم وإضافته لقاعدة المحظورين"""
+    banned_db = load_banned_db()
+    uid = str(user_id)
+    banned_db[uid] = {
+        "reason": reason or "banned by admin",
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    save_banned_db(banned_db)
+
 def add_premium(user_id, admin_id=None, premium_type="limited", calls_limit=10):
     """إضافة مستخدم إلى المميزين
     

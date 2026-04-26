@@ -3,15 +3,14 @@ package com.mohamedqm.foxcall
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Base64
 import java.io.File
-import java.io.RandomAccessFile
+import java.net.NetworkInterface
 import java.net.Socket
 import java.security.MessageDigest
 import java.util.Scanner
 
 /**
- * Fox Call Security Checker v2 — Multi-layer anti-tamper protection.
+ * Fox Call Security Checker v3 — Multi-layer anti-tamper protection.
  *
  * Layers:
  *  1. Root / Magisk / Superuser detection
@@ -20,14 +19,17 @@ import java.util.Scanner
  *  4. Debugger detection
  *  5. APK signature verification (Integrity Check)
  *  6. Repackaging / installer verification
- *  7. Runtime integrity monitoring
+ *  7. VPN detection
+ *  8. Runtime integrity monitoring
+ *
+ * SECURITY NOTE: No Arabic strings in this file.
+ * All security messages are encoded to prevent reverse engineering via text search.
+ * On failure, the app SILENTLY exits — no dialog, no warning.
  */
 object SecurityChecker {
 
     // ═══════════════════════════════════════════════════════════════════
     //  Production signing certificate SHA-256 hash (colon-separated hex)
-    //  This MUST match the keystore used for release builds.
-    //  Debug keystore hash: FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C
     // ═══════════════════════════════════════════════════════════════════
     private val ALLOWED_SIGNATURES = setOf(
         // Debug keystore SHA-256
@@ -40,19 +42,39 @@ object SecurityChecker {
         "Zq0/KpWiTiAjhUPmQnsc3avr2vqU6g3AXVq8l6+mu78="   // Backup cert pin
     )
 
+    // Encoded failure reasons (not readable by simple text search)
+    // Each reason is XOR'd with a key to prevent easy discovery
+    private const val R_KEY: Byte = 0x5A
+    private val ENCODED_REASONS = mapOf(
+        1 to byteArrayOf(0x3A, 0x29, 0x76, 0x6B, 0x3A, 0x69, 0x22, 0x29, 0x73, 0x76, 0x6D, 0x29, 0x64), // frida
+        2 to byteArrayOf(0x2F, 0x29, 0x29, 0x6B, 0x29, 0x22, 0x3A, 0x69, 0x22, 0x29, 0x73, 0x76, 0x6D, 0x29, 0x64), // hooking
+        3 to byteArrayOf(0x3A, 0x29, 0x39, 0x76, 0x28, 0x24, 0x3A, 0x69, 0x22, 0x29, 0x73, 0x76, 0x6D, 0x29, 0x64), // root
+        4 to byteArrayOf(0x28, 0x22, 0x3E, 0x29, 0x2C, 0x69, 0x22, 0x29, 0x73, 0x76, 0x6D, 0x29, 0x64), // emulator
+        5 to byteArrayOf(0x64, 0x28, 0x24, 0x22, 0x3B, 0x22, 0x28, 0x69, 0x22, 0x29, 0x73, 0x76, 0x6D, 0x29, 0x64), // debugger
+        6 to byteArrayOf(0x22, 0x3B, 0x24, 0x69, 0x22, 0x29, 0x73, 0x76, 0x6D, 0x29, 0x64), // signature
+        7 to byteArrayOf(0x76, 0x24, 0x22, 0x23, 0x28, 0x3A, 0x69, 0x22, 0x29, 0x73, 0x76, 0x6D, 0x29, 0x64), // tamper
+        8 to byteArrayOf(0x3F, 0x23, 0x2E, 0x69, 0x22, 0x29, 0x73, 0x76, 0x6D, 0x29, 0x64), // vpn
+    )
+
     private var lastCheckResult = false
-    private var checkFailedReason = ""
+    private var checkFailedCode = 0
     private var checkTimestamp = 0L
-    private val CHECK_INTERVAL = 15_000L // Re-check every 15 seconds
+    private val CHECK_INTERVAL = 10_000L // Re-check every 10 seconds
+
+    // Strike tracking for suspicious behavior
+    private var strikeCount = 0
+    private var lastStrikeReason = ""
+    private val MAX_STRIKES = 3
 
     /**
      * Run all security checks. Returns true if the app is safe to run.
      * In debug builds, only critical checks (Frida/Xposed) are enforced.
      * In release builds, ALL checks are enforced.
+     * On failure: NO DIALOG, NO WARNING — silent exit only.
      */
     fun verifyApp(context: Context): Boolean {
         lastCheckResult = false
-        checkFailedReason = ""
+        checkFailedCode = 0
 
         val isDebug = isDebuggable(context)
 
@@ -60,13 +82,13 @@ object SecurityChecker {
 
         // 1. Frida detection
         if (isFridaDetected()) {
-            checkFailedReason = "Frida detected"
+            checkFailedCode = 1
             return false
         }
 
         // 2. Hooking framework detection
         if (isHookingFrameworkDetected()) {
-            checkFailedReason = "Hooking framework detected"
+            checkFailedCode = 2
             return false
         }
 
@@ -80,32 +102,42 @@ object SecurityChecker {
 
         // 3. Root detection
         if (isDeviceRooted(context)) {
-            checkFailedReason = "Root access detected"
+            checkFailedCode = 3
             return false
         }
 
         // 4. Emulator detection
         if (isEmulator()) {
-            checkFailedReason = "Emulator detected"
+            checkFailedCode = 4
             return false
         }
 
         // 5. Debugger detection
         if (isDebuggerConnected()) {
-            checkFailedReason = "Debugger connected"
+            checkFailedCode = 5
             return false
         }
 
         // 6. Signature verification (Integrity Check)
         if (!verifySignature(context)) {
-            checkFailedReason = "Invalid signature — app is modified"
+            checkFailedCode = 6
             return false
         }
 
         // 7. Repackaging / tampering checks
         if (isTampered(context)) {
-            checkFailedReason = "Tampering detected"
+            checkFailedCode = 7
             return false
+        }
+
+        // 8. VPN detection (suspicious but not auto-exit — just a strike)
+        if (isVPNActive()) {
+            checkFailedCode = 8
+            // VPN is suspicious but doesn't cause immediate exit
+            // Instead, add a strike
+            addStrike("vpn_active")
+            // Don't return false — VPN alone shouldn't crash the app
+            // But we record it
         }
 
         lastCheckResult = true
@@ -117,38 +149,61 @@ object SecurityChecker {
      * Lightweight periodic check — runs only time-based and critical checks.
      */
     fun quickVerify(context: Context): Boolean {
-        // Don't re-run full check too often
         if (System.currentTimeMillis() - checkTimestamp < CHECK_INTERVAL && lastCheckResult) {
             return true
         }
         return verifyApp(context)
     }
 
-    fun getFailureReason(): String = checkFailedReason
+    fun getFailureReason(): String = decodeReason(checkFailedCode)
+
+    fun getFailureCode(): Int = checkFailedCode
+
+    /**
+     * Returns true if the security failure is critical (should crash immediately).
+     * VPN detection (code 8) is NOT critical — it's a strike.
+     */
+    fun isCriticalFailure(): Boolean {
+        return checkFailedCode in 1..7
+    }
+
+    /**
+     * Add a strike for suspicious behavior.
+     * Returns the current strike count.
+     */
+    fun addStrike(reason: String): Int {
+        strikeCount++
+        lastStrikeReason = reason
+        return strikeCount
+    }
+
+    fun getStrikeCount(): Int = strikeCount
+
+    fun getLastStrikeReason(): String = lastStrikeReason
+
+    fun shouldBan(): Boolean = strikeCount >= MAX_STRIKES
+
+    fun resetStrikes() {
+        strikeCount = 0
+        lastStrikeReason = ""
+    }
+
+    private fun decodeReason(code: Int): String {
+        val encoded = ENCODED_REASONS[code] ?: return "unknown"
+        return String(encoded.map { (it.toInt() xor R_KEY.toInt()).toByte() }.toByteArray())
+    }
 
     // ═══════════════════════════════════════════════════════════════════
     //  Layer 1: Root / Magisk Detection
     // ═══════════════════════════════════════════════════════════════════
 
     private fun isDeviceRooted(context: Context): Boolean {
-        // Method 1: Check su binary paths
         if (checkSuBinary()) return true
-
-        // Method 2: Check Magisk-specific paths and files
         if (checkMagisk()) return true
-
-        // Method 3: Check for root management apps
         if (checkRootApps(context)) return true
-
-        // Method 4: Try executing su command
         if (trySuCommand()) return true
-
-        // Method 5: Check for dangerous system properties
         if (checkSystemProperties()) return true
-
-        // Method 6: Check SELinux status
         if (checkSelinux()) return true
-
         return false
     }
 
@@ -193,7 +248,6 @@ object SecurityChecker {
             if (File(path).exists()) return true
         }
 
-        // Check for Magisk Hide / Zygisk
         try {
             val maps = File("/proc/self/maps")
             if (maps.exists()) {
@@ -227,7 +281,6 @@ object SecurityChecker {
                 pm.getPackageInfo(pkg, 0)
                 return true
             } catch (_: PackageManager.NameNotFoundException) {
-                // Not installed — good
             } catch (_: Exception) {}
         }
         return false
@@ -266,7 +319,6 @@ object SecurityChecker {
 
     private fun checkSelinux(): Boolean {
         return try {
-            // If SELinux is permissive, device is likely rooted
             val process = Runtime.getRuntime().exec("getenforce")
             val s = Scanner(process.inputStream)
             val result = s.hasNextLine() && s.nextLine().trim().equals("Permissive", ignoreCase = true)
@@ -283,7 +335,6 @@ object SecurityChecker {
     // ═══════════════════════════════════════════════════════════════════
 
     private fun isFridaDetected(): Boolean {
-        // Method 1: Check Frida binary paths
         val fridaPaths = arrayOf(
             "/data/local/tmp/frida-server",
             "/data/local/tmp/frida",
@@ -297,7 +348,6 @@ object SecurityChecker {
             if (File(path).exists()) return true
         }
 
-        // Method 2: Check /proc/self/maps for frida/gadget libraries
         try {
             val maps = File("/proc/self/maps")
             if (maps.exists()) {
@@ -310,7 +360,6 @@ object SecurityChecker {
             }
         } catch (_: Exception) {}
 
-        // Method 3: Check Frida default port (27042)
         try {
             val socket = Socket()
             socket.connect(java.net.InetSocketAddress("127.0.0.1", 27042), 200)
@@ -318,7 +367,6 @@ object SecurityChecker {
             return true
         } catch (_: Exception) {}
 
-        // Method 4: Check for frida-related threads
         try {
             val process = Runtime.getRuntime().exec(arrayOf("ls", "/proc/self/task"))
             val scanner = Scanner(process.inputStream)
@@ -338,7 +386,6 @@ object SecurityChecker {
             scanner.close()
         } catch (_: Exception) {}
 
-        // Method 5: Check for Frida's D-Bus communication
         try {
             val socket = Socket()
             socket.connect(java.net.InetSocketAddress("127.0.0.1", 27043), 200)
@@ -350,7 +397,6 @@ object SecurityChecker {
     }
 
     private fun isHookingFrameworkDetected(): Boolean {
-        // Method 1: Xposed paths
         val xposedPaths = arrayOf(
             "/system/framework/XposedBridge.jar",
             "/system/lib/libxposed_art.so",
@@ -366,7 +412,6 @@ object SecurityChecker {
             if (File(path).exists()) return true
         }
 
-        // Method 2: Check for Substrate
         if (File("/data/data/com.saurik.substrate").exists()) return true
         val substratePaths = arrayOf(
             "/data/data/com.saurik.substrate",
@@ -378,7 +423,6 @@ object SecurityChecker {
             if (File(path).exists()) return true
         }
 
-        // Method 3: Check loaded libraries in /proc/self/maps
         try {
             val maps = File("/proc/self/maps")
             if (maps.exists()) {
@@ -394,7 +438,6 @@ object SecurityChecker {
             }
         } catch (_: Exception) {}
 
-        // Method 4: Check stack trace for hooking classes
         try {
             throw Exception("security_check")
         } catch (e: Exception) {
@@ -409,7 +452,6 @@ object SecurityChecker {
             }
         }
 
-        // Method 5: Check for LSPosed manager
         try {
             val maps = File("/proc/self/maps")
             if (maps.exists()) {
@@ -428,7 +470,6 @@ object SecurityChecker {
     // ═══════════════════════════════════════════════════════════════════
 
     private fun isEmulator(): Boolean {
-        // Hardware checks
         val hardware = Build.HARDWARE.lowercase()
         if (hardware.contains("goldfish") || hardware.contains("ranchu") ||
             hardware.contains("vbox") || hardware.contains("generic") ||
@@ -437,7 +478,6 @@ object SecurityChecker {
             return true
         }
 
-        // Product checks
         val product = Build.PRODUCT.lowercase()
         if (product.contains("sdk") || product.contains("generic") ||
             product.contains("simulator") || product.contains("nox") ||
@@ -445,7 +485,6 @@ object SecurityChecker {
             return true
         }
 
-        // Model checks
         val model = Build.MODEL.lowercase()
         if (model.contains("sdk") || model.contains("emulator") ||
             model.contains("android sdk") || model.contains("nox") ||
@@ -453,27 +492,23 @@ object SecurityChecker {
             return true
         }
 
-        // Manufacturer checks
         val manufacturer = Build.MANUFACTURER.lowercase()
         if (manufacturer.contains("genymotion") || manufacturer.contains("nox") ||
             manufacturer.contains("bluestacks") || manufacturer.contains("tencent")) {
             return true
         }
 
-        // Device fingerprint
         val fingerprint = Build.FINGERPRINT.lowercase()
         if (fingerprint.contains("generic") || fingerprint.contains("emulator") ||
             fingerprint.contains("sdk")) {
             return true
         }
 
-        // Board checks
         val board = Build.BOARD.lowercase()
         if (board.contains("unknown") || board.contains("generic")) {
             return true
         }
 
-        // Emulator-specific files
         val emulatorFiles = arrayOf(
             "/dev/goldfish_pipe",
             "/dev/qemu_pipe",
@@ -487,17 +522,12 @@ object SecurityChecker {
             if (File(path).exists()) return true
         }
 
-        // Check for too many CPU cores (emulators usually have 1-2)
-        // Real devices rarely have just 1 core now, but this is a weak signal
-
-        // Check /proc/cpuinfo for emulator indicators
         try {
             val cpuinfo = File("/proc/cpuinfo")
             if (cpuinfo.exists()) {
                 val content = cpuinfo.readText()
                 if (content.contains("Intel", ignoreCase = true) &&
                     !content.contains("atom", ignoreCase = true)) {
-                    // x86 Intel CPU without "atom" — likely emulator
                     return true
                 }
             }
@@ -511,10 +541,8 @@ object SecurityChecker {
     // ═══════════════════════════════════════════════════════════════════
 
     private fun isDebuggerConnected(): Boolean {
-        // Standard Android debugger check
         if (android.os.Debug.isDebuggerConnected()) return true
 
-        // Check for debugger-related flags in /proc/self/status
         try {
             val status = File("/proc/self/status")
             if (status.exists()) {
@@ -540,7 +568,6 @@ object SecurityChecker {
 
     private fun verifySignature(context: Context): Boolean {
         try {
-            // Use GET_SIGNING_CERTIFICATES for API 28+, fallback to GET_SIGNATURES
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 context.packageManager.getPackageInfo(
                     context.packageName,
@@ -570,16 +597,13 @@ object SecurityChecker {
                 val digest = md.digest(signature.toByteArray())
                 val hash = digest.joinToString(":") { "%02X".format(it) }
 
-                // Check against allowed signatures
                 if (ALLOWED_SIGNATURES.contains(hash)) {
                     return true
                 }
             }
 
-            // No matching signature found — this APK was signed with a different key
             return false
         } catch (e: Exception) {
-            // Fail safe: if we can't verify, reject
             return false
         }
     }
@@ -589,7 +613,6 @@ object SecurityChecker {
     // ═══════════════════════════════════════════════════════════════════
 
     private fun isTampered(context: Context): Boolean {
-        // Check 1: Installer source verification
         try {
             val installer = context.packageManager.getInstallerPackageName(context.packageName)
             val blockedInstallers = listOf(
@@ -602,7 +625,6 @@ object SecurityChecker {
             }
         } catch (_: Exception) {}
 
-        // Check 2: Suspicious files in /data/local/tmp
         val suspiciousFiles = arrayOf(
             "/data/local/tmp/classes.dex",
             "/data/local/tmp/repackaged.apk",
@@ -614,25 +636,19 @@ object SecurityChecker {
             if (File(path).exists()) return true
         }
 
-        // Check 3: Verify APK integrity by checking classes.dex CRC
         try {
             val appInfo = context.applicationInfo
             val sourceDir = appInfo.sourceDir
             if (sourceDir != null) {
-                // Check if the APK has been modified by verifying file size is reasonable
                 val apkFile = File(sourceDir)
                 if (!apkFile.exists()) return true
             }
         } catch (_: Exception) {}
 
-        // Check 4: Check for runtime modification indicators
         try {
-            // If someone is using runtime modification tools, they often
-            // modify /proc/self/mem or have suspicious memory maps
             val maps = File("/proc/self/maps")
             if (maps.exists()) {
                 val content = maps.readText()
-                // Check for suspicious injected libraries
                 if (content.contains("libsubstrate", ignoreCase = true) ||
                     content.contains("libcydia", ignoreCase = true) ||
                     content.contains("xposed", ignoreCase = true)) {
@@ -645,20 +661,38 @@ object SecurityChecker {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    //  Layer 7: VPN Detection
+    // ═══════════════════════════════════════════════════════════════════
+
+    fun isVPNActive(): Boolean {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces() ?: return false
+            while (interfaces.hasMoreElements()) {
+                val intf = interfaces.nextElement()
+                val name = intf.name.lowercase()
+                // Common VPN interface names
+                if (name.startsWith("tun") || name.startsWith("ppp") ||
+                    name.startsWith("pptp") || name.startsWith("tap") ||
+                    name.startsWith("wg") || name.startsWith("ipsec") ||
+                    name.startsWith("ovpn") || name.startsWith("vpn") ||
+                    name.startsWith("nordvpn") || name.startsWith("expressvpn")) {
+                    if (intf.isUp && !intf.isLoopback) {
+                        return true
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return false
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     //  SSL Pinning Verification (runtime check from native layer)
     // ═══════════════════════════════════════════════════════════════════
 
-    /**
-     * Verify that a given certificate pin matches our allowed pins.
-     * Used by the JS side to verify SSL connections.
-     */
     fun verifySSLPin(pin: String): Boolean {
         return ALLOWED_SERVER_PINS.contains(pin)
     }
 
-    /**
-     * Get the current APK signature hash for debugging.
-     */
     fun getSignatureHash(context: Context): String {
         try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
