@@ -2249,13 +2249,13 @@
     },
     "8496976895": {
       "usage": 0,
-      "referrals": 1,
+      "referrals": 5,
       "first_seen": "2026-04-20 20:46:15",
       "username": "",
       "first_name": "ملك الارقام الوهميه",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 0.05
+      "balance": 0.25
     },
     "7201504157": {
       "usage": 0,
@@ -3045,13 +3045,13 @@
     },
     "640391482": {
       "usage": 0,
-      "referrals": 31,
+      "referrals": 32,
       "first_seen": "2026-04-26 20:08:14",
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 6.55,
+      "balance": 6.6,
       "last_ip": "185.80.143.48",
       "last_seen": "2026-04-26 21:41:35",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3576,7 +3576,11 @@
       "username": "C_33_M",
       "first_name": "𝓗𝓪𝓶𝓸𝓭𝔂🖤",
       "streak": 1,
-      "last_login_date": "2026-04-26"
+      "last_login_date": "2026-04-26",
+      "last_ip": "196.156.111.198",
+      "last_seen": "2026-04-26 23:26:10",
+      "refresh_token_hash": "27e76e3c3b27259212bfafdf6eb19aa6d41080ae78320319517eba31fa95741f",
+      "last_login": "2026-04-26 23:26:03"
     },
     "8202826451": {
       "usage": 0,
@@ -3608,6 +3612,60 @@
       "last_seen": "2026-04-26 23:10:29",
       "refresh_token_hash": "0a2a31049a5993848fd7d86c4bbdf4106ef2f21d5d070cf8618a101a49cd4008",
       "last_login": "2026-04-26 23:09:47"
+    },
+    "7380301958": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:18:13",
+      "username": "",
+      "first_name": "سـيـﮯآد‌‏هہ آمـيـﮯر آلآدمـآن مہآلكہ آلمہجہآل 💀",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "7784257607": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:19:42",
+      "username": "",
+      "first_name": "احمد",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8710484013": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:21:26",
+      "username": "jikkdhb",
+      "first_name": "محمد",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8794662095": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:23:32",
+      "username": "iidjbb",
+      "first_name": "سمير",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8677832354": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:24:15",
+      "username": "",
+      "first_name": "حمودي",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
+    },
+    "8502219670": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-26 23:24:29",
+      "username": "",
+      "first_name": "مرام",
+      "streak": 1,
+      "last_login_date": "2026-04-26"
     }
   },
   "premium": {},
