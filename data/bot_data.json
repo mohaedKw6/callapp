@@ -78,7 +78,9 @@
       "last_login_date": "2026-04-25",
       "balance": 0.6,
       "dan_calls": 122,
-      "last_daily_bonus": "2026-04-25"
+      "last_daily_bonus": "2026-04-25",
+      "last_ip": "102.46.160.248",
+      "last_seen": "2026-04-26 10:51:30"
     },
     "7627857345": {
       "usage": 0,
