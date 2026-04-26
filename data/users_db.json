@@ -73,11 +73,11 @@
     "first_seen": "2026-04-09 08:11:14",
     "username": "G_M_A_Q",
     "first_name": "\u26e5-\ud835\udd3e_\ud835\udd44_\ud835\udd38_\u211a-\u26e5",
-    "streak": 6,
-    "last_login_date": "2026-04-25",
-    "balance": 5.6,
+    "streak": 7,
+    "last_login_date": "2026-04-26",
+    "balance": 5.65,
     "dan_calls": 122,
-    "last_daily_bonus": "2026-04-25",
+    "last_daily_bonus": "2026-04-26",
     "last_ip": "102.46.160.248",
     "last_seen": "2026-04-26 10:51:30"
   },
@@ -91,7 +91,11 @@
     "streak": 1,
     "last_login_date": "2026-04-26",
     "last_daily_bonus": "2026-04-22",
-    "balance": 0.05
+    "balance": 4.95,
+    "last_ip": "31.31.176.225",
+    "last_seen": "2026-04-26 15:46:54",
+    "refresh_token_hash": "2b6d0e725b97f0e34fbde29211f625a011f4585689212142eb2285d83cd1376d",
+    "last_login": "2026-04-26 15:45:02"
   },
   "8752475170": {
     "usage": 0,
