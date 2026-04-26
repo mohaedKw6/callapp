@@ -31,6 +31,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
 
+# ─── Load .env file FIRST ────────────────────────────────────────────────────
+try:
+    from dotenv import load_dotenv
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    load_dotenv(_env_path, override=False)  # لا يطغى على env vars الموجودة
+except ImportError:
+    pass  # python-dotenv مش مثبت، هنستخدم env vars عادية
+
 # ─── قفل للأمان المتزامن (Thread-Safety) ─────────────────────────────────────
 _token_lock   = threading.Lock()          # قفل سحب التوكنات
 _file_lock    = threading.Lock()          # قفل الكتابة في الملفات
@@ -62,12 +70,16 @@ try:
 except ImportError:
     TELEGRAM_AVAILABLE = False
 
-# ─── Config ─────────────────────────────────────────────────────────────────
-BOT_TOKEN   = (os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "8383451832:AAFqpcQKsbssGDknsjUR3qJLxcwXq7VsyfY")).strip('"')
-ADMIN_IDS   = [962731079,7627857345]  # ضع معرفات الأدمن هنا
-SUPPORT_USER = "@G_M_A_Q"   # يوزر الدعم
+# ─── Config (كل حاجة من .env) ────────────────────────────────────────────────
+BOT_TOKEN   = (os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "")).strip('"')
 
-API_URL = "https://api.telicall.com"
+# أدمنات البوت - من ADMIN_IDS في .env (مفصولة بفاصلة)
+_admin_ids_str = os.environ.get("ADMIN_IDS", "962731079,7627857345").strip('"')
+ADMIN_IDS = [int(x.strip()) for x in _admin_ids_str.split(",") if x.strip().isdigit()]
+
+SUPPORT_USER = os.environ.get("SUPPORT_USER", "@G_M_A_Q").strip('"')
+
+API_URL = os.environ.get("API_URL", "https://api.telicall.com").strip('"')
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__file__) else os.getcwd()
 
 # ─── Persistent Data Directory ──────────────────────────────────────────────────
@@ -78,7 +90,7 @@ DATA_DIR = os.environ.get("DATA_DIR", os.path.join(SCRIPT_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
 ACCOUNTS_FILE = os.path.join(DATA_DIR, "telicall_accounts.json")
-ACCOUNTS_PASSWORD = "@@@GMAQ@@@"   # كلمة سر ملف الحسابات
+ACCOUNTS_PASSWORD = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"')   # كلمة سر ملف الحسابات
 
 def _acc_key():
     return hashlib.sha256(ACCOUNTS_PASSWORD.encode()).digest()

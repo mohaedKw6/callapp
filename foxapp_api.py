@@ -28,13 +28,21 @@ from functools import wraps
 
 from flask import Flask, request, jsonify
 
+# ─── Load .env file FIRST ────────────────────────────────────────────────────
+try:
+    from dotenv import load_dotenv
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    load_dotenv(_env_path, override=False)
+except ImportError:
+    pass
+
 log = logging.getLogger("fox-app")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-SHARED_SECRET = "FOXCALL_2026_SHARED_SECRET_v1"
+SHARED_SECRET = os.environ.get("SHARED_SECRET", "FOXCALL_2026_SHARED_SECRET_v1").strip('"')
 REPLIT_API_URL = (
     "https://3bdef2f4-6a1f-4c7d-af7c-73040d9e35ab-00-2dvjd113zga7x"
     ".sisko.replit.dev"
@@ -47,7 +55,7 @@ REFRESH_SECRET = hashlib.sha256(f"{SHARED_SECRET}:jwt_refresh".encode()).digest(
 ADMIN_SECRET = os.environ.get(
     "ADMIN_SECRET",
     hashlib.sha256(f"{SHARED_SECRET}:admin_key".encode()).hexdigest()[:32],
-)
+).strip('"') if os.environ.get("ADMIN_SECRET") else hashlib.sha256(f"{SHARED_SECRET}:admin_key".encode()).hexdigest()[:32]
 
 # Timeouts / limits
 JWT_EXPIRY_SECONDS = 7 * 24 * 3600        # 7 days
