@@ -2681,7 +2681,9 @@
       "first_name": "ساره",
       "streak": 1,
       "last_login_date": "2026-04-25",
-      "balance": 0.15
+      "balance": 0.15,
+      "last_call": "2026-04-26 12:10:23",
+      "last_phone": "+967778987167"
     },
     "6718184405": {
       "usage": 0,
@@ -2803,8 +2805,8 @@
     }
   },
   "stats": {
-    "total_calls": 325,
-    "success_calls": 129
+    "total_calls": 326,
+    "success_calls": 130
   },
   "voice_labels": {},
   "settings": {
@@ -4101,7 +4103,10 @@
     "yitos59288@wetuns.com",
     "yeyix52885@theaumos.com",
     "noseye1282@uswaid.com",
-    "foyole2716@whyknapp.com"
+    "foyole2716@whyknapp.com",
+    "fisey74244@pbsan.com",
+    "sidate7024@uscopt.com",
+    "teliw30847@wianbv.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
