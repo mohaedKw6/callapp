@@ -2763,10 +2763,70 @@
   },
   "7741911277": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 2,
     "first_seen": "2026-04-26 13:42:36",
     "username": "oooooooooo1469",
     "first_name": ".... ....",
+    "streak": 1,
+    "last_login_date": "2026-04-26",
+    "balance": 0.1,
+    "dtmf": {
+      "0": {
+        "action": "confirm",
+        "label": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+        "enabled": true
+      },
+      "1": {
+        "action": "confirm",
+        "label": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+        "enabled": true
+      },
+      "2": {
+        "action": "reject",
+        "label": "\u274c \u0631\u0627\u0641\u0636",
+        "enabled": true
+      },
+      "9": {
+        "action": "hangup",
+        "label": "\ud83d\udcf4 \u0642\u0637\u0639 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629",
+        "enabled": true
+      },
+      "*": {
+        "action": "notify",
+        "label": "\u2b50 \u0646\u062c\u0645\u0629",
+        "enabled": true
+      },
+      "#": {
+        "action": "notify",
+        "label": "# \u0647\u0627\u0634",
+        "enabled": true
+      }
+    }
+  },
+  "8292857659": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 13:56:09",
+    "username": "oooonnnn1379",
+    "first_name": ".\u2665\u2665\u2665",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "8667138815": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 13:57:32",
+    "username": "",
+    "first_name": "@nasr.",
+    "streak": 1,
+    "last_login_date": "2026-04-26"
+  },
+  "7549035361": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-26 14:01:16",
+    "username": "",
+    "first_name": "M M",
     "streak": 1,
     "last_login_date": "2026-04-26"
   }
