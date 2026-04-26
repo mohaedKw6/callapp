@@ -2198,7 +2198,11 @@
       "streak": 2,
       "last_login_date": "2026-04-26",
       "bot_source": "sub_@Sjxijsjszijbot",
-      "balance": 1.0
+      "balance": 0.95,
+      "last_ip": "102.46.160.248",
+      "last_seen": "2026-04-26 12:51:44",
+      "refresh_token_hash": "f0797d475e59b257a10ee7ccafbfa77da7a35aa1cf1e09056e91ded3904e52b4",
+      "last_login": "2026-04-26 12:51:00"
     },
     "8090445921": {
       "usage": 0,
