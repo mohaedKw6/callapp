@@ -4157,7 +4157,8 @@
       "first_name": "Mohamed {ᴠͥɪͣᴘͫ𓏺}",
       "streak": 1,
       "last_login_date": "2026-04-27",
-      "balance": 0.4
+      "balance": 0.35,
+      "last_use": "2026-04-27 09:24:14"
     },
     "7800786625": {
       "usage": 0,
@@ -4167,6 +4168,17 @@
       "first_name": "Youssef",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "984075999": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 09:25:38",
+      "username": "F7_Cf",
+      "first_name": "بوتات شير",
+      "streak": 1,
+      "last_login_date": "2026-04-27",
+      "bot_source": "sub_@Mmmmklalbot",
+      "balance": 0.4
     }
   },
   "premium": {},
@@ -4234,7 +4246,7 @@
     }
   },
   "stats": {
-    "total_calls": 385,
+    "total_calls": 386,
     "success_calls": 242
   },
   "voice_labels": {},
