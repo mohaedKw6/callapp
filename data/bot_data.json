@@ -92,9 +92,9 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "last_daily_bonus": "2026-04-22",
-      "balance": 3.3,
+      "balance": 3.25,
       "last_ip": "31.31.178.171",
-      "last_seen": "2026-04-27 09:44:14",
+      "last_seen": "2026-04-27 09:53:41",
       "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
       "last_login": "2026-04-27 06:50:37"
     },
@@ -4178,7 +4178,9 @@
       "streak": 1,
       "last_login_date": "2026-04-27",
       "bot_source": "sub_@Mmmmklalbot",
-      "balance": 0.4
+      "balance": 0.2,
+      "last_use": "2026-04-27 09:47:27",
+      "successful_calls": 1
     },
     "8398289015": {
       "usage": 0,
@@ -4255,8 +4257,8 @@
     }
   },
   "stats": {
-    "total_calls": 388,
-    "success_calls": 246
+    "total_calls": 392,
+    "success_calls": 253
   },
   "voice_labels": {},
   "settings": {
@@ -5588,7 +5590,9 @@
     "gexefa9593@wianbv.com",
     "timoxep225@vecrose.com",
     "nemoxan386@uscopt.com",
-    "tojocow599@vecrose.com"
+    "tojocow599@vecrose.com",
+    "saroye4036@revefr.com",
+    "pihob65375@wianbv.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
