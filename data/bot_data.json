@@ -3366,12 +3366,12 @@
       "usage": 0,
       "referrals": 0,
       "first_seen": "2026-04-26 20:21:46",
-      "username": "apooodeee",
+      "username": "qahir782599",
       "first_name": "قاهر العدوان ᡕᠵ᠊ᡃ່࡚ࠢ࠘⸝່ࠡ᠊߯ᡁࠣ࠘᠊᠊ࠢ࠘气亠",
-      "streak": 1,
-      "last_login_date": "2026-04-26",
+      "streak": 2,
+      "last_login_date": "2026-04-27",
       "last_ip": "175.110.57.1",
-      "last_seen": "2026-04-27 21:18:58",
+      "last_seen": "2026-04-27 21:24:41",
       "refresh_token_hash": "ccf9071ad214a24c30e2b8545eb68e61ffe9f6a1294dfd32e1d418c275ce5db5",
       "last_login": "2026-04-27 21:17:39"
     },
@@ -4714,14 +4714,23 @@
       "first_name": "꧁༒☬ عـآشِـقْ آلمُـوْتّ ☬༒꧂",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "1371291947": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 21:25:59",
+      "username": "faaa1737",
+      "first_name": "FARDiN (法丁)",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 2,
-    "success_calls": 10
+    "total_calls": 4,
+    "success_calls": 16
   },
   "voice_labels": {},
   "settings": {
@@ -4735,6 +4744,12 @@
   "registered_accounts": [],
   "used_accounts": [
     "saroye4036@revefr.com",
-    "pihob65375@wianbv.com"
-  ]
+    "pihob65375@wianbv.com",
+    "gexefa9593@wianbv.com",
+    "nemoxan386@uscopt.com"
+  ],
+  "competition": {
+    "start_date": "2026-04-27",
+    "duration_days": 30
+  }
 }
