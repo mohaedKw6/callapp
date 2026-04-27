@@ -4391,8 +4391,8 @@
     }
   },
   "stats": {
-    "total_calls": 396,
-    "success_calls": 266
+    "total_calls": 398,
+    "success_calls": 273
   },
   "voice_labels": {},
   "settings": {
@@ -5728,7 +5728,9 @@
     "saroye4036@revefr.com",
     "pihob65375@wianbv.com",
     "sepikos654@revefr.com",
-    "gipajid903@xnudeart.com"
+    "gipajid903@xnudeart.com",
+    "jopojix719@wianbv.com",
+    "kegone2421@wianbv.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
@@ -5812,7 +5814,8 @@
         "640391482",
         "984075999",
         "7916654151",
-        "8022234639"
+        "8022234639",
+        "7456026858"
       ],
       "created_at": "2026-04-27 08:57:03",
       "created_by": "7627857345"
