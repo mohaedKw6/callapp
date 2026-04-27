@@ -2761,8 +2761,8 @@
         "enabled": true
       }
     },
-    "last_ip": "89.189.65.219",
-    "last_seen": "2026-04-27 15:33:07",
+    "last_ip": "209.198.132.6",
+    "last_seen": "2026-04-27 18:32:32",
     "refresh_token_hash": "f68ba2058b786d81a74f6635df5683d62c6970f9f5bef46967998b77b840ec6e",
     "last_login": "2026-04-27 15:33:05",
     "last_daily_bonus": "2026-04-27"
@@ -2775,8 +2775,8 @@
     "first_name": "\u0627\u062d\u0645\u062f",
     "streak": 1,
     "last_login_date": "2026-04-27",
-    "balance": 0.25,
-    "last_use": "2026-04-27 17:30:36"
+    "balance": 0.2,
+    "last_use": "2026-04-27 18:33:57"
   },
   "7217993766": {
     "usage": 0,
@@ -4604,6 +4604,24 @@
     "first_seen": "2026-04-27 18:01:02",
     "username": "",
     "first_name": "\u0650",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "5502314698": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 18:26:39",
+    "username": "",
+    "first_name": ".",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "8596550157": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 18:35:10",
+    "username": "",
+    "first_name": "GeNeRo CF",
     "streak": 1,
     "last_login_date": "2026-04-27"
   }
