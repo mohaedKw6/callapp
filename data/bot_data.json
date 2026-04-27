@@ -1982,7 +1982,9 @@
       "referrals": 0,
       "first_seen": "2026-04-17 19:17:02",
       "username": "wgsgevbe",
-      "first_name": "*ســه‍ــᬼ👑⃟ᬼ‌‍ـــࢪان⁷¹¹*"
+      "first_name": "*ســه‍ــᬼ👑⃟ᬼ‌‍ـــࢪان⁷¹¹*",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     },
     "8372417176": {
       "usage": 0,
@@ -3367,7 +3369,11 @@
       "username": "apooodeee",
       "first_name": "قاهر العدوان ᡕᠵ᠊ᡃ່࡚ࠢ࠘⸝່ࠡ᠊߯ᡁࠣ࠘᠊᠊ࠢ࠘气亠",
       "streak": 1,
-      "last_login_date": "2026-04-26"
+      "last_login_date": "2026-04-26",
+      "last_ip": "175.110.57.1",
+      "last_seen": "2026-04-27 21:18:58",
+      "refresh_token_hash": "ccf9071ad214a24c30e2b8545eb68e61ffe9f6a1294dfd32e1d418c275ce5db5",
+      "last_login": "2026-04-27 21:17:39"
     },
     "8227915827": {
       "usage": 0,
