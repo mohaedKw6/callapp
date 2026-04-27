@@ -89,8 +89,8 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "dan_calls": 14,
-      "streak": 1,
-      "last_login_date": "2026-04-26",
+      "streak": 2,
+      "last_login_date": "2026-04-27",
       "last_daily_bonus": "2026-04-22",
       "balance": 4.3,
       "last_ip": "185.80.143.48",
@@ -3716,16 +3716,17 @@
     },
     "853975214": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 3,
       "first_seen": "2026-04-26 23:58:34",
       "username": "A_D_ID",
       "first_name": "𓆩𓄊²²𓅔هيبة ملك𓆪",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "last_ip": "176.123.23.70",
-      "last_seen": "2026-04-27 00:38:14",
+      "last_ip": "176.123.16.98",
+      "last_seen": "2026-04-27 01:02:09",
       "refresh_token_hash": "7133f6b7b490ca6ce7b01e0f37842a35d8edf64ec14b25a55823a05c90c924ff",
-      "last_login": "2026-04-27 00:37:24"
+      "last_login": "2026-04-27 00:37:24",
+      "balance": 0.15
     },
     "8504892613": {
       "usage": 0,
@@ -3771,7 +3772,11 @@
       "first_name": "مطنوخ المليكي",
       "streak": 1,
       "last_login_date": "2026-04-27",
-      "balance": 0.05
+      "balance": 0.05,
+      "last_ip": "141.95.17.213",
+      "last_seen": "2026-04-27 01:01:41",
+      "refresh_token_hash": "887a355852905e6fbbb34a6068e7a044c1cfb1b1f9bed215b076f7eb58d48491",
+      "last_login": "2026-04-27 01:01:36"
     },
     "7185391461": {
       "usage": 0,
@@ -3788,6 +3793,33 @@
       "first_seen": "2026-04-27 00:43:17",
       "username": "",
       "first_name": "مطنووخ المليكي",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "7447935751": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 01:00:37",
+      "username": "z_oo_j",
+      "first_name": "K",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "6441877975": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 01:01:00",
+      "username": "O_O_0_1",
+      "first_name": "𝐀 𝐁 𝗨 𝐘 𝐀 𝐙 𝐀 𝐍 𓏺 ᵛ⁸ 𓏺",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "8425265048": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 01:01:46",
+      "username": "",
+      "first_name": "K",
       "streak": 1,
       "last_login_date": "2026-04-27"
     }
@@ -3857,8 +3889,8 @@
     }
   },
   "stats": {
-    "total_calls": 341,
-    "success_calls": 166
+    "total_calls": 342,
+    "success_calls": 170
   },
   "voice_labels": {},
   "settings": {
@@ -5165,7 +5197,8 @@
     "xexip89124@xnudeart.com",
     "ceboyib317@xnudeart.com",
     "medote3095@uscopt.com",
-    "pavavi7951@pbsan.com"
+    "pavavi7951@pbsan.com",
+    "yirawe3604@uscopt.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
