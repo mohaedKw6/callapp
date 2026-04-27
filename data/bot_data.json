@@ -92,9 +92,9 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "last_daily_bonus": "2026-04-22",
-      "balance": 4.15,
+      "balance": 3.85,
       "last_ip": "31.31.178.171",
-      "last_seen": "2026-04-27 07:35:50",
+      "last_seen": "2026-04-27 08:43:00",
       "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
       "last_login": "2026-04-27 06:50:37"
     },
@@ -3061,9 +3061,9 @@
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 6.5,
-      "last_ip": "185.80.143.48",
-      "last_seen": "2026-04-27 07:10:07",
+      "balance": 5.95,
+      "last_ip": "89.189.78.194",
+      "last_seen": "2026-04-27 08:47:01",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
       "last_login": "2026-04-26 20:12:21"
     },
@@ -4039,7 +4039,11 @@
       "username": "",
       "first_name": "سليمان",
       "streak": 1,
-      "last_login_date": "2026-04-27"
+      "last_login_date": "2026-04-27",
+      "last_ip": "185.71.135.2",
+      "last_seen": "2026-04-27 08:47:00",
+      "refresh_token_hash": "a6998db37801be63402c2e6390b338b8c599696f72c9fd675d14f0f71c3d6a77",
+      "last_login": "2026-04-27 08:46:56"
     },
     "7456026858": {
       "usage": 0,
@@ -4116,8 +4120,8 @@
     }
   },
   "stats": {
-    "total_calls": 361,
-    "success_calls": 207
+    "total_calls": 368,
+    "success_calls": 217
   },
   "voice_labels": {},
   "settings": {
@@ -5503,6 +5507,15 @@
       ],
       "created_at": "2026-04-26 20:11:04",
       "created_by": "962731079"
+    },
+    "IMGUOZ2T": {
+      "amount": 0.4,
+      "max_users": 50,
+      "used_by": [
+        "7627857345"
+      ],
+      "created_at": "2026-04-27 08:57:03",
+      "created_by": "7627857345"
     }
   },
   "competition": {
