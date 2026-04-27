@@ -3055,13 +3055,13 @@
     },
     "640391482": {
       "usage": 0,
-      "referrals": 34,
+      "referrals": 35,
       "first_seen": "2026-04-26 20:08:14",
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 6.7,
+      "balance": 6.75,
       "last_ip": "185.80.143.48",
       "last_seen": "2026-04-26 21:41:35",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3908,6 +3908,24 @@
       "last_seen": "2026-04-27 03:31:36",
       "refresh_token_hash": "3bc421bcc70e9b4433a5d32ec807357d99e1aac52c34eb3bcd2295be18b90b03",
       "last_login": "2026-04-27 03:28:48"
+    },
+    "7072671768": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 03:56:43",
+      "username": "amfhed57",
+      "first_name": "خطابه ام فهد زواج مسيار ومعلن",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "5671472233": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 03:57:10",
+      "username": "KK1KK17",
+      "first_name": "⃪⃪بــ᭄ــݛق²𖤍᭄أݪشܔمااݪ𓃮𓆩",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
