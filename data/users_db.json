@@ -2296,9 +2296,9 @@
     "first_name": "\u0653",
     "streak": 1,
     "last_login_date": "2026-04-27",
-    "balance": 0.3,
-    "last_ip": "197.59.125.159",
-    "last_seen": "2026-04-27 10:06:30",
+    "balance": 0.15,
+    "last_ip": "197.59.66.70",
+    "last_seen": "2026-04-27 10:15:42",
     "refresh_token_hash": "c655ef1da4eae814a9d2c6e31c2354c028ab335c74e23476374c78804520aee1",
     "last_login": "2026-04-27 09:57:31"
   },
@@ -4218,6 +4218,33 @@
     "first_seen": "2026-04-27 10:04:17",
     "username": "",
     "first_name": "\u0628\u0646\u062a \u0635\u0646\u0639\u0627\u0621 \u0627\u0644\u0647\u0646\u0648\u0641",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "8698855840": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 10:09:10",
+    "username": "TYO77",
+    "first_name": "\u0631\u0639\u062fSMS",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "1371435755": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 10:13:05",
+    "username": "Z_J_44",
+    "first_name": "\u0627\u0644\u06c1\u0670\u06eb\u06ec\u0642\u064a\u06c1\u0670\u06eb\u06ec\u0635\u0631 \u06e6\u06e6\u06ec\u06e6. \u2728",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "1951450332": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 10:15:42",
+    "username": "user00372",
+    "first_name": "\u20ae\u2c67\u0246\u2c64\u20b3\u20b1\u0142\u20b4\u20ae",
     "streak": 1,
     "last_login_date": "2026-04-27"
   }
