@@ -1342,9 +1342,10 @@
       "username": "",
       "first_name": "ساره",
       "first_seen": "2026-04-25 19:16:15",
-      "total_calls": 1,
+      "total_calls": 2,
       "phones_called": [
-        "967778987167"
+        "967778987167",
+        "967784804683"
       ]
     },
     "6718184405": {
@@ -4654,6 +4655,32 @@
       "status": "ended",
       "ip_address": "31.31.178.171",
       "timestamp": "2026-04-27 15:04:51"
+    },
+    {
+      "call_id": "aea3ff3699ce9330",
+      "user_id": "7716499735",
+      "to": "+967784804683",
+      "from": "+447447483497",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-27 18:55:05",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "209.198.132.6",
+      "timestamp": "2026-04-27 18:55:05"
+    },
+    {
+      "call_id": "aea3ff3699ce9330",
+      "user_id": "7716499735",
+      "to": "+967784804683",
+      "from": "+447447483497",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-27 18:55:05",
+      "end_time": "2026-04-27 18:55:48",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "209.198.132.6",
+      "timestamp": "2026-04-27 18:55:48"
     }
   ],
   "all_phones": {
@@ -5053,6 +5080,14 @@
         "7627857345"
       ],
       "last_call": "2026-04-27 15:03:13"
+    },
+    "967784804683": {
+      "first_call": "2026-04-27 18:55:05",
+      "total_calls": 1,
+      "users_called": [
+        "7716499735"
+      ],
+      "last_call": "2026-04-27 18:55:48"
     }
   }
 }
