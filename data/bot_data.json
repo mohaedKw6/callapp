@@ -3053,13 +3053,13 @@
     },
     "640391482": {
       "usage": 0,
-      "referrals": 33,
+      "referrals": 34,
       "first_seen": "2026-04-26 20:08:14",
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 6.65,
+      "balance": 6.7,
       "last_ip": "185.80.143.48",
       "last_seen": "2026-04-26 21:41:35",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -3832,6 +3832,15 @@
       "first_seen": "2026-04-27 01:22:42",
       "username": "node12345",
       "first_name": "غيمــــ فرح ــــة🌹",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "945714798": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 01:47:24",
+      "username": "sal77eh1",
+      "first_name": "S s",
       "streak": 1,
       "last_login_date": "2026-04-27"
     }
