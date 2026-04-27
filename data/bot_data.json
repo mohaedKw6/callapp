@@ -92,9 +92,9 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "last_daily_bonus": "2026-04-22",
-      "balance": 3.0,
+      "balance": 2.9,
       "last_ip": "31.31.182.111",
-      "last_seen": "2026-04-27 20:55:45",
+      "last_seen": "2026-04-27 21:38:46",
       "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
       "last_login": "2026-04-27 06:50:37"
     },
@@ -1677,7 +1677,11 @@
       "referrals": 0,
       "first_seen": "2026-04-16 16:11:19",
       "username": "",
-      "first_name": "الامير شخصيا"
+      "first_name": "الامير شخصيا",
+      "last_ip": "185.80.143.152",
+      "last_seen": "2026-04-27 21:39:34",
+      "refresh_token_hash": "25ad0f6964c3c46ecdd34b43dc4837f6ec9af29a87bc64c0ce1b8a7f75ccdf64",
+      "last_login": "2026-04-27 21:37:24"
     },
     "5662368621": {
       "usage": 0,
@@ -3371,7 +3375,7 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "last_ip": "175.110.57.1",
-      "last_seen": "2026-04-27 21:24:41",
+      "last_seen": "2026-04-27 21:41:46",
       "refresh_token_hash": "ccf9071ad214a24c30e2b8545eb68e61ffe9f6a1294dfd32e1d418c275ce5db5",
       "last_login": "2026-04-27 21:17:39"
     },
@@ -3691,7 +3695,11 @@
       "username": "",
       "first_name": "سـيـﮯآد‌‏هہ آمـيـﮯر آلآدمـآن مہآلكہ آلمہجہآل 💀",
       "streak": 1,
-      "last_login_date": "2026-04-26"
+      "last_login_date": "2026-04-26",
+      "last_ip": "31.31.177.114",
+      "last_seen": "2026-04-27 21:41:33",
+      "refresh_token_hash": "9dc377afab533a282f8fdc3877c033697cab8b9c921af187f458e7a9adf0ae82",
+      "last_login": "2026-04-27 21:39:58"
     },
     "7784257607": {
       "usage": 0,
@@ -4723,6 +4731,19 @@
       "first_name": "FARDiN (法丁)",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "7521646444": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 21:33:02",
+      "username": "yousefmontag",
+      "first_name": "ㄚㄖㄩ丂乇千",
+      "streak": 1,
+      "last_login_date": "2026-04-27",
+      "last_ip": "197.54.154.175",
+      "last_seen": "2026-04-27 21:35:37",
+      "refresh_token_hash": "a4210c4a3774856f2d8e52e7d21d8820b57c87ff6cfafc37a3a0c50eeede921c",
+      "last_login": "2026-04-27 21:33:16"
     }
   },
   "premium": {},
