@@ -2297,7 +2297,11 @@
       "first_name": "ٓ",
       "streak": 1,
       "last_login_date": "2026-04-27",
-      "balance": 0.45
+      "balance": 0.3,
+      "last_ip": "197.59.125.159",
+      "last_seen": "2026-04-27 10:06:30",
+      "refresh_token_hash": "c655ef1da4eae814a9d2c6e31c2354c028ab335c74e23476374c78804520aee1",
+      "last_login": "2026-04-27 09:57:31"
     },
     "6817632918": {
       "usage": 0,
@@ -4178,8 +4182,8 @@
       "streak": 1,
       "last_login_date": "2026-04-27",
       "bot_source": "sub_@Mmmmklalbot",
-      "balance": 0.2,
-      "last_use": "2026-04-27 09:47:27",
+      "balance": 0.0,
+      "last_use": "2026-04-27 09:57:03",
       "successful_calls": 1
     },
     "8398289015": {
@@ -4188,6 +4192,33 @@
       "first_seen": "2026-04-27 09:41:25",
       "username": "",
       "first_name": "مجهول astr2013",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "8184392151": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 09:58:29",
+      "username": "abdo011265",
+      "first_name": "عبدالهادي سيد",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "7331323669": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 10:01:05",
+      "username": "G_Vl_x",
+      "first_name": "𝐆𝐄𝐍𝐄𝐑𝐀𝐋",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "8463622909": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 10:04:17",
+      "username": "",
+      "first_name": "بنت صنعاء الهنوف",
       "streak": 1,
       "last_login_date": "2026-04-27"
     }
@@ -4257,8 +4288,8 @@
     }
   },
   "stats": {
-    "total_calls": 392,
-    "success_calls": 253
+    "total_calls": 395,
+    "success_calls": 266
   },
   "voice_labels": {},
   "settings": {
@@ -5592,7 +5623,8 @@
     "nemoxan386@uscopt.com",
     "tojocow599@vecrose.com",
     "saroye4036@revefr.com",
-    "pihob65375@wianbv.com"
+    "pihob65375@wianbv.com",
+    "sepikos654@revefr.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
