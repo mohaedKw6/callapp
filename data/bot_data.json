@@ -1270,7 +1270,9 @@
       "referrals": 0,
       "first_seen": "2026-04-15 12:50:11",
       "username": "",
-      "first_name": "غضب الليل"
+      "first_name": "غضب الليل",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     },
     "6959926277": {
       "usage": 0,
@@ -4624,7 +4626,33 @@
       "username": "",
       "first_name": "GeNeRo CF",
       "streak": 1,
+      "last_login_date": "2026-04-27",
+      "last_ip": "196.133.128.130",
+      "last_seen": "2026-04-27 18:47:55",
+      "refresh_token_hash": "0fffc2cc2772efde78db2a8c0cc7aab7ea6ae3f3fae87b471bd81961d6376d49",
+      "last_login": "2026-04-27 18:46:06"
+    },
+    "6419522551": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 18:44:32",
+      "username": "",
+      "first_name": "m a",
+      "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "6885761058": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 18:45:30",
+      "username": "nnllllll",
+      "first_name": "Heba",
+      "streak": 1,
+      "last_login_date": "2026-04-27",
+      "last_ip": "150.228.105.171",
+      "last_seen": "2026-04-27 18:46:19",
+      "refresh_token_hash": "ba89cddb18e1eedbd2369300eb9213937525eb7d2b7ff816103b09a700cc40e0",
+      "last_login": "2026-04-27 18:46:13"
     }
   },
   "premium": {},
@@ -4692,8 +4720,8 @@
     }
   },
   "stats": {
-    "total_calls": 407,
-    "success_calls": 277
+    "total_calls": 408,
+    "success_calls": 278
   },
   "voice_labels": {},
   "settings": {
