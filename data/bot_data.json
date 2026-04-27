@@ -93,8 +93,8 @@
       "last_login_date": "2026-04-27",
       "last_daily_bonus": "2026-04-22",
       "balance": 3.0,
-      "last_ip": "31.31.178.171",
-      "last_seen": "2026-04-27 15:04:51",
+      "last_ip": "31.31.182.111",
+      "last_seen": "2026-04-27 20:55:45",
       "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
       "last_login": "2026-04-27 06:50:37"
     },
@@ -4688,6 +4688,15 @@
       "first_seen": "2026-04-27 20:32:01",
       "username": "",
       "first_name": "مختار العباسي",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "7309897184": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 20:52:47",
+      "username": "",
+      "first_name": "Ail",
       "streak": 1,
       "last_login_date": "2026-04-27"
     }
