@@ -360,14 +360,15 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 12,
+      "total_calls": 15,
       "phones_called": [
         "967771282329",
         "967781528914",
         "967784800247",
         "967779958555",
         "967777189801",
-        "967773725158"
+        "967773725158",
+        "967783105077"
       ]
     },
     "5534488473": {
@@ -1563,12 +1564,14 @@
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "first_seen": "2026-04-26 20:08:14",
-      "total_calls": 5,
+      "total_calls": 11,
       "phones_called": [
         "967771544081",
         "967778230399",
         "967778817296",
-        "967778562827"
+        "967778562827",
+        "967777189801",
+        "967772833583"
       ]
     },
     "6207882045": {
@@ -3093,6 +3096,266 @@
       "status": "ended",
       "ip_address": "185.80.143.48",
       "timestamp": "2026-04-27 07:09:43"
+    },
+    {
+      "call_id": "de3cdaba56b9370a",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447447251238",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:39:23",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.178.171",
+      "timestamp": "2026-04-27 08:39:23"
+    },
+    {
+      "call_id": "93a33e86fa7f33a6",
+      "user_id": "640391482",
+      "to": "+967778562827",
+      "from": "+447447238950",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:39:25",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:39:25"
+    },
+    {
+      "call_id": "93a33e86fa7f33a6",
+      "user_id": "640391482",
+      "to": "+967778562827",
+      "from": "+447447238950",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:39:25",
+      "end_time": "2026-04-27 08:40:06",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:40:06"
+    },
+    {
+      "call_id": "bd18e241077cd240",
+      "user_id": "640391482",
+      "to": "+967777189801",
+      "from": "+447447238298",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:40:18",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:40:18"
+    },
+    {
+      "call_id": "de3cdaba56b9370a",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447447251238",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:39:23",
+      "end_time": "2026-04-27 08:40:22",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.178.171",
+      "timestamp": "2026-04-27 08:40:22"
+    },
+    {
+      "call_id": "09322cee2e0b4828",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447447234277",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:40:36",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.178.171",
+      "timestamp": "2026-04-27 08:40:36"
+    },
+    {
+      "call_id": "bd18e241077cd240",
+      "user_id": "640391482",
+      "to": "+967777189801",
+      "from": "+447447238298",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:40:18",
+      "end_time": "2026-04-27 08:40:47",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:40:47"
+    },
+    {
+      "call_id": "09322cee2e0b4828",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447447234277",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:40:36",
+      "end_time": "2026-04-27 08:41:04",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.178.171",
+      "timestamp": "2026-04-27 08:41:04"
+    },
+    {
+      "call_id": "991a0fefd95f8f01",
+      "user_id": "7627857345",
+      "to": "+967771282329",
+      "from": "+447447243081",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:41:18",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.178.171",
+      "timestamp": "2026-04-27 08:41:18"
+    },
+    {
+      "call_id": "6398a48e6b008a8b",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447483497",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:41:43",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:41:43"
+    },
+    {
+      "call_id": "6398a48e6b008a8b",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447483497",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:41:43",
+      "end_time": "2026-04-27 08:42:33",
+      "duration": 23,
+      "status": "ended",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:42:33"
+    },
+    {
+      "call_id": "991a0fefd95f8f01",
+      "user_id": "7627857345",
+      "to": "+967771282329",
+      "from": "+447447243081",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:41:18",
+      "end_time": "2026-04-27 08:42:57",
+      "duration": 66,
+      "status": "ended",
+      "ip_address": "31.31.178.171",
+      "timestamp": "2026-04-27 08:42:57"
+    },
+    {
+      "call_id": "45f05575fb72b7fc",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447240527",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:43:05",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:43:05"
+    },
+    {
+      "call_id": "45f05575fb72b7fc",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447240527",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:43:05",
+      "end_time": "2026-04-27 08:43:28",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:43:28"
+    },
+    {
+      "call_id": "3aacc03502377ab6",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447238303",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:43:55",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:43:55"
+    },
+    {
+      "call_id": "3aacc03502377ab6",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447238303",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:43:55",
+      "end_time": "2026-04-27 08:44:23",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:44:23"
+    },
+    {
+      "call_id": "5d685f697051e9c7",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447233293",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:44:59",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:44:59"
+    },
+    {
+      "call_id": "5d685f697051e9c7",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447233293",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:44:59",
+      "end_time": "2026-04-27 08:45:59",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:45:59"
+    },
+    {
+      "call_id": "c0b72fd229f8c478",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447233296",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:46:40",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:46:40"
+    },
+    {
+      "call_id": "84cef01bca32bdc8",
+      "user_id": "640391482",
+      "to": "+967772833583",
+      "from": "+447447233305",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 08:47:02",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "89.189.78.194",
+      "timestamp": "2026-04-27 08:47:02"
     }
   ],
   "all_phones": {
@@ -3253,11 +3516,11 @@
     },
     "967771282329": {
       "first_call": "2026-04-26 15:45:18",
-      "total_calls": 2,
+      "total_calls": 3,
       "users_called": [
         "7627857345"
       ],
-      "last_call": "2026-04-26 15:52:18"
+      "last_call": "2026-04-27 08:42:57"
     },
     "967781528914": {
       "first_call": "2026-04-26 15:46:55",
@@ -3285,11 +3548,12 @@
     },
     "967777189801": {
       "first_call": "2026-04-26 17:42:09",
-      "total_calls": 1,
+      "total_calls": 2,
       "users_called": [
-        "7627857345"
+        "7627857345",
+        "640391482"
       ],
-      "last_call": "2026-04-26 17:42:59"
+      "last_call": "2026-04-27 08:40:47"
     },
     "967773725158": {
       "first_call": "2026-04-26 17:56:27",
@@ -3343,11 +3607,27 @@
     },
     "967778562827": {
       "first_call": "2026-04-27 07:07:48",
-      "total_calls": 3,
+      "total_calls": 4,
       "users_called": [
         "640391482"
       ],
-      "last_call": "2026-04-27 07:09:43"
+      "last_call": "2026-04-27 08:40:06"
+    },
+    "967783105077": {
+      "first_call": "2026-04-27 08:39:23",
+      "total_calls": 2,
+      "users_called": [
+        "7627857345"
+      ],
+      "last_call": "2026-04-27 08:41:04"
+    },
+    "967772833583": {
+      "first_call": "2026-04-27 08:41:43",
+      "total_calls": 4,
+      "users_called": [
+        "640391482"
+      ],
+      "last_call": "2026-04-27 08:45:59"
     }
   }
 }
