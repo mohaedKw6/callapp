@@ -360,7 +360,7 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 9,
+      "total_calls": 10,
       "phones_called": [
         "967771282329",
         "967781528914",
@@ -2755,6 +2755,32 @@
       "status": "ended",
       "ip_address": "185.80.44.52",
       "timestamp": "2026-04-26 23:46:15"
+    },
+    {
+      "call_id": "3e491fbfe57c46bb",
+      "user_id": "7627857345",
+      "to": "+967784800247",
+      "from": "+447447233340",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 01:09:44",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.176.245",
+      "timestamp": "2026-04-27 01:09:44"
+    },
+    {
+      "call_id": "3e491fbfe57c46bb",
+      "user_id": "7627857345",
+      "to": "+967784800247",
+      "from": "+447447233340",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 01:09:44",
+      "end_time": "2026-04-27 01:10:41",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.176.245",
+      "timestamp": "2026-04-27 01:10:41"
     }
   ],
   "all_phones": {
@@ -2931,11 +2957,11 @@
     },
     "967784800247": {
       "first_call": "2026-04-26 15:56:26",
-      "total_calls": 3,
+      "total_calls": 4,
       "users_called": [
         "7627857345"
       ],
-      "last_call": "2026-04-26 15:58:06"
+      "last_call": "2026-04-27 01:10:41"
     },
     "967779958555": {
       "first_call": "2026-04-26 16:00:21",
