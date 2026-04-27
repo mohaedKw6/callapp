@@ -92,9 +92,9 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "last_daily_bonus": "2026-04-22",
-      "balance": 4.3,
-      "last_ip": "185.80.143.48",
-      "last_seen": "2026-04-26 19:55:37",
+      "balance": 4.25,
+      "last_ip": "31.31.176.245",
+      "last_seen": "2026-04-27 01:10:48",
       "refresh_token_hash": "438d05b507a4223198dd20a60110daf8e21f1228d83e4c588e36c8f92db3a36e",
       "last_login": "2026-04-26 17:49:12"
     },
@@ -563,7 +563,9 @@
       "first_name": "Edrees Nbeel Nbeel",
       "daily_date": "2026-04-20",
       "daily_used": 1,
-      "last_use": "2026-04-20 09:30:33"
+      "last_use": "2026-04-20 09:30:33",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     },
     "1373109822": {
       "usage": 0,
@@ -3774,7 +3776,7 @@
       "last_login_date": "2026-04-27",
       "balance": 0.05,
       "last_ip": "141.95.17.213",
-      "last_seen": "2026-04-27 01:01:41",
+      "last_seen": "2026-04-27 01:12:43",
       "refresh_token_hash": "887a355852905e6fbbb34a6068e7a044c1cfb1b1f9bed215b076f7eb58d48491",
       "last_login": "2026-04-27 01:01:36"
     },
