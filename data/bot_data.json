@@ -3064,13 +3064,13 @@
     },
     "640391482": {
       "usage": 0,
-      "referrals": 38,
+      "referrals": 39,
       "first_seen": "2026-04-26 20:08:14",
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "balance": 5.4,
+      "balance": 5.45,
       "last_ip": "185.80.143.48",
       "last_seen": "2026-04-27 09:19:26",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -4413,6 +4413,84 @@
       "first_name": "الكهلاني السيد",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "8156918117": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 14:26:49",
+      "username": "",
+      "first_name": "يمني حر",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "7189383676": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 14:29:47",
+      "username": "Mll77596",
+      "first_name": "broken heart broken heart",
+      "streak": 1,
+      "last_login_date": "2026-04-27",
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "hangup",
+          "label": "📴 قطع المكالمة",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      }
+    },
+    "6269149113": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 14:30:30",
+      "username": "alglaxy",
+      "first_name": "الجلاكسي فون",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "6249573783": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 14:31:09",
+      "username": "HAQARMHMD",
+      "first_name": "👑آلَهۣۗہكۣۗـۙرᬼ👑⑅⃝آلَغۣۗـۙآمۣۗـۙضۗ👑2⑅⃝",
+      "streak": 1,
+      "last_login_date": "2026-04-27",
+      "bot_source": "sub_@haqarBot"
+    },
+    "7940918625": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 14:31:28",
+      "username": "maherakdjdh",
+      "first_name": "الـــ🌹ـحيدري شخـــ😘ـصيا",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
@@ -4480,7 +4558,7 @@
     }
   },
   "stats": {
-    "total_calls": 399,
+    "total_calls": 400,
     "success_calls": 273
   },
   "voice_labels": {},
