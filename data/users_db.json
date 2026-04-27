@@ -87,7 +87,7 @@
     "first_seen": "2026-04-09 08:18:54",
     "username": "llllllIlIlIlIlIlIlIl",
     "first_name": "\ud80c\udda9\ud80c\udd0a\u00b2\u00b2\ud80c\udd54 \u0633\u0640\u0627\u0645\u0640\u064a \ud80c\udd0a\ud80c\uddaa",
-    "dan_calls": 14,
+    "dan_calls": 28,
     "streak": 2,
     "last_login_date": "2026-04-27",
     "last_daily_bonus": "2026-04-22",
@@ -2266,13 +2266,13 @@
   },
   "8496976895": {
     "usage": 0,
-    "referrals": 7,
+    "referrals": 10,
     "first_seen": "2026-04-20 20:46:15",
     "username": "jksknbb",
     "first_name": "\u0645\u0644\u0643 \u0627\u0644\u0627\u0631\u0642\u0627\u0645 \u0627\u0644\u0648\u0647\u0645\u064a\u0647",
     "streak": 2,
     "last_login_date": "2026-04-27",
-    "balance": 0.1,
+    "balance": 0.4,
     "last_ip": "185.80.44.52",
     "last_seen": "2026-04-26 23:47:26",
     "refresh_token_hash": "93afd868eedadbf54f96760ef52902e2f1a67398e0de32f1d8e4878e95bb8b9c",
@@ -3706,8 +3706,8 @@
     "first_seen": "2026-04-26 23:19:42",
     "username": "",
     "first_name": "\u0627\u062d\u0645\u062f",
-    "streak": 1,
-    "last_login_date": "2026-04-26"
+    "streak": 2,
+    "last_login_date": "2026-04-27"
   },
   "8710484013": {
     "usage": 0,
@@ -3715,8 +3715,8 @@
     "first_seen": "2026-04-26 23:21:26",
     "username": "jikkdhb",
     "first_name": "\u0645\u062d\u0645\u062f",
-    "streak": 1,
-    "last_login_date": "2026-04-26"
+    "streak": 2,
+    "last_login_date": "2026-04-27"
   },
   "8794662095": {
     "usage": 0,
@@ -3724,8 +3724,8 @@
     "first_seen": "2026-04-26 23:23:32",
     "username": "iidjbb",
     "first_name": "\u0633\u0645\u064a\u0631",
-    "streak": 1,
-    "last_login_date": "2026-04-26"
+    "streak": 2,
+    "last_login_date": "2026-04-27"
   },
   "8677832354": {
     "usage": 0,
@@ -3744,8 +3744,8 @@
     "first_seen": "2026-04-26 23:24:29",
     "username": "",
     "first_name": "\u0645\u0631\u0627\u0645",
-    "streak": 1,
-    "last_login_date": "2026-04-26"
+    "streak": 2,
+    "last_login_date": "2026-04-27"
   },
   "7873353699": {
     "usage": 0,
@@ -4802,5 +4802,32 @@
         "enabled": true
       }
     }
+  },
+  "8664574976": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 22:00:25",
+    "username": "",
+    "first_name": "\u062d\u0645\u064a\u062f",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "8612796748": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 22:02:36",
+    "username": "",
+    "first_name": "\u0639\u0635\u0627\u0645",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "7760308230": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 22:03:27",
+    "username": "",
+    "first_name": "\u0645\u0638\u0644\u0648\u0648\u0645\ud83d\ude14",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
   }
 }
