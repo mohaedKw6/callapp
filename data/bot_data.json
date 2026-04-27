@@ -4699,6 +4699,15 @@
       "first_name": "Ail",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "6071027713": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 21:06:39",
+      "username": "f_4_4444",
+      "first_name": "꧁༒☬ عـآشِـقْ آلمُـوْتّ ☬༒꧂",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
@@ -4706,7 +4715,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 2,
-    "success_calls": 8
+    "success_calls": 10
   },
   "voice_labels": {},
   "settings": {
