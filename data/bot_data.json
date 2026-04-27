@@ -92,9 +92,9 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "last_daily_bonus": "2026-04-22",
-      "balance": 4.0,
+      "balance": 3.7,
       "last_ip": "31.31.178.171",
-      "last_seen": "2026-04-27 08:55:37",
+      "last_seen": "2026-04-27 09:09:37",
       "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
       "last_login": "2026-04-27 06:50:37"
     },
@@ -2086,7 +2086,8 @@
       "refresh_token_hash": "1b24772194fe00b4034d673e032ae71592fcee926f1a05ebe3b34f72d3a6b830",
       "last_login": "2026-04-26 22:02:15",
       "streak": 1,
-      "last_login_date": "2026-04-26"
+      "last_login_date": "2026-04-26",
+      "balance": 0.4
     },
     "8206623999": {
       "usage": 0,
@@ -2109,9 +2110,10 @@
       "username": "ZIAAD_ALHTAMY",
       "first_name": "ZIAAD ALHTAMY 𓊈𝑽꯭𝑰꯭𝑷ࠡࠡࠡࠡࠢ𓊉",
       "streak": 1,
-      "last_login_date": "2026-04-21",
-      "last_call": "2026-04-27 09:05:09",
-      "last_phone": "+967777880750"
+      "last_login_date": "2026-04-27",
+      "balance": 0.2,
+      "last_use": "2026-04-27 09:03:41",
+      "successful_calls": 1
     },
     "7717726732": {
       "usage": 0,
@@ -2294,7 +2296,7 @@
       "username": "MllllMI",
       "first_name": "ٓ",
       "streak": 1,
-      "last_login_date": "2026-04-20"
+      "last_login_date": "2026-04-27"
     },
     "6817632918": {
       "usage": 0,
@@ -3063,9 +3065,9 @@
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 5.4,
+      "balance": 5.0,
       "last_ip": "185.80.143.48",
-      "last_seen": "2026-04-27 08:58:32",
+      "last_seen": "2026-04-27 09:05:28",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
       "last_login": "2026-04-26 20:12:21"
     },
@@ -4042,10 +4044,11 @@
       "first_name": "سليمان",
       "streak": 1,
       "last_login_date": "2026-04-27",
-      "last_ip": "185.71.135.2",
-      "last_seen": "2026-04-27 08:47:00",
+      "last_ip": "185.71.134.109",
+      "last_seen": "2026-04-27 09:04:43",
       "refresh_token_hash": "a6998db37801be63402c2e6390b338b8c599696f72c9fd675d14f0f71c3d6a77",
-      "last_login": "2026-04-27 08:46:56"
+      "last_login": "2026-04-27 08:46:56",
+      "balance": 0.4
     },
     "7456026858": {
       "usage": 0,
@@ -4059,6 +4062,65 @@
       "last_seen": "2026-04-27 08:57:37",
       "refresh_token_hash": "20b808ee07b7e7f4b894f4ca4ad9c37242b673d8c6d100d3673866b98959c69b",
       "last_login": "2026-04-27 08:49:53"
+    },
+    "987948270": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 09:01:11",
+      "username": "A3_0C",
+      "first_name": "A.S ☫",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "706302600": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 09:01:25",
+      "username": "rxorr",
+      "first_name": "♰ ⌯ 𝐕𝐀𝐂𝐑𝐈𝐒",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "7176942849": {
+      "usage": 0,
+      "first_seen": "2026-04-27 09:01:41",
+      "balance": 0.4
+    },
+    "7462995114": {
+      "usage": 0,
+      "first_seen": "2026-04-27 09:02:16",
+      "balance": 0.4
+    },
+    "7840674782": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 09:02:26",
+      "username": "",
+      "first_name": "«וࡅٜߺ𐬛 ࡅ𐫥ߺߺ𐬠𐬛𐬛ᓚ͛ᒧ​​​​​»",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "8338824343": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 09:03:17",
+      "username": "",
+      "first_name": "عـــاشــق الـــقَــرﺂ࿌",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "8406342973": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 09:03:25",
+      "username": "",
+      "first_name": "ال ذيب الشعيطات",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "6892708759": {
+      "last_call": "2026-04-27 09:18:50",
+      "last_phone": "+201112700178"
     }
   },
   "premium": {},
@@ -4126,8 +4188,8 @@
     }
   },
   "stats": {
-    "total_calls": 377,
-    "success_calls": 231
+    "total_calls": 384,
+    "success_calls": 242
   },
   "voice_labels": {},
   "settings": {
@@ -5453,7 +5515,13 @@
     "vejepeh394@pavecode.com",
     "yogiti3819@springse.com",
     "xawoy42883@zizvy.com",
-    "vokow26635@uswaid.com"
+    "vokow26635@uswaid.com",
+    "todila8412@vecrose.com",
+    "xodobe3923@xnudeart.com",
+    "gexefa9593@wianbv.com",
+    "timoxep225@vecrose.com",
+    "nemoxan386@uscopt.com",
+    "tojocow599@vecrose.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
@@ -5530,7 +5598,11 @@
         "7176942849",
         "7462995114",
         "8592998581",
-        "7718587201"
+        "7718587201",
+        "1967689361",
+        "6892708759",
+        "8036773843",
+        "640391482"
       ],
       "created_at": "2026-04-27 08:57:03",
       "created_by": "7627857345"
