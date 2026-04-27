@@ -3075,11 +3075,11 @@
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "balance": 5.45,
-      "last_ip": "185.80.143.48",
-      "last_seen": "2026-04-27 09:19:26",
-      "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
-      "last_login": "2026-04-26 20:12:21"
+      "balance": 5.35,
+      "last_ip": "150.228.105.178",
+      "last_seen": "2026-04-27 19:23:25",
+      "refresh_token_hash": "41d748d3b5271c7629aad31905269ec15784fe6e7a5e37b06a5fb6ac8427655a",
+      "last_login": "2026-04-27 19:17:38"
     },
     "6207882045": {
       "usage": 0,
@@ -4649,8 +4649,8 @@
       "first_name": "Heba",
       "streak": 1,
       "last_login_date": "2026-04-27",
-      "last_ip": "150.228.105.171",
-      "last_seen": "2026-04-27 18:46:19",
+      "last_ip": "150.228.105.139",
+      "last_seen": "2026-04-27 19:17:33",
       "refresh_token_hash": "ba89cddb18e1eedbd2369300eb9213937525eb7d2b7ff816103b09a700cc40e0",
       "last_login": "2026-04-27 18:46:13"
     },
@@ -4660,6 +4660,16 @@
       "first_seen": "2026-04-27 19:08:07",
       "username": "Fa50_m",
       "first_name": "👑 ملك الاسطورة",
+      "streak": 1,
+      "last_login_date": "2026-04-27",
+      "balance": 0.4
+    },
+    "5947193454": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 19:15:12",
+      "username": "",
+      "first_name": "أّلَجّـوٌکْر ا̲̅ل̲̅ج̲̅و̲̅ك̲̅ر̲̅",
       "streak": 1,
       "last_login_date": "2026-04-27"
     }
@@ -4729,8 +4739,8 @@
     }
   },
   "stats": {
-    "total_calls": 410,
-    "success_calls": 281
+    "total_calls": 411,
+    "success_calls": 283
   },
   "voice_labels": {},
   "settings": {
