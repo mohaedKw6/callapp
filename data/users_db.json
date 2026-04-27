@@ -3074,11 +3074,11 @@
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 2,
     "last_login_date": "2026-04-27",
-    "balance": 5.45,
-    "last_ip": "185.80.143.48",
-    "last_seen": "2026-04-27 09:19:26",
-    "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
-    "last_login": "2026-04-26 20:12:21"
+    "balance": 5.35,
+    "last_ip": "150.228.105.178",
+    "last_seen": "2026-04-27 19:23:25",
+    "refresh_token_hash": "41d748d3b5271c7629aad31905269ec15784fe6e7a5e37b06a5fb6ac8427655a",
+    "last_login": "2026-04-27 19:17:38"
   },
   "6207882045": {
     "usage": 0,
@@ -4648,8 +4648,8 @@
     "first_name": "Heba",
     "streak": 1,
     "last_login_date": "2026-04-27",
-    "last_ip": "150.228.105.171",
-    "last_seen": "2026-04-27 18:46:19",
+    "last_ip": "150.228.105.139",
+    "last_seen": "2026-04-27 19:17:33",
     "refresh_token_hash": "ba89cddb18e1eedbd2369300eb9213937525eb7d2b7ff816103b09a700cc40e0",
     "last_login": "2026-04-27 18:46:13"
   },
@@ -4659,6 +4659,16 @@
     "first_seen": "2026-04-27 19:08:07",
     "username": "Fa50_m",
     "first_name": "\ud83d\udc51 \u0645\u0644\u0643 \u0627\u0644\u0627\u0633\u0637\u0648\u0631\u0629",
+    "streak": 1,
+    "last_login_date": "2026-04-27",
+    "balance": 0.4
+  },
+  "5947193454": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 19:15:12",
+    "username": "",
+    "first_name": "\u0623\u0651\u0644\u064e\u062c\u0651\u0640\u0648\u064c\u06a9\u0652\u0631 \u0627\u0332\u0305\u0644\u0332\u0305\u062c\u0332\u0305\u0648\u0332\u0305\u0643\u0332\u0305\u0631\u0332\u0305",
     "streak": 1,
     "last_login_date": "2026-04-27"
   }
