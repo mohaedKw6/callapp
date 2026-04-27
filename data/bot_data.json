@@ -3055,13 +3055,13 @@
     },
     "640391482": {
       "usage": 0,
-      "referrals": 35,
+      "referrals": 36,
       "first_seen": "2026-04-26 20:08:14",
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 6.45,
+      "balance": 6.5,
       "last_ip": "185.80.143.48",
       "last_seen": "2026-04-27 07:10:07",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -4040,6 +4040,15 @@
       "first_name": "سليمان",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "7456026858": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 08:34:58",
+      "username": "Asndn4668",
+      "first_name": "𝑽꯭𝑰꯭𝑷ࠡࠡࠡࠡ",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
@@ -4107,8 +4116,8 @@
     }
   },
   "stats": {
-    "total_calls": 350,
-    "success_calls": 191
+    "total_calls": 361,
+    "success_calls": 207
   },
   "voice_labels": {},
   "settings": {
@@ -5422,7 +5431,12 @@
     "peciba3608@vecrose.com",
     "fotom30867@revefr.com",
     "pasabe4999@wianbv.com",
-    "gamegi1916@xnudeart.com"
+    "gamegi1916@xnudeart.com",
+    "jinije4546@wianbv.com",
+    "rinej81847@pbsan.com",
+    "siyexe2276@revefr.com",
+    "yadoti8606@wianbv.com",
+    "jelaga6708@vecrose.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
