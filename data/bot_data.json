@@ -3455,8 +3455,9 @@
       "first_seen": "2026-04-26 20:47:41",
       "username": "",
       "first_name": "👑آلَهۣۗہكۣۗـۙرᬼ👑⑅⃝آلَغۣۗـۙآمۣۗـۙضۗ👑1⑅⃝",
-      "streak": 1,
-      "last_login_date": "2026-04-26"
+      "streak": 2,
+      "last_login_date": "2026-04-27",
+      "balance": 0.4
     },
     "8582137727": {
       "usage": 0,
@@ -4365,7 +4366,17 @@
       "first_name": "Yassin",
       "streak": 1,
       "last_login_date": "2026-04-27",
-      "balance": 0.4
+      "balance": 0.35,
+      "last_use": "2026-04-27 13:37:26"
+    },
+    "5159402585": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 13:42:22",
+      "username": "abdal21351",
+      "first_name": "𝓐𝓫𝓭𝓾𝓪𝓵𝓴𝓪𝓻𝓲𝓶✌🏻🤞",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
