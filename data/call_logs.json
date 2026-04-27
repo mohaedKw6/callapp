@@ -2279,8 +2279,10 @@
       "username": "Asndn4668",
       "first_name": "𝑽꯭𝑰꯭𝑷ࠡࠡࠡࠡ",
       "first_seen": "2026-04-27 08:34:58",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 2,
+      "phones_called": [
+        "967778196678"
+      ]
     },
     "987948270": {
       "username": "A3_0C",
@@ -4309,6 +4311,58 @@
       "status": "ended",
       "ip_address": "197.59.66.70",
       "timestamp": "2026-04-27 10:15:05"
+    },
+    {
+      "call_id": "5a702039fb8d9c0a",
+      "user_id": "7456026858",
+      "to": "+967778196678",
+      "from": "+447447483497",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-27 11:57:12",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "175.110.42.228",
+      "timestamp": "2026-04-27 11:57:12"
+    },
+    {
+      "call_id": "5a702039fb8d9c0a",
+      "user_id": "7456026858",
+      "to": "+967778196678",
+      "from": "+447447483497",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-27 11:57:12",
+      "end_time": "2026-04-27 11:58:08",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "175.110.42.228",
+      "timestamp": "2026-04-27 11:58:08"
+    },
+    {
+      "call_id": "bd592ee49d40495c",
+      "user_id": "7456026858",
+      "to": "+967778196678",
+      "from": "+447447240527",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-27 11:58:17",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "175.110.42.228",
+      "timestamp": "2026-04-27 11:58:17"
+    },
+    {
+      "call_id": "bd592ee49d40495c",
+      "user_id": "7456026858",
+      "to": "+967778196678",
+      "from": "+447447240527",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-27 11:58:17",
+      "end_time": "2026-04-27 11:58:28",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "175.110.42.228",
+      "timestamp": "2026-04-27 11:58:28"
     }
   ],
   "all_phones": {
@@ -4691,6 +4745,14 @@
         "1967689361"
       ],
       "last_call": "2026-04-27 10:15:05"
+    },
+    "967778196678": {
+      "first_call": "2026-04-27 11:57:12",
+      "total_calls": 2,
+      "users_called": [
+        "7456026858"
+      ],
+      "last_call": "2026-04-27 11:58:28"
     }
   }
 }
