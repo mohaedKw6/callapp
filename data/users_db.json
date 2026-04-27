@@ -2653,7 +2653,7 @@
     "username": "jdjejdjdjkdn",
     "first_name": "\u0647\u0644\u0648\u0648\u0648\ud83e\udd24\ud83d\udc9b\u060c!!\u00bf.",
     "streak": 1,
-    "last_login_date": "2026-04-24"
+    "last_login_date": "2026-04-27"
   },
   "6682390604": {
     "usage": 0,
@@ -3306,8 +3306,44 @@
     "first_seen": "2026-04-26 20:21:25",
     "username": "mkcjc8",
     "first_name": "9- \u0336A\u0336r\u0336r\u0336o\u0336g\u0336a\u0336n\u0336t\u0336",
-    "streak": 1,
-    "last_login_date": "2026-04-26"
+    "streak": 2,
+    "last_login_date": "2026-04-27",
+    "dtmf": {
+      "0": {
+        "action": "replay",
+        "label": "\ud83d\udd01 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0635\u0648\u062a",
+        "enabled": true
+      },
+      "1": {
+        "action": "notify",
+        "label": "\ud83d\udcf3 \u0625\u0634\u0639\u0627\u0631 \u0641\u0642\u0637",
+        "enabled": true
+      },
+      "2": {
+        "action": "reject",
+        "label": "\u274c \u0631\u0627\u0641\u0636",
+        "enabled": true
+      },
+      "9": {
+        "action": "confirm",
+        "label": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+        "enabled": true
+      },
+      "*": {
+        "action": "notify",
+        "label": "\u2b50 \u0646\u062c\u0645\u0629",
+        "enabled": true
+      },
+      "#": {
+        "action": "notify",
+        "label": "# \u0647\u0627\u0634",
+        "enabled": true
+      }
+    },
+    "last_ip": "185.80.143.135",
+    "last_seen": "2026-04-27 04:58:50",
+    "refresh_token_hash": "1d7fcff9270052a04f7a80ee29816c0d9d89e92bd4cd2b9ee3b6dbf4c9245566",
+    "last_login": "2026-04-27 04:57:56"
   },
   "6926059919": {
     "usage": 0,
@@ -3934,6 +3970,24 @@
     "first_seen": "2026-04-27 04:18:45",
     "username": "",
     "first_name": "Am",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "7627761933": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 04:53:16",
+    "username": "JVl_Kk",
+    "first_name": "\ud835\udc69\ud835\udc8a\ud835\udc8d\ud835\udc8d\ud835\udc8a\ud835\udc86\u2728\ud83c\uddfe\ud83c\uddea",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "8337734650": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 04:58:19",
+    "username": "abd200777",
+    "first_name": "\u0627\u0628\u0648 \u0645\u062d\u0645\u062f",
     "streak": 1,
     "last_login_date": "2026-04-27"
   }
