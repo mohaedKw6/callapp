@@ -2654,7 +2654,7 @@
       "username": "jdjejdjdjkdn",
       "first_name": "هلووو🤤💛،!!¿.",
       "streak": 1,
-      "last_login_date": "2026-04-24"
+      "last_login_date": "2026-04-27"
     },
     "6682390604": {
       "usage": 0,
@@ -3307,8 +3307,44 @@
       "first_seen": "2026-04-26 20:21:25",
       "username": "mkcjc8",
       "first_name": "9- ̶A̶r̶r̶o̶g̶a̶n̶t̶",
-      "streak": 1,
-      "last_login_date": "2026-04-26"
+      "streak": 2,
+      "last_login_date": "2026-04-27",
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "notify",
+          "label": "📳 إشعار فقط",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      },
+      "last_ip": "185.80.143.135",
+      "last_seen": "2026-04-27 04:58:50",
+      "refresh_token_hash": "1d7fcff9270052a04f7a80ee29816c0d9d89e92bd4cd2b9ee3b6dbf4c9245566",
+      "last_login": "2026-04-27 04:57:56"
     },
     "6926059919": {
       "usage": 0,
@@ -3935,6 +3971,24 @@
       "first_seen": "2026-04-27 04:18:45",
       "username": "",
       "first_name": "Am",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "7627761933": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 04:53:16",
+      "username": "JVl_Kk",
+      "first_name": "𝑩𝒊𝒍𝒍𝒊𝒆✨🇾🇪",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
+    },
+    "8337734650": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 04:58:19",
+      "username": "abd200777",
+      "first_name": "ابو محمد",
       "streak": 1,
       "last_login_date": "2026-04-27"
     }
