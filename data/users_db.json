@@ -3074,11 +3074,11 @@
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 2,
     "last_login_date": "2026-04-27",
-    "balance": 5.3,
-    "last_ip": "150.228.105.83",
-    "last_seen": "2026-04-27 19:26:55",
-    "refresh_token_hash": "41d748d3b5271c7629aad31905269ec15784fe6e7a5e37b06a5fb6ac8427655a",
-    "last_login": "2026-04-27 19:17:38"
+    "balance": 5.05,
+    "last_ip": "57.128.191.114",
+    "last_seen": "2026-04-27 19:46:39",
+    "refresh_token_hash": "d010f652ce5da6be10abb06914a2f1b96dc79847e1e46ec1e5c6f8335ed75e82",
+    "last_login": "2026-04-27 19:46:31"
   },
   "6207882045": {
     "usage": 0,
