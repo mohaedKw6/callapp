@@ -92,9 +92,9 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "last_daily_bonus": "2026-04-22",
-      "balance": 3.5,
+      "balance": 3.3,
       "last_ip": "31.31.178.171",
-      "last_seen": "2026-04-27 09:17:47",
+      "last_seen": "2026-04-27 09:44:14",
       "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
       "last_login": "2026-04-27 06:50:37"
     },
@@ -3060,13 +3060,13 @@
     },
     "640391482": {
       "usage": 0,
-      "referrals": 36,
+      "referrals": 37,
       "first_seen": "2026-04-26 20:08:14",
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "balance": 5.3,
+      "balance": 5.35,
       "last_ip": "185.80.143.48",
       "last_seen": "2026-04-27 09:19:26",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -4179,6 +4179,15 @@
       "last_login_date": "2026-04-27",
       "bot_source": "sub_@Mmmmklalbot",
       "balance": 0.4
+    },
+    "8398289015": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 09:41:25",
+      "username": "",
+      "first_name": "مجهول astr2013",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
@@ -4246,8 +4255,8 @@
     }
   },
   "stats": {
-    "total_calls": 386,
-    "success_calls": 242
+    "total_calls": 388,
+    "success_calls": 246
   },
   "voice_labels": {},
   "settings": {
