@@ -3054,13 +3054,13 @@
   },
   "640391482": {
     "usage": 0,
-    "referrals": 35,
+    "referrals": 36,
     "first_seen": "2026-04-26 20:08:14",
     "username": "MM0ZZ",
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 1,
     "last_login_date": "2026-04-26",
-    "balance": 6.45,
+    "balance": 6.5,
     "last_ip": "185.80.143.48",
     "last_seen": "2026-04-27 07:10:07",
     "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
@@ -4037,6 +4037,15 @@
     "first_seen": "2026-04-27 08:09:37",
     "username": "",
     "first_name": "\u0633\u0644\u064a\u0645\u0627\u0646",
+    "streak": 1,
+    "last_login_date": "2026-04-27"
+  },
+  "7456026858": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-27 08:34:58",
+    "username": "Asndn4668",
+    "first_name": "\ud835\udc7d\uabed\ud835\udc70\uabed\ud835\udc77\u0821\u0821\u0821\u0821",
     "streak": 1,
     "last_login_date": "2026-04-27"
   }
