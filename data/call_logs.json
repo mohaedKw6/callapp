@@ -360,7 +360,7 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 28,
+      "total_calls": 29,
       "phones_called": [
         "967771282329",
         "967781528914",
@@ -2354,8 +2354,10 @@
       "username": "F7_Cf",
       "first_name": "بوتات شير",
       "first_seen": "2026-04-27 09:25:38",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "201159818271"
+      ]
     },
     "8398289015": {
       "username": "",
@@ -4028,6 +4030,40 @@
       "status": "ended",
       "ip_address": "31.31.178.171",
       "timestamp": "2026-04-27 09:44:14"
+    },
+    {
+      "call_id": "6f9fdb8c68a96557",
+      "user_id": "7627857345",
+      "to": "+967716550493",
+      "from": "+447447240527",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 09:45:59",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.178.171",
+      "timestamp": "2026-04-27 09:45:59"
+    },
+    {
+      "user_id": "984075999",
+      "phone": "+201159818271",
+      "from_number": "447447243081",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-04-27 09:49:07"
+    },
+    {
+      "call_id": "6f9fdb8c68a96557",
+      "user_id": "7627857345",
+      "to": "+967716550493",
+      "from": "+447447240527",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-27 09:45:59",
+      "end_time": "2026-04-27 09:53:41",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.178.171",
+      "timestamp": "2026-04-27 09:53:41"
     }
   ],
   "all_phones": {
@@ -4352,11 +4388,11 @@
     },
     "967716550493": {
       "first_call": "2026-04-27 09:06:17",
-      "total_calls": 6,
+      "total_calls": 7,
       "users_called": [
         "7627857345"
       ],
-      "last_call": "2026-04-27 09:44:14"
+      "last_call": "2026-04-27 09:53:41"
     },
     "967772288826": {
       "first_call": "2026-04-27 09:07:47",
@@ -4381,6 +4417,14 @@
         "640391482"
       ],
       "last_call": "2026-04-27 09:19:24"
+    },
+    "201159818271": {
+      "first_call": "2026-04-27 09:49:07",
+      "total_calls": 1,
+      "users_called": [
+        "984075999"
+      ],
+      "last_call": "2026-04-27 09:49:07"
     }
   }
 }
