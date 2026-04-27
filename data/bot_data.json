@@ -3061,9 +3061,9 @@
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 1,
       "last_login_date": "2026-04-26",
-      "balance": 6.75,
+      "balance": 6.6,
       "last_ip": "185.80.143.48",
-      "last_seen": "2026-04-26 21:41:35",
+      "last_seen": "2026-04-27 07:04:27",
       "refresh_token_hash": "025fd6afac13dc66c47e0bc0a23603fd7cdbc814c7ff9bb477d99e84910cf09f",
       "last_login": "2026-04-26 20:12:21"
     },
@@ -4004,6 +4004,15 @@
       "first_name": "sul6an",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "7203543826": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 06:56:39",
+      "username": "",
+      "first_name": "ابو سنان",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
@@ -4071,8 +4080,8 @@
     }
   },
   "stats": {
-    "total_calls": 346,
-    "success_calls": 185
+    "total_calls": 350,
+    "success_calls": 191
   },
   "voice_labels": {},
   "settings": {
@@ -5383,7 +5392,10 @@
     "yirawe3604@uscopt.com",
     "yokon98876@pbsan.com",
     "kesajew511@xnudeart.com",
-    "peciba3608@vecrose.com"
+    "peciba3608@vecrose.com",
+    "fotom30867@revefr.com",
+    "pasabe4999@wianbv.com",
+    "gamegi1916@xnudeart.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
