@@ -2725,9 +2725,9 @@
       "first_seen": "2026-04-25 19:16:15",
       "username": "",
       "first_name": "ساره",
-      "streak": 2,
-      "last_login_date": "2026-04-26",
-      "balance": 0.15,
+      "streak": 3,
+      "last_login_date": "2026-04-27",
+      "balance": 0.23,
       "last_use": "2026-04-26 17:54:51",
       "successful_calls": 1,
       "dtmf": {
@@ -2762,10 +2762,11 @@
           "enabled": true
         }
       },
-      "last_ip": "89.189.71.24",
-      "last_seen": "2026-04-26 20:24:58",
-      "refresh_token_hash": "6392fccbe69b3b3e5e0a09b8f2dbe3229ca7ef8e07534ccf03bcb5a7469794f8",
-      "last_login": "2026-04-26 20:24:57"
+      "last_ip": "89.189.65.219",
+      "last_seen": "2026-04-27 15:33:07",
+      "refresh_token_hash": "f68ba2058b786d81a74f6635df5683d62c6970f9f5bef46967998b77b840ec6e",
+      "last_login": "2026-04-27 15:33:05",
+      "last_daily_bonus": "2026-04-27"
     },
     "6718184405": {
       "usage": 0,
@@ -4518,6 +4519,15 @@
       "first_name": "⸢𝐀𝐥-𝐐𝐚𝐦𝐢𝐬𝐡𝐢 𝐇𝐚𝐜𝐤⸣",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "8186380426": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 15:38:56",
+      "username": "",
+      "first_name": "محمد مجدي",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
@@ -4585,7 +4595,7 @@
     }
   },
   "stats": {
-    "total_calls": 402,
+    "total_calls": 403,
     "success_calls": 275
   },
   "voice_labels": {},
@@ -5924,7 +5934,8 @@
     "sepikos654@revefr.com",
     "gipajid903@xnudeart.com",
     "jopojix719@wianbv.com",
-    "kegone2421@wianbv.com"
+    "kegone2421@wianbv.com",
+    "fihofov299@wianbv.com"
   ],
   "force_sub_enabled": true,
   "force_sub_channels": [
@@ -6011,7 +6022,8 @@
         "8022234639",
         "7456026858",
         "8321867662",
-        "8176652280"
+        "8176652280",
+        "7716499735"
       ],
       "created_at": "2026-04-27 08:57:03",
       "created_by": "7627857345"
