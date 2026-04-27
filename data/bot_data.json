@@ -4653,6 +4653,15 @@
       "last_seen": "2026-04-27 18:46:19",
       "refresh_token_hash": "ba89cddb18e1eedbd2369300eb9213937525eb7d2b7ff816103b09a700cc40e0",
       "last_login": "2026-04-27 18:46:13"
+    },
+    "8699562044": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 19:08:07",
+      "username": "Fa50_m",
+      "first_name": "👑 ملك الاسطورة",
+      "streak": 1,
+      "last_login_date": "2026-04-27"
     }
   },
   "premium": {},
@@ -4720,8 +4729,8 @@
     }
   },
   "stats": {
-    "total_calls": 408,
-    "success_calls": 278
+    "total_calls": 410,
+    "success_calls": 281
   },
   "voice_labels": {},
   "settings": {
@@ -6149,7 +6158,8 @@
         "8321867662",
         "8176652280",
         "7716499735",
-        "6718184405"
+        "6718184405",
+        "8699562044"
       ],
       "created_at": "2026-04-27 08:57:03",
       "created_by": "7627857345"
