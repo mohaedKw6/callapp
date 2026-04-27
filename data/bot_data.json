@@ -2274,10 +2274,10 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "balance": 0.4,
-      "last_ip": "185.80.44.52",
-      "last_seen": "2026-04-26 23:47:26",
-      "refresh_token_hash": "93afd868eedadbf54f96760ef52902e2f1a67398e0de32f1d8e4878e95bb8b9c",
-      "last_login": "2026-04-26 23:43:11"
+      "last_ip": "143.244.45.44",
+      "last_seen": "2026-04-27 22:10:23",
+      "refresh_token_hash": "e2c971bcd794e82621a04b31b13b850280d9928f1ec2710ba93c68dd43eb151b",
+      "last_login": "2026-04-27 22:08:03"
     },
     "7201504157": {
       "usage": 0,
@@ -4830,6 +4830,19 @@
       "first_name": "مظلووم😔",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "8181206295": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-27 22:10:24",
+      "username": "xdjvbc",
+      "first_name": "،،،،،،،،،،",
+      "streak": 1,
+      "last_login_date": "2026-04-27",
+      "last_ip": "188.240.121.94",
+      "last_seen": "2026-04-27 22:12:38",
+      "refresh_token_hash": "8e4a9ed0d152b63653f78cd0004f8a35d6d493828809168578d98453a46038cd",
+      "last_login": "2026-04-27 22:11:57"
     }
   },
   "premium": {},
@@ -4837,7 +4850,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 4,
-    "success_calls": 18
+    "success_calls": 19
   },
   "voice_labels": {},
   "settings": {
