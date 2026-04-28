@@ -2269,13 +2269,13 @@
     },
     "8496976895": {
       "usage": 0,
-      "referrals": 10,
+      "referrals": 11,
       "first_seen": "2026-04-20 20:46:15",
       "username": "jksknbb",
       "first_name": "ملك الارقام الوهميه",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "balance": 0.4,
+      "balance": 0.5,
       "last_ip": "143.244.45.44",
       "last_seen": "2026-04-27 22:10:23",
       "refresh_token_hash": "e2c971bcd794e82621a04b31b13b850280d9928f1ec2710ba93c68dd43eb151b",
@@ -5103,6 +5103,47 @@
       "first_name": "KLL.⚡",
       "streak": 1,
       "last_login_date": "2026-04-28"
+    },
+    "8740930303": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-28 21:20:57",
+      "username": "",
+      "first_name": "..",
+      "streak": 1,
+      "last_login_date": "2026-04-28",
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      }
     }
   },
   "premium": {},
