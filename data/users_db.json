@@ -3080,9 +3080,9 @@
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 2,
     "last_login_date": "2026-04-27",
-    "balance": 4.5,
+    "balance": 3.95,
     "last_ip": "185.80.143.39",
-    "last_seen": "2026-04-28 11:10:00",
+    "last_seen": "2026-04-28 12:04:18",
     "refresh_token_hash": "d010f652ce5da6be10abb06914a2f1b96dc79847e1e46ec1e5c6f8335ed75e82",
     "last_login": "2026-04-27 19:46:31"
   },
@@ -4956,6 +4956,15 @@
     "first_seen": "2026-04-28 11:44:42",
     "username": "Damkholi",
     "first_name": "\u0643\u062d\u0648\u0644 \u0641\u0646\u0643 \u062a\u0643\u062f\u0631\u0644\u064a",
+    "streak": 1,
+    "last_login_date": "2026-04-28"
+  },
+  "7203473444": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-28 12:01:36",
+    "username": "Gxii10",
+    "first_name": "\u0647\u064a\u0645\u0648",
     "streak": 1,
     "last_login_date": "2026-04-28"
   }
