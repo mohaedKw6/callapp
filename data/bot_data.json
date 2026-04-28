@@ -4956,8 +4956,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 5,
-    "success_calls": 20
+    "total_calls": 6,
+    "success_calls": 21
   },
   "voice_labels": {},
   "settings": {
