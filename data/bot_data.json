@@ -5078,10 +5078,20 @@
     },
     "6860937572": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 1,
       "first_seen": "2026-04-28 19:42:10",
       "username": "modjfidodoid",
       "first_name": ".......",
+      "streak": 1,
+      "last_login_date": "2026-04-28",
+      "balance": 0.1
+    },
+    "8404162710": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-28 19:48:26",
+      "username": "",
+      "first_name": "AB DO",
       "streak": 1,
       "last_login_date": "2026-04-28"
     }
