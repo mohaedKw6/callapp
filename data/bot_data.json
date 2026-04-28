@@ -2240,7 +2240,7 @@
       "bot_source": "sub_@Sjxijsjszijbot",
       "balance": 0.65,
       "last_ip": "156.216.228.37",
-      "last_seen": "2026-04-27 14:42:17",
+      "last_seen": "2026-04-28 01:21:17",
       "refresh_token_hash": "201a4fa7152440a5474686ff274971adc6d77b7c955b16fab34bd552ec4d9307",
       "last_login": "2026-04-26 19:37:53"
     },
@@ -4870,6 +4870,15 @@
       "first_name": "باقر غالب عبد",
       "streak": 1,
       "last_login_date": "2026-04-27"
+    },
+    "6329024371": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-28 01:17:14",
+      "username": "Mjdjn164",
+      "first_name": "غصان Pppppppppp",
+      "streak": 1,
+      "last_login_date": "2026-04-28"
     }
   },
   "premium": {},
