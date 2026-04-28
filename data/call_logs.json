@@ -1578,7 +1578,7 @@
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "first_seen": "2026-04-26 20:08:14",
-      "total_calls": 25,
+      "total_calls": 28,
       "phones_called": [
         "967771544081",
         "967778230399",
@@ -1594,7 +1594,8 @@
         "967772044224",
         "9647830168062",
         "9647862244355",
-        "9647894619449"
+        "9647894619449",
+        "967780210540"
       ]
     },
     "6207882045": {
@@ -5112,6 +5113,97 @@
       "status": "ended",
       "ip_address": "89.189.78.114",
       "timestamp": "2026-04-28 10:47:32"
+    },
+    {
+      "call_id": "a4f2b24a5f868185",
+      "user_id": "640391482",
+      "to": "+967777189801",
+      "from": "+447447233402",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-28 10:59:48",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "185.80.143.39",
+      "timestamp": "2026-04-28 10:59:48"
+    },
+    {
+      "call_id": "a4f2b24a5f868185",
+      "user_id": "640391482",
+      "to": "+967777189801",
+      "from": "+447447233402",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-28 10:59:48",
+      "end_time": "2026-04-28 11:00:18",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "185.80.143.39",
+      "timestamp": "2026-04-28 11:00:18"
+    },
+    {
+      "call_id": "bd9041d3f8e5cfe3",
+      "user_id": "640391482",
+      "to": "+967780210540",
+      "from": "+447447233436",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-28 11:01:56",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "185.80.143.39",
+      "timestamp": "2026-04-28 11:01:56"
+    },
+    {
+      "call_id": "bd9041d3f8e5cfe3",
+      "user_id": "640391482",
+      "to": "+967780210540",
+      "from": "+447447233436",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-28 11:01:56",
+      "end_time": "2026-04-28 11:03:12",
+      "duration": 30,
+      "status": "ended",
+      "ip_address": "185.80.143.39",
+      "timestamp": "2026-04-28 11:03:12"
+    },
+    {
+      "call_id": "db5e4eb34c4bce04",
+      "user_id": "640391482",
+      "to": "+967780210540",
+      "from": "+447447233584",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-28 11:03:15",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "185.80.143.39",
+      "timestamp": "2026-04-28 11:03:15"
+    },
+    {
+      "call_id": "db5e4eb34c4bce04",
+      "user_id": "640391482",
+      "to": "+967780210540",
+      "from": "+447447233584",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-28 11:03:15",
+      "end_time": "2026-04-28 11:03:40",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "185.80.143.39",
+      "timestamp": "2026-04-28 11:03:40"
+    },
+    {
+      "call_id": "a21f6dbe1b986924",
+      "user_id": "640391482",
+      "to": "+967780210540",
+      "from": "+447447233606",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-28 11:04:44",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "185.80.143.39",
+      "timestamp": "2026-04-28 11:04:44"
     }
   ],
   "all_phones": {
@@ -5305,12 +5397,12 @@
     },
     "967777189801": {
       "first_call": "2026-04-26 17:42:09",
-      "total_calls": 2,
+      "total_calls": 3,
       "users_called": [
         "7627857345",
         "640391482"
       ],
-      "last_call": "2026-04-27 08:40:47"
+      "last_call": "2026-04-28 11:00:18"
     },
     "967773725158": {
       "first_call": "2026-04-26 17:56:27",
@@ -5559,6 +5651,14 @@
         "7627857345"
       ],
       "last_call": "2026-04-27 21:38:44"
+    },
+    "967780210540": {
+      "first_call": "2026-04-28 11:01:56",
+      "total_calls": 2,
+      "users_called": [
+        "640391482"
+      ],
+      "last_call": "2026-04-28 11:03:40"
     }
   }
 }
