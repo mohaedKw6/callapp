@@ -3076,13 +3076,13 @@
   },
   "640391482": {
     "usage": 0,
-    "referrals": 39,
+    "referrals": 40,
     "first_seen": "2026-04-26 20:08:14",
     "username": "MM0ZZ",
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 2,
     "last_login_date": "2026-04-27",
-    "balance": 3.15,
+    "balance": 3.25,
     "last_ip": "150.228.105.66",
     "last_seen": "2026-04-28 17:23:05",
     "refresh_token_hash": "22bcfb1f81eced63196da276b45c1a2536c7ee140706b823367fb17544f0de26",
@@ -5054,6 +5054,24 @@
     "first_seen": "2026-04-28 16:04:07",
     "username": "tn3_8",
     "first_name": "\u064a\u0651\u0650\u0648\u064c\u0633\u0650\u0640\u0641\u064f\u0640 \u0623\u0651\u0644\u064e\u0628\u064b\u0642\u064f\u0644\u064e\u064a\u0651\u0650",
+    "streak": 1,
+    "last_login_date": "2026-04-28"
+  },
+  "8770636956": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-28 19:24:41",
+    "username": "igecy",
+    "first_name": "\u265b \u1d05\u0280\u1d0b\ua731\u1d1b\u1d0f\u0280\u1d07 \u265b",
+    "streak": 1,
+    "last_login_date": "2026-04-28"
+  },
+  "8407427610": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-28 19:30:49",
+    "username": "lilililillililillililil0",
+    "first_name": "\u266f\u0627\u0644\u062a\u064f\u0631\u06aa\u064a\u0651 \ud83c\uddf9\ud83c\uddf7\u21af\u2718",
     "streak": 1,
     "last_login_date": "2026-04-28"
   }
