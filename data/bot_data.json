@@ -4879,6 +4879,77 @@
       "first_name": "غصان Pppppppppp",
       "streak": 1,
       "last_login_date": "2026-04-28"
+    },
+    "6455586418": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-28 01:41:12",
+      "username": "ffo_a",
+      "first_name": "مٛتٖٜ؏ـجٖࢪفْٖ",
+      "streak": 1,
+      "last_login_date": "2026-04-28",
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "hangup",
+          "label": "📴 قطع المكالمة",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        },
+        "3": {
+          "enabled": true,
+          "action": "confirm",
+          "label": "✅ موافق"
+        },
+        "4": {
+          "enabled": true,
+          "action": "confirm",
+          "label": "✅ موافق"
+        },
+        "5": {
+          "enabled": true,
+          "action": "confirm",
+          "label": "✅ موافق"
+        },
+        "8": {
+          "enabled": true,
+          "action": "confirm",
+          "label": "✅ موافق"
+        },
+        "7": {
+          "enabled": true,
+          "action": "confirm",
+          "label": "✅ موافق"
+        },
+        "6": {
+          "enabled": true,
+          "action": "confirm",
+          "label": "✅ موافق"
+        }
+      }
     }
   },
   "premium": {},
