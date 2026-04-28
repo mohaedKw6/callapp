@@ -6277,5 +6277,12 @@
   "competition": {
     "start_date": "2026-04-27",
     "duration_days": 30
-  }
+  },
+  "force_sub_channels": [
+    "@bad_wolf_01",
+    "@pythonyemen1",
+    "@yemen711x",
+    "@A_A_T_T2"
+  ],
+  "force_sub_enabled": true
 }
