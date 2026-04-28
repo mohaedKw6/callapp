@@ -5083,5 +5083,9 @@
     "cicejo7687@wudmis.com",
     "nakex68477@tivogo.com",
     "sapilah930@tivogo.com"
-  ]
+  ],
+  "competition": {
+    "start_date": "2026-04-28",
+    "duration_days": 30
+  }
 }
