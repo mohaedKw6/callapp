@@ -3081,9 +3081,9 @@
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "balance": 5.05,
-      "last_ip": "57.128.191.114",
-      "last_seen": "2026-04-27 19:46:39",
+      "balance": 4.7,
+      "last_ip": "185.80.143.39",
+      "last_seen": "2026-04-28 11:04:43",
       "refresh_token_hash": "d010f652ce5da6be10abb06914a2f1b96dc79847e1e46ec1e5c6f8335ed75e82",
       "last_login": "2026-04-27 19:46:31"
     },
@@ -4956,8 +4956,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 10,
-    "success_calls": 26
+    "total_calls": 11,
+    "success_calls": 28
   },
   "voice_labels": {},
   "settings": {
