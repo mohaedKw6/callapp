@@ -78,8 +78,10 @@
     "balance": 5.75,
     "dan_calls": 360,
     "last_daily_bonus": "2026-04-28",
-    "last_ip": "102.46.160.248",
-    "last_seen": "2026-04-26 10:51:30"
+    "last_ip": "188.72.41.112",
+    "last_seen": "2026-04-28 14:15:56",
+    "refresh_token_hash": "755df14fc69a77eb22d3198759f76431a1ecc6fe7e5a225d2b7f428f29017d64",
+    "last_login": "2026-04-28 14:15:55"
   },
   "7627857345": {
     "usage": 0,
@@ -5032,5 +5034,18 @@
     "first_name": "\u0627\u0645\u064a\u0631 \u0627\u0644\u0639\u0627\u0644\u0645",
     "streak": 1,
     "last_login_date": "2026-04-28"
+  },
+  "7349414052": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-28 14:16:40",
+    "username": "s_n_ye",
+    "first_name": "\ud835\udc70 \ud835\udc73\ud835\udc76\ud835\udc7d\ud835\udc6c \ud835\udc80\ud835\udc76\ud835\udc7c",
+    "streak": 1,
+    "last_login_date": "2026-04-28",
+    "last_ip": "87.251.25.88",
+    "last_seen": "2026-04-28 14:17:54",
+    "refresh_token_hash": "4b0de10f9b0e00fecc8436482136a05676b917a9d74738f9b9fadc8a1c865339",
+    "last_login": "2026-04-28 14:17:47"
   }
 }
