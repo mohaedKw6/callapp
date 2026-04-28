@@ -5063,8 +5063,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 5,
-    "success_calls": 8
+    "total_calls": 8,
+    "success_calls": 12
   },
   "voice_labels": {},
   "settings": {
@@ -5081,6 +5081,7 @@
     "resiho8491@toondot.com",
     "bobay81984@splindor.com",
     "cicejo7687@wudmis.com",
-    "nakex68477@tivogo.com"
+    "nakex68477@tivogo.com",
+    "sapilah930@tivogo.com"
   ]
 }
