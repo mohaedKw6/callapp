@@ -89,10 +89,10 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "dan_calls": 28,
-      "streak": 2,
-      "last_login_date": "2026-04-27",
-      "last_daily_bonus": "2026-04-22",
-      "balance": 2.9,
+      "streak": 3,
+      "last_login_date": "2026-04-28",
+      "last_daily_bonus": "2026-04-28",
+      "balance": 2.95,
       "last_ip": "31.31.182.111",
       "last_seen": "2026-04-27 22:16:43",
       "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
@@ -4950,14 +4950,23 @@
           "label": "✅ موافق"
         }
       }
+    },
+    "8537352184": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-28 11:44:42",
+      "username": "Damkholi",
+      "first_name": "كحول فنك تكدرلي",
+      "streak": 1,
+      "last_login_date": "2026-04-28"
     }
   },
   "premium": {},
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 11,
-    "success_calls": 28
+    "total_calls": 19,
+    "success_calls": 35
   },
   "voice_labels": {},
   "settings": {
@@ -7470,7 +7479,15 @@
     "helah67108@wudmis.com",
     "nalow63546@splindor.com",
     "vedab34408@viasuma.com",
-    "cocini7932@wudmis.com"
+    "cocini7932@wudmis.com",
+    "tacef96824@wudmis.com",
+    "cicejo7687@wudmis.com",
+    "jotor70321@viasuma.com",
+    "nakex68477@tivogo.com",
+    "waraxa5781@tivogo.com",
+    "resiho8491@toondot.com",
+    "nocene4166@wudmis.com",
+    "jayojaw437@wudmis.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
