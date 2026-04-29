@@ -3765,16 +3765,15 @@
     },
     "8677832354": {
       "usage": 0,
-      "referrals": 5,
+      "referrals": 7,
       "first_seen": "2026-04-26 23:24:15",
       "username": "",
       "first_name": "حمودي",
       "streak": 1,
       "last_login_date": "2026-04-29",
-      "balance": 0.05,
-      "last_use": "2026-04-27 01:28:43",
-      "last_call": "2026-04-29 22:06:09",
-      "last_phone": "+967773988621"
+      "balance": 0.0,
+      "last_use": "2026-04-29 22:04:35",
+      "successful_calls": 1
     },
     "8502219670": {
       "usage": 0,
@@ -5034,6 +5033,24 @@
       "first_seen": "2026-04-29 20:14:49",
       "username": "abood77731",
       "first_name": "... ....",
+      "streak": 1,
+      "last_login_date": "2026-04-29"
+    },
+    "8258376885": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-29 22:00:44",
+      "username": "Malak11122ml",
+      "first_name": "M ㅤㅤ ㅤㅤㅤㅤ",
+      "streak": 1,
+      "last_login_date": "2026-04-29"
+    },
+    "5833852938": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-29 22:02:32",
+      "username": "",
+      "first_name": "King 😎😎",
       "streak": 1,
       "last_login_date": "2026-04-29"
     }
