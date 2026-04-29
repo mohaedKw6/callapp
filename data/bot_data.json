@@ -93,8 +93,8 @@
       "last_login_date": "2026-04-29",
       "last_daily_bonus": "2026-04-22",
       "balance": 2.35,
-      "last_ip": "31.31.190.102",
-      "last_seen": "2026-04-29 13:45:36",
+      "last_ip": "31.31.182.23",
+      "last_seen": "2026-04-29 20:27:14",
       "refresh_token_hash": "46dc1ff71a9f09b91ea4342f3585101a868e1751cfc420277b17014b6cc4b598",
       "last_login": "2026-04-29 13:36:13"
     },
@@ -5041,7 +5041,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 18,
-    "success_calls": 47
+    "success_calls": 49
   },
   "voice_labels": {},
   "settings": {
