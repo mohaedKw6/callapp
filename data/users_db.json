@@ -2715,7 +2715,7 @@
     "username": "DraGN126",
     "first_name": "\u2936\u062f\u0631\u0627\u062c\u0640\u0640\u0640\u0648\u0646 \u0627\u0644\u0640\u0640\u064a\u0640\u0640\u0648\u062a\u0640\u0640\u0640\u064a\u0640\u0640\u0648\u0628\u0640\u0631\u21bb\"",
     "streak": 1,
-    "last_login_date": "2026-04-25"
+    "last_login_date": "2026-04-29"
   },
   "6540327134": {
     "usage": 0,
@@ -3081,8 +3081,8 @@
     "streak": 2,
     "last_login_date": "2026-04-27",
     "balance": 5.05,
-    "last_ip": "57.128.191.114",
-    "last_seen": "2026-04-27 19:46:39",
+    "last_ip": "134.35.7.122",
+    "last_seen": "2026-04-29 17:18:55",
     "refresh_token_hash": "d010f652ce5da6be10abb06914a2f1b96dc79847e1e46ec1e5c6f8335ed75e82",
     "last_login": "2026-04-27 19:46:31"
   },
@@ -4152,12 +4152,16 @@
   "7462995114": {
     "usage": 0,
     "first_seen": "2026-04-27 09:02:16",
-    "balance": 0.2,
+    "balance": 0.0,
     "streak": 1,
-    "last_login_date": "2026-04-27",
+    "last_login_date": "2026-04-29",
     "username": "",
     "first_name": ".. ..",
-    "last_use": "2026-04-29 14:59:20"
+    "last_use": "2026-04-29 14:59:20",
+    "last_ip": "31.31.182.64",
+    "last_seen": "2026-04-29 17:18:36",
+    "refresh_token_hash": "92b0f171745141724faa73ad7650658298e3ec683d0e753c175111335ca2b189",
+    "last_login": "2026-04-29 17:15:34"
   },
   "7840674782": {
     "usage": 0,
