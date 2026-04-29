@@ -2610,8 +2610,10 @@
       "username": "",
       "first_name": ".. ..",
       "first_seen": "2026-04-27 15:48:34",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967783355492"
+      ]
     },
     "7626787332": {
       "username": "TIXHV",
@@ -5319,6 +5321,32 @@
       "status": "ended",
       "ip_address": "31.31.190.102",
       "timestamp": "2026-04-29 13:45:36"
+    },
+    {
+      "call_id": "4d33b31497196d88",
+      "user_id": "7462995114",
+      "to": "+967783355492",
+      "from": "+447577370285",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-29 17:17:42",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.182.64",
+      "timestamp": "2026-04-29 17:17:42"
+    },
+    {
+      "call_id": "4d33b31497196d88",
+      "user_id": "7462995114",
+      "to": "+967783355492",
+      "from": "+447577370285",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-29 17:17:42",
+      "end_time": "2026-04-29 17:18:36",
+      "duration": 20,
+      "status": "ended",
+      "ip_address": "31.31.182.64",
+      "timestamp": "2026-04-29 17:18:36"
     }
   ],
   "all_phones": {
@@ -5774,6 +5802,14 @@
         "8176652280"
       ],
       "last_call": "2026-04-29 11:58:21"
+    },
+    "967783355492": {
+      "first_call": "2026-04-29 17:17:42",
+      "total_calls": 1,
+      "users_called": [
+        "7462995114"
+      ],
+      "last_call": "2026-04-29 17:18:36"
     }
   }
 }
