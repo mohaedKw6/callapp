@@ -5110,6 +5110,19 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-04-29 11:58:21"
+    },
+    {
+      "call_id": "75c331dd093f1894",
+      "user_id": "7627857345",
+      "to": "+967784800247",
+      "from": "+447577370466",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-29 13:36:51",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.190.102",
+      "timestamp": "2026-04-29 13:36:51"
     }
   ],
   "all_phones": {
