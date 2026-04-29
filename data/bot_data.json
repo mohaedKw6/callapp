@@ -89,14 +89,14 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "dan_calls": 28,
-      "streak": 2,
-      "last_login_date": "2026-04-27",
+      "streak": 1,
+      "last_login_date": "2026-04-29",
       "last_daily_bonus": "2026-04-22",
-      "balance": 2.9,
-      "last_ip": "31.31.182.111",
-      "last_seen": "2026-04-27 22:16:43",
-      "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
-      "last_login": "2026-04-27 06:50:37"
+      "balance": 2.85,
+      "last_ip": "31.31.190.102",
+      "last_seen": "2026-04-29 13:36:50",
+      "refresh_token_hash": "46dc1ff71a9f09b91ea4342f3585101a868e1751cfc420277b17014b6cc4b598",
+      "last_login": "2026-04-29 13:36:13"
     },
     "8752475170": {
       "usage": 0,
@@ -5008,8 +5008,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 7,
-    "success_calls": 21
+    "total_calls": 14,
+    "success_calls": 43
   },
   "voice_labels": {},
   "settings": {
@@ -7521,7 +7521,13 @@
     "cicejo7687@wudmis.com",
     "weteve8252@splindor.com",
     "tacef96824@wudmis.com",
-    "waraxa5781@tivogo.com"
+    "waraxa5781@tivogo.com",
+    "yehares980@toondot.com",
+    "nocene4166@wudmis.com",
+    "jayojaw437@wudmis.com",
+    "vedab34408@viasuma.com",
+    "cocini7932@wudmis.com",
+    "perafoh869@viasuma.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
