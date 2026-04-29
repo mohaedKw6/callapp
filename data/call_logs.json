@@ -2058,8 +2058,10 @@
       "username": "",
       "first_name": "حمودي",
       "first_seen": "2026-04-26 23:24:15",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967773988621"
+      ]
     },
     "8502219670": {
       "username": "",
@@ -2878,6 +2880,20 @@
       "username": "abood77731",
       "first_name": "... ....",
       "first_seen": "2026-04-29 20:14:49",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "8258376885": {
+      "username": "Malak11122ml",
+      "first_name": "M ㅤㅤ ㅤㅤㅤㅤ",
+      "first_seen": "2026-04-29 22:00:44",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "5833852938": {
+      "username": "",
+      "first_name": "King 😎😎",
+      "first_seen": "2026-04-29 22:02:32",
       "total_calls": 0,
       "phones_called": []
     }
@@ -5354,6 +5370,14 @@
       "status": "ended",
       "ip_address": "31.31.182.64",
       "timestamp": "2026-04-29 17:18:36"
+    },
+    {
+      "user_id": "8677832354",
+      "phone": "+967773988621",
+      "from_number": "447577368845",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-04-29 22:06:09"
     }
   ],
   "all_phones": {
@@ -5817,6 +5841,14 @@
         "7462995114"
       ],
       "last_call": "2026-04-29 17:18:36"
+    },
+    "967773988621": {
+      "first_call": "2026-04-29 22:06:09",
+      "total_calls": 1,
+      "users_called": [
+        "8677832354"
+      ],
+      "last_call": "2026-04-29 22:06:09"
     }
   }
 }
