@@ -88,12 +88,12 @@
     "username": "llllllIlIlIlIlIlIlIl",
     "first_name": "\ud80c\udda9\ud80c\udd0a\u00b2\u00b2\ud80c\udd54 \u0633\u0640\u0627\u0645\u0640\u064a \ud80c\udd0a\ud80c\uddaa",
     "dan_calls": 28,
-    "streak": 3,
-    "last_login_date": "2026-04-28",
-    "last_daily_bonus": "2026-04-28",
-    "balance": 2.75,
-    "last_ip": "31.31.187.27",
-    "last_seen": "2026-04-28 13:16:53",
+    "streak": 2,
+    "last_login_date": "2026-04-27",
+    "last_daily_bonus": "2026-04-22",
+    "balance": 2.9,
+    "last_ip": "31.31.182.111",
+    "last_seen": "2026-04-27 22:16:43",
     "refresh_token_hash": "58cb916c9b5c71fdb4a0688331ff810576977a47287e47365b77e65c2c115341",
     "last_login": "2026-04-27 06:50:37"
   },
@@ -2237,9 +2237,9 @@
     "streak": 2,
     "last_login_date": "2026-04-26",
     "bot_source": "sub_@Sjxijsjszijbot",
-    "balance": 0.6,
-    "last_ip": "156.214.133.17",
-    "last_seen": "2026-04-28 10:02:28",
+    "balance": 0.65,
+    "last_ip": "156.216.228.37",
+    "last_seen": "2026-04-28 01:21:17",
     "refresh_token_hash": "201a4fa7152440a5474686ff274971adc6d77b7c955b16fab34bd552ec4d9307",
     "last_login": "2026-04-26 19:37:53"
   },
@@ -2732,9 +2732,9 @@
     "first_seen": "2026-04-25 19:16:15",
     "username": "",
     "first_name": "\u0633\u0627\u0631\u0647",
-    "streak": 4,
-    "last_login_date": "2026-04-28",
-    "balance": 0.61,
+    "streak": 3,
+    "last_login_date": "2026-04-27",
+    "balance": 0.58,
     "last_use": "2026-04-26 17:54:51",
     "successful_calls": 1,
     "dtmf": {
@@ -2769,11 +2769,11 @@
         "enabled": true
       }
     },
-    "last_ip": "89.189.78.114",
-    "last_seen": "2026-04-28 10:47:37",
-    "refresh_token_hash": "b93ff33a59ed3f0dd60dc9fc8f9600e494860037fe96c7a4db05e6ad9c87a0ec",
-    "last_login": "2026-04-28 10:46:17",
-    "last_daily_bonus": "2026-04-28"
+    "last_ip": "209.198.132.6",
+    "last_seen": "2026-04-27 18:55:49",
+    "refresh_token_hash": "f68ba2058b786d81a74f6635df5683d62c6970f9f5bef46967998b77b840ec6e",
+    "last_login": "2026-04-27 15:33:05",
+    "last_daily_bonus": "2026-04-27"
   },
   "6718184405": {
     "usage": 0,
@@ -3080,9 +3080,9 @@
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 2,
     "last_login_date": "2026-04-27",
-    "balance": 3.3,
-    "last_ip": "185.80.143.39",
-    "last_seen": "2026-04-28 13:10:39",
+    "balance": 5.05,
+    "last_ip": "57.128.191.114",
+    "last_seen": "2026-04-27 19:46:39",
     "refresh_token_hash": "d010f652ce5da6be10abb06914a2f1b96dc79847e1e46ec1e5c6f8335ed75e82",
     "last_login": "2026-04-27 19:46:31"
   },
@@ -3468,11 +3468,10 @@
     "referrals": 0,
     "first_seen": "2026-04-26 20:47:41",
     "username": "",
-    "first_name": "\ud83d\udc51\u0622\u0645\u062d\u0645\u062f\u1b3c\ud83d\udc51\u2445\u20dd\u0627\u0644\u0642\u062d\u0637\u0627\u0646\u064a\ud83d\udc511\u2445\u20dd",
-    "streak": 3,
-    "last_login_date": "2026-04-28",
-    "balance": 0.45,
-    "last_daily_bonus": "2026-04-28"
+    "first_name": "\ud83d\udc51\u0622\u0644\u064e\u0647\u06d7\u06e3\u06c1\u0643\u06d7\u06e3\u0640\u06d9\u0631\u1b3c\ud83d\udc51\u2445\u20dd\u0622\u0644\u064e\u063a\u06d7\u06e3\u0640\u06d9\u0622\u0645\u06d7\u06e3\u0640\u06d9\u0636\u06d7\ud83d\udc511\u2445\u20dd",
+    "streak": 2,
+    "last_login_date": "2026-04-27",
+    "balance": 0.4
   },
   "8582137727": {
     "usage": 0,
@@ -4950,78 +4949,5 @@
         "label": "\u2705 \u0645\u0648\u0627\u0641\u0642"
       }
     }
-  },
-  "8537352184": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-04-28 11:44:42",
-    "username": "Damkholi",
-    "first_name": "\u0643\u062d\u0648\u0644 \u0641\u0646\u0643 \u062a\u0643\u062f\u0631\u0644\u064a",
-    "streak": 1,
-    "last_login_date": "2026-04-28"
-  },
-  "7203473444": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-04-28 12:01:36",
-    "username": "Gxii10",
-    "first_name": "\u0647\u064a\u0645\u0648",
-    "streak": 1,
-    "last_login_date": "2026-04-28"
-  },
-  "7153041742": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-04-28 12:23:51",
-    "username": "",
-    "first_name": "\ufe0f\u0627\u0644\u0633\u064a\u062f\ufe0f\ufe0f\ufe0f\ufe0f\ufe0f\ufe0f",
-    "streak": 1,
-    "last_login_date": "2026-04-28"
-  },
-  "6839301132": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-04-28 12:56:57",
-    "username": "",
-    "first_name": "\u0639\u0645\u0643",
-    "streak": 1,
-    "last_login_date": "2026-04-28"
-  },
-  "5372462654": {
-    "usage": 0,
-    "referrals": 1,
-    "first_seen": "2026-04-28 13:39:48",
-    "username": "Kabos99",
-    "first_name": "\ud81a\udd0d \u21e3\u2363\u20df\ud83c\uddfe\ud83c\uddea\u0627\u07ac\u076a\u0640\u0640\u0640\u0640\u1de7\u035e\u0338\u0640\u0362\u0640\u1de0\u0338\u0640\u035e\u0640\u0362\u1de7\u0338\u0640\u035e\u0640\u0640\u20de\u20dd\u06aa\u20de\u0640\u0627\u20df\u0628\u0640\u0640\u0640\u00b2\u0362\u2070\u0362\u00b2\u0362\u2076\u0640\u035e\u0640\u20ea\u0640\u0640\u0f7c\u0336\u0640\u0640\u0640\u06c5\u20dd\u069b\u21e3\u2363",
-    "streak": 1,
-    "last_login_date": "2026-04-28",
-    "balance": 0.1
-  },
-  "8737739518": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-04-28 13:45:26",
-    "username": "",
-    "first_name": "\u0639\u0627\u0632\u0641 \u0627\u0644\u064a\u0644",
-    "streak": 1,
-    "last_login_date": "2026-04-28"
-  },
-  "7680394338": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-04-28 13:48:29",
-    "username": "LN2Fx",
-    "first_name": ")LN2,F*x)",
-    "streak": 1,
-    "last_login_date": "2026-04-28"
-  },
-  "8291410212": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-04-28 14:00:54",
-    "username": "Djxnnddndn",
-    "first_name": "\u0645\u0640\u0640\u0640\u0645\u0640\u0640\u0640\u0631\u0627\u06be\u0640\u0640\u0640\u0642\u06be\u0661\u2078",
-    "streak": 1,
-    "last_login_date": "2026-04-28"
   }
 }
