@@ -3472,7 +3472,9 @@
       "first_name": "👑آلَهۣۗہكۣۗـۙرᬼ👑⑅⃝آلَغۣۗـۙآمۣۗـۙضۗ👑1⑅⃝",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "balance": 0.4
+      "balance": 0.4,
+      "last_call": "2026-04-29 11:58:21",
+      "last_phone": "+967717124264"
     },
     "8582137727": {
       "usage": 0,
@@ -4965,8 +4967,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 5,
-    "success_calls": 20
+    "total_calls": 6,
+    "success_calls": 21
   },
   "voice_labels": {},
   "settings": {
@@ -7475,7 +7477,9 @@
     "pihob65375@wianbv.com",
     "gexefa9593@wianbv.com",
     "nemoxan386@uscopt.com",
-    "cicejo7687@wudmis.com"
+    "cicejo7687@wudmis.com",
+    "weteve8252@splindor.com",
+    "tacef96824@wudmis.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
