@@ -3772,7 +3772,9 @@
       "streak": 1,
       "last_login_date": "2026-04-29",
       "balance": 0.05,
-      "last_use": "2026-04-27 01:28:43"
+      "last_use": "2026-04-27 01:28:43",
+      "last_call": "2026-04-29 22:06:09",
+      "last_phone": "+967773988621"
     },
     "8502219670": {
       "usage": 0,
@@ -3894,7 +3896,7 @@
       "username": "h2_e9",
       "first_name": "𓏺 𝚑𝚊𝚜𝚊𝚗 .",
       "streak": 1,
-      "last_login_date": "2026-04-27"
+      "last_login_date": "2026-04-29"
     },
     "8354411690": {
       "usage": 0,
@@ -5040,8 +5042,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 18,
-    "success_calls": 49
+    "total_calls": 20,
+    "success_calls": 50
   },
   "voice_labels": {},
   "settings": {
@@ -7571,7 +7573,10 @@
     "cocini7932@wudmis.com",
     "perafoh869@viasuma.com",
     "jotor70321@viasuma.com",
-    "nakex68477@tivogo.com"
+    "nakex68477@tivogo.com",
+    "resiho8491@toondot.com",
+    "helah67108@wudmis.com",
+    "nalow63546@splindor.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
