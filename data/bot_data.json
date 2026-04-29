@@ -2716,7 +2716,7 @@
       "username": "DraGN126",
       "first_name": "⤶دراجـــون الــيــوتـــيــوبـر↻\"",
       "streak": 1,
-      "last_login_date": "2026-04-25"
+      "last_login_date": "2026-04-29"
     },
     "6540327134": {
       "usage": 0,
@@ -3082,8 +3082,8 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "balance": 5.05,
-      "last_ip": "57.128.191.114",
-      "last_seen": "2026-04-27 19:46:39",
+      "last_ip": "134.35.7.122",
+      "last_seen": "2026-04-29 17:18:55",
       "refresh_token_hash": "d010f652ce5da6be10abb06914a2f1b96dc79847e1e46ec1e5c6f8335ed75e82",
       "last_login": "2026-04-27 19:46:31"
     },
@@ -4153,12 +4153,16 @@
     "7462995114": {
       "usage": 0,
       "first_seen": "2026-04-27 09:02:16",
-      "balance": 0.2,
+      "balance": 0.0,
       "streak": 1,
-      "last_login_date": "2026-04-27",
+      "last_login_date": "2026-04-29",
       "username": "",
       "first_name": ".. ..",
-      "last_use": "2026-04-29 14:59:20"
+      "last_use": "2026-04-29 14:59:20",
+      "last_ip": "31.31.182.64",
+      "last_seen": "2026-04-29 17:18:36",
+      "refresh_token_hash": "92b0f171745141724faa73ad7650658298e3ec683d0e753c175111335ca2b189",
+      "last_login": "2026-04-29 17:15:34"
     },
     "7840674782": {
       "usage": 0,
@@ -5011,6 +5015,15 @@
       "first_name": "اݪـۦٰ۪۬ۦٰ۪۬ت ـᬼ҉⍣⃟🇾🇪ـعزي🇾🇪⁷¹¹",
       "streak": 1,
       "last_login_date": "2026-04-29"
+    },
+    "7624660400": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-29 15:44:22",
+      "username": "",
+      "first_name": "ابووو حررررررروووب العزعزي",
+      "streak": 1,
+      "last_login_date": "2026-04-29"
     }
   },
   "premium": {},
@@ -5018,7 +5031,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 18,
-    "success_calls": 44
+    "success_calls": 47
   },
   "voice_labels": {},
   "settings": {
@@ -5028,7 +5041,17 @@
     "daily_bonus": 0.1,
     "referral_bonus": 0.1
   },
-  "promo_codes": {},
+  "promo_codes": {
+    "WLQ5O06V": {
+      "amount": 5.0,
+      "max_users": 1,
+      "used_by": [
+        "8580052323"
+      ],
+      "created_at": "2026-04-29 17:28:30",
+      "created_by": "7627857345"
+    }
+  },
   "registered_accounts": [
     "yelos19524@uswaid.com",
     "tavoh89814@zizvy.com",
