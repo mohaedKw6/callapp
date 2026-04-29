@@ -5161,7 +5161,44 @@
       "username": "",
       "first_name": "روح الله",
       "streak": 1,
-      "last_login_date": "2026-04-29"
+      "last_login_date": "2026-04-29",
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "9": {
+          "action": "hangup",
+          "label": "📴 قطع المكالمة",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        },
+        "3": {
+          "enabled": true,
+          "action": "confirm",
+          "label": "✅ موافق"
+        }
+      }
     }
   },
   "premium": {},
