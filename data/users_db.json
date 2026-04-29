@@ -3471,9 +3471,41 @@
     "first_name": "\ud83d\udc51\u0622\u0645\u062d\u0645\u062f\u1b3c\ud83d\udc51\u2445\u20dd\u0627\u0644\u0642\u062d\u0637\u0627\u0646\u064a\ud83d\udc511\u2445\u20dd",
     "streak": 1,
     "last_login_date": "2026-04-29",
-    "balance": 0.2,
-    "last_use": "2026-04-29 11:56:47",
-    "successful_calls": 1
+    "balance": 0.0,
+    "last_use": "2026-04-29 12:44:22",
+    "successful_calls": 1,
+    "dtmf": {
+      "0": {
+        "action": "hangup",
+        "label": "\ud83d\udcf4 \u0642\u0637\u0639 \u0645\u0643\u0627\u0644\u0645\u0629",
+        "enabled": true
+      },
+      "1": {
+        "action": "confirm",
+        "label": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+        "enabled": true
+      },
+      "2": {
+        "action": "reject",
+        "label": "\u274c \u0631\u0627\u0641\u0636",
+        "enabled": true
+      },
+      "9": {
+        "action": "hangup",
+        "label": "\ud83d\udcf4 \u0642\u0637\u0639 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629",
+        "enabled": true
+      },
+      "*": {
+        "action": "notify",
+        "label": "\u2b50 \u0646\u062c\u0645\u0629",
+        "enabled": true
+      },
+      "#": {
+        "action": "notify",
+        "label": "# \u0647\u0627\u0634",
+        "enabled": true
+      }
+    }
   },
   "8582137727": {
     "usage": 0,
