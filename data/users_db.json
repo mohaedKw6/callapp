@@ -3956,13 +3956,13 @@
   },
   "7743754248": {
     "usage": 0,
-    "referrals": 4,
+    "referrals": 5,
     "first_seen": "2026-04-27 03:01:23",
     "username": "",
     "first_name": "\u0635\u0644\u0627\u062d \u0627\u0644\u062f\u064a\u0646",
     "streak": 1,
     "last_login_date": "2026-04-30",
-    "balance": 0.31,
+    "balance": 0.41,
     "last_ip": "94.26.220.242",
     "last_seen": "2026-04-30 11:39:26",
     "refresh_token_hash": "996c76fe33ef42c13afe9001fd14119ff990d87245e2c23d107aaa6a664b7645",
@@ -5176,6 +5176,15 @@
     "first_seen": "2026-04-30 14:56:14",
     "username": "Nonononini89",
     "first_name": "Ahmed",
+    "streak": 1,
+    "last_login_date": "2026-04-30"
+  },
+  "7635758078": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-30 15:55:41",
+    "username": "",
+    "first_name": "111",
     "streak": 1,
     "last_login_date": "2026-04-30"
   }
