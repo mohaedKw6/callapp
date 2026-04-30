@@ -5061,7 +5061,43 @@
       "username": "ahmeddwas",
       "first_name": "أحمد دواس",
       "streak": 1,
-      "last_login_date": "2026-04-30"
+      "last_login_date": "2026-04-30",
+      "last_ip": "31.31.185.248",
+      "last_seen": "2026-04-30 02:54:01",
+      "refresh_token_hash": "fd485500f935ae501f9f7227811e57f2e9685ab33ed3efa2d17fde3abba3da78",
+      "last_login": "2026-04-30 02:49:56",
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "hangup",
+          "label": "📴 قطع المكالمة",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      }
     }
   },
   "premium": {},
