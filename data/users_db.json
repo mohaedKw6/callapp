@@ -91,9 +91,9 @@
     "streak": 2,
     "last_login_date": "2026-04-30",
     "last_daily_bonus": "2026-04-22",
-    "balance": 1.75,
+    "balance": 1.45,
     "last_ip": "31.31.182.78",
-    "last_seen": "2026-04-30 09:39:13",
+    "last_seen": "2026-04-30 09:50:24",
     "refresh_token_hash": "46dc1ff71a9f09b91ea4342f3585101a868e1751cfc420277b17014b6cc4b598",
     "last_login": "2026-04-29 13:36:13"
   },
@@ -3958,7 +3958,11 @@
     "first_name": "\u0627\u0644\u0627\u0633\u0637\u0648\u0631\u0647 \u0627\u0644\u0627\u0633\u0637\u0648\u0631\u0647",
     "streak": 1,
     "last_login_date": "2026-04-27",
-    "balance": 0.1
+    "balance": 0.1,
+    "last_ip": "46.161.249.21",
+    "last_seen": "2026-04-30 09:50:54",
+    "refresh_token_hash": "746011359ae5cb2dddc77eba11ae03705443edad9b68dd449da1fb3a117ecf2e",
+    "last_login": "2026-04-30 09:50:53"
   },
   "8532573830": {
     "usage": 0,
