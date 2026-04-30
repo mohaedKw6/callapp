@@ -2279,10 +2279,42 @@
     "streak": 1,
     "last_login_date": "2026-04-30",
     "balance": 0.5,
-    "last_ip": "143.244.45.44",
-    "last_seen": "2026-04-27 22:10:23",
-    "refresh_token_hash": "e2c971bcd794e82621a04b31b13b850280d9928f1ec2710ba93c68dd43eb151b",
-    "last_login": "2026-04-27 22:08:03"
+    "last_ip": "185.80.44.193",
+    "last_seen": "2026-04-30 20:06:23",
+    "refresh_token_hash": "fc06aa8b2ce2b66c8c37fc2278b5e5235ffd81713abd169dd72951b7b7f62426",
+    "last_login": "2026-04-30 20:05:36",
+    "dtmf": {
+      "0": {
+        "action": "replay",
+        "label": "\ud83d\udd01 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0635\u0648\u062a",
+        "enabled": true
+      },
+      "1": {
+        "action": "confirm",
+        "label": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+        "enabled": true
+      },
+      "2": {
+        "action": "reject",
+        "label": "\u274c \u0631\u0627\u0641\u0636",
+        "enabled": true
+      },
+      "9": {
+        "action": "hangup",
+        "label": "\ud83d\udcf4 \u0642\u0637\u0639 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629",
+        "enabled": true
+      },
+      "*": {
+        "action": "notify",
+        "label": "\u2b50 \u0646\u062c\u0645\u0629",
+        "enabled": true
+      },
+      "#": {
+        "action": "notify",
+        "label": "# \u0647\u0627\u0634",
+        "enabled": true
+      }
+    }
   },
   "7201504157": {
     "usage": 0,
@@ -3102,7 +3134,39 @@
     "username": "jjsdjje",
     "first_name": "mmmmmm ..",
     "streak": 1,
-    "last_login_date": "2026-04-30"
+    "last_login_date": "2026-04-30",
+    "dtmf": {
+      "0": {
+        "action": "replay",
+        "label": "\ud83d\udd01 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0635\u0648\u062a",
+        "enabled": true
+      },
+      "1": {
+        "action": "confirm",
+        "label": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+        "enabled": true
+      },
+      "2": {
+        "action": "confirm",
+        "label": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+        "enabled": true
+      },
+      "9": {
+        "action": "hangup",
+        "label": "\ud83d\udcf4 \u0642\u0637\u0639 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0629",
+        "enabled": true
+      },
+      "*": {
+        "action": "notify",
+        "label": "\u2b50 \u0646\u062c\u0645\u0629",
+        "enabled": true
+      },
+      "#": {
+        "action": "notify",
+        "label": "# \u0647\u0627\u0634",
+        "enabled": true
+      }
+    }
   },
   "7756709640": {
     "usage": 0,
