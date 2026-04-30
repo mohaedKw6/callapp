@@ -5053,6 +5053,15 @@
       "first_name": "King 😎😎",
       "streak": 1,
       "last_login_date": "2026-04-29"
+    },
+    "8497007362": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-30 02:46:15",
+      "username": "ahmeddwas",
+      "first_name": "أحمد دواس",
+      "streak": 1,
+      "last_login_date": "2026-04-30"
     }
   },
   "premium": {},
@@ -5060,7 +5069,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 20,
-    "success_calls": 50
+    "success_calls": 53
   },
   "voice_labels": {},
   "settings": {
