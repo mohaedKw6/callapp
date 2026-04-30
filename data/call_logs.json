@@ -360,7 +360,7 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 40,
+      "total_calls": 41,
       "phones_called": [
         "967771282329",
         "967781528914",
@@ -375,7 +375,8 @@
         "201144968518",
         "201118975909",
         "967785456985",
-        "967785456445"
+        "967785456445",
+        "967783501073"
       ]
     },
     "5534488473": {
@@ -5385,6 +5386,45 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-04-29 22:06:09"
+    },
+    {
+      "call_id": "01e5d753a32e5189",
+      "user_id": "7627857345",
+      "to": "+967783501073",
+      "from": "+447456451123",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-30 08:31:47",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.182.30",
+      "timestamp": "2026-04-30 08:31:47"
+    },
+    {
+      "call_id": "01e5d753a32e5189",
+      "user_id": "7627857345",
+      "to": "+967783501073",
+      "from": "+447456451123",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-30 08:31:47",
+      "end_time": "2026-04-30 08:32:33",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.182.30",
+      "timestamp": "2026-04-30 08:32:33"
+    },
+    {
+      "call_id": "6f2fc203c4cb0f01",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447577358363",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-30 08:33:16",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.182.30",
+      "timestamp": "2026-04-30 08:33:16"
     }
   ],
   "all_phones": {
@@ -5856,6 +5896,14 @@
         "8677832354"
       ],
       "last_call": "2026-04-29 22:06:09"
+    },
+    "967783501073": {
+      "first_call": "2026-04-30 08:31:47",
+      "total_calls": 1,
+      "users_called": [
+        "7627857345"
+      ],
+      "last_call": "2026-04-30 08:32:33"
     }
   }
 }
