@@ -360,7 +360,7 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 41,
+      "total_calls": 43,
       "phones_called": [
         "967771282329",
         "967781528914",
@@ -5425,6 +5425,58 @@
       "status": "started",
       "ip_address": "31.31.182.30",
       "timestamp": "2026-04-30 08:33:16"
+    },
+    {
+      "call_id": "4dc3c4b6306da3c2",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447447498266",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-30 08:36:35",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.182.30",
+      "timestamp": "2026-04-30 08:36:35"
+    },
+    {
+      "call_id": "4dc3c4b6306da3c2",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447447498266",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-04-30 08:36:35",
+      "end_time": "2026-04-30 08:37:16",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.182.30",
+      "timestamp": "2026-04-30 08:37:16"
+    },
+    {
+      "call_id": "07cf77d03e3250c0",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447577354200",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-30 08:37:20",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.182.30",
+      "timestamp": "2026-04-30 08:37:20"
+    },
+    {
+      "call_id": "07cf77d03e3250c0",
+      "user_id": "7627857345",
+      "to": "+967783105077",
+      "from": "+447577354200",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-04-30 08:37:20",
+      "end_time": "2026-04-30 08:37:52",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.182.30",
+      "timestamp": "2026-04-30 08:37:52"
     }
   ],
   "all_phones": {
@@ -5686,11 +5738,11 @@
     },
     "967783105077": {
       "first_call": "2026-04-27 08:39:23",
-      "total_calls": 2,
+      "total_calls": 4,
       "users_called": [
         "7627857345"
       ],
-      "last_call": "2026-04-27 08:41:04"
+      "last_call": "2026-04-30 08:37:52"
     },
     "967772833583": {
       "first_call": "2026-04-27 08:41:43",
