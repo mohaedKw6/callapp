@@ -1209,10 +1209,13 @@
     },
     "7450075263": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 3,
       "first_seen": "2026-04-14 18:59:01",
       "username": "Vip1u2",
-      "first_name": "赤いスイカ"
+      "first_name": "赤いスイカ",
+      "streak": 1,
+      "last_login_date": "2026-04-30",
+      "balance": 0.3
     },
     "5675880160": {
       "usage": 0,
@@ -5139,13 +5142,49 @@
       "first_name": "البقرة الضاحكه",
       "streak": 1,
       "last_login_date": "2026-04-30"
+    },
+    "8708775756": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-30 14:48:30",
+      "username": "Nrjdeiek",
+      "first_name": "Brun",
+      "streak": 1,
+      "last_login_date": "2026-04-30"
+    },
+    "8548504013": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-30 14:53:19",
+      "username": "Yujjhjij",
+      "first_name": "محمد",
+      "streak": 1,
+      "last_login_date": "2026-04-30"
+    },
+    "8553616946": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-30 14:54:12",
+      "username": "Gktkot",
+      "first_name": "Peugeot",
+      "streak": 1,
+      "last_login_date": "2026-04-30"
+    },
+    "8385014226": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-04-30 14:56:14",
+      "username": "Nonononini89",
+      "first_name": "Ahmed",
+      "streak": 1,
+      "last_login_date": "2026-04-30"
     }
   },
   "premium": {},
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 35,
+    "total_calls": 36,
     "success_calls": 77
   },
   "voice_labels": {},
