@@ -1208,10 +1208,13 @@
   },
   "7450075263": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 3,
     "first_seen": "2026-04-14 18:59:01",
     "username": "Vip1u2",
-    "first_name": "\u8d64\u3044\u30b9\u30a4\u30ab"
+    "first_name": "\u8d64\u3044\u30b9\u30a4\u30ab",
+    "streak": 1,
+    "last_login_date": "2026-04-30",
+    "balance": 0.3
   },
   "5675880160": {
     "usage": 0,
@@ -5136,6 +5139,42 @@
     "first_seen": "2026-04-30 13:17:35",
     "username": "",
     "first_name": "\u0627\u0644\u0628\u0642\u0631\u0629 \u0627\u0644\u0636\u0627\u062d\u0643\u0647",
+    "streak": 1,
+    "last_login_date": "2026-04-30"
+  },
+  "8708775756": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-30 14:48:30",
+    "username": "Nrjdeiek",
+    "first_name": "Brun",
+    "streak": 1,
+    "last_login_date": "2026-04-30"
+  },
+  "8548504013": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-30 14:53:19",
+    "username": "Yujjhjij",
+    "first_name": "\u0645\u062d\u0645\u062f",
+    "streak": 1,
+    "last_login_date": "2026-04-30"
+  },
+  "8553616946": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-30 14:54:12",
+    "username": "Gktkot",
+    "first_name": "Peugeot",
+    "streak": 1,
+    "last_login_date": "2026-04-30"
+  },
+  "8385014226": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-04-30 14:56:14",
+    "username": "Nonononini89",
+    "first_name": "Ahmed",
     "streak": 1,
     "last_login_date": "2026-04-30"
   }
