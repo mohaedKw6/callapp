@@ -3019,8 +3019,11 @@
       "username": "MarwanAlAsli",
       "first_name": "جافا",
       "first_seen": "2026-05-01 02:15:05",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 2,
+      "phones_called": [
+        "201031400240",
+        "201157328904"
+      ]
     },
     "8736864096": {
       "username": "Jfkfyfd",
@@ -6015,6 +6018,71 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-01 05:37:42"
+    },
+    {
+      "call_id": "e5c98d933643bf8a",
+      "user_id": "7746420552",
+      "to": "+201031400240",
+      "from": "+447577354450",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 11:01:59",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "156.203.7.230",
+      "timestamp": "2026-05-01 11:01:59"
+    },
+    {
+      "call_id": "e5c98d933643bf8a",
+      "user_id": "7746420552",
+      "to": "+201031400240",
+      "from": "+447577354450",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 11:01:59",
+      "end_time": "2026-05-01 11:02:56",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "156.203.7.230",
+      "timestamp": "2026-05-01 11:02:56"
+    },
+    {
+      "call_id": "66a343a4a927a10a",
+      "user_id": "7746420552",
+      "to": "+201031400240",
+      "from": "+447577367068",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 11:03:26",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "156.203.7.230",
+      "timestamp": "2026-05-01 11:03:26"
+    },
+    {
+      "call_id": "66a343a4a927a10a",
+      "user_id": "7746420552",
+      "to": "+201031400240",
+      "from": "+447577367068",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 11:03:26",
+      "end_time": "2026-05-01 11:03:53",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "156.203.7.230",
+      "timestamp": "2026-05-01 11:03:53"
+    },
+    {
+      "call_id": "bba2742bdbe0cdd6",
+      "user_id": "7746420552",
+      "to": "+201157328904",
+      "from": "+447577364910",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 11:04:18",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "156.203.7.230",
+      "timestamp": "2026-05-01 11:04:18"
     }
   ],
   "all_phones": {
@@ -6515,6 +6583,19 @@
         "7743754248"
       ],
       "last_call": "2026-05-01 05:37:42"
+    },
+    "201031400240": {
+      "first_call": "2026-05-01 11:01:59",
+      "total_calls": 2,
+      "users_called": [
+        "7746420552"
+      ],
+      "last_call": "2026-05-01 11:03:53"
+    },
+    "201157328904": {
+      "first_call": "2026-05-01 11:04:18",
+      "total_calls": 0,
+      "users_called": []
     }
   }
 }
