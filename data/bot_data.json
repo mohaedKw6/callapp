@@ -4025,13 +4025,13 @@
     },
     "7743754248": {
       "usage": 0,
-      "referrals": 6,
+      "referrals": 7,
       "first_seen": "2026-04-27 03:01:23",
       "username": "",
       "first_name": "صلاح الدين",
       "streak": 1,
       "last_login_date": "2026-04-30",
-      "balance": 0.51,
+      "balance": 0.61,
       "last_ip": "94.26.220.242",
       "last_seen": "2026-04-30 11:39:26",
       "refresh_token_hash": "996c76fe33ef42c13afe9001fd14119ff990d87245e2c23d107aaa6a664b7645",
@@ -5353,6 +5353,15 @@
       "streak": 1,
       "last_login_date": "2026-05-01",
       "bot_source": "sub_@AOFTJV_BOT"
+    },
+    "8321022843": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-01 04:12:56",
+      "username": "Aliffdhjgv",
+      "first_name": "القيصر",
+      "streak": 1,
+      "last_login_date": "2026-05-01"
     }
   },
   "premium": {},
