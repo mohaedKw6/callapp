@@ -360,7 +360,7 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 53,
+      "total_calls": 55,
       "phones_called": [
         "967771282329",
         "967781528914",
@@ -376,7 +376,8 @@
         "201118975909",
         "967785456985",
         "967785456445",
-        "967783501073"
+        "967783501073",
+        "967782760250"
       ]
     },
     "5534488473": {
@@ -6152,6 +6153,58 @@
       "status": "ended",
       "ip_address": "213.230.93.72",
       "timestamp": "2026-05-01 13:04:00"
+    },
+    {
+      "call_id": "ae49411ab5b7a9ee",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447456450724",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-01 13:15:05",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.176.144",
+      "timestamp": "2026-05-01 13:15:05"
+    },
+    {
+      "call_id": "ae49411ab5b7a9ee",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447456450724",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-01 13:15:05",
+      "end_time": "2026-05-01 13:17:02",
+      "duration": 33,
+      "status": "ended",
+      "ip_address": "31.31.176.144",
+      "timestamp": "2026-05-01 13:17:02"
+    },
+    {
+      "call_id": "7dbecaec470eae5b",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447577368845",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 13:17:09",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.176.144",
+      "timestamp": "2026-05-01 13:17:09"
+    },
+    {
+      "call_id": "7dbecaec470eae5b",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447577368845",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 13:17:09",
+      "end_time": "2026-05-01 13:18:22",
+      "duration": 48,
+      "status": "ended",
+      "ip_address": "31.31.176.144",
+      "timestamp": "2026-05-01 13:18:22"
     }
   ],
   "all_phones": {
@@ -6681,6 +6734,14 @@
         "8426582765"
       ],
       "last_call": "2026-05-01 13:04:00"
+    },
+    "967782760250": {
+      "first_call": "2026-05-01 13:15:05",
+      "total_calls": 2,
+      "users_called": [
+        "7627857345"
+      ],
+      "last_call": "2026-05-01 13:18:22"
     }
   }
 }
