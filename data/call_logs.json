@@ -3079,7 +3079,7 @@
       "username": "vsf911",
       "first_name": "𝗔𝗯𝗱𝘂𝗿𝗮𝘇𝗼𝗸𝗵𝗼𝘃",
       "first_seen": "2026-05-01 12:57:37",
-      "total_calls": 2,
+      "total_calls": 3,
       "phones_called": [
         "998949012552",
         "998901992329"
@@ -6219,6 +6219,32 @@
       "status": "ended",
       "ip_address": "31.31.176.144",
       "timestamp": "2026-05-01 13:18:22"
+    },
+    {
+      "call_id": "43c72140f8c38925",
+      "user_id": "8426582765",
+      "to": "+998949012552",
+      "from": "+447577370665",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 14:07:35",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "213.230.93.72",
+      "timestamp": "2026-05-01 14:07:35"
+    },
+    {
+      "call_id": "43c72140f8c38925",
+      "user_id": "8426582765",
+      "to": "+998949012552",
+      "from": "+447577370665",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 14:07:35",
+      "end_time": "2026-05-01 14:08:55",
+      "duration": 24,
+      "status": "ended",
+      "ip_address": "213.230.93.72",
+      "timestamp": "2026-05-01 14:08:55"
     }
   ],
   "all_phones": {
@@ -6735,11 +6761,11 @@
     },
     "998949012552": {
       "first_call": "2026-05-01 13:02:00",
-      "total_calls": 1,
+      "total_calls": 2,
       "users_called": [
         "8426582765"
       ],
-      "last_call": "2026-05-01 13:02:23"
+      "last_call": "2026-05-01 14:08:55"
     },
     "998901992329": {
       "first_call": "2026-05-01 13:03:17",
