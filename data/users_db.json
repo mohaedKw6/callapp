@@ -3122,8 +3122,8 @@
     "streak": 2,
     "last_login_date": "2026-04-27",
     "balance": 4.7,
-    "last_ip": "150.228.105.163",
-    "last_seen": "2026-05-01 21:45:58",
+    "last_ip": "150.228.105.79",
+    "last_seen": "2026-05-01 22:02:36",
     "refresh_token_hash": "d9e815536dce9d137a5ba9b96d27abf46ad7ed3554e958a72466eecb73d1189d",
     "last_login": "2026-05-01 21:45:53"
   },
@@ -4781,11 +4781,11 @@
     "first_name": "Heba",
     "streak": 1,
     "last_login_date": "2026-05-01",
-    "last_ip": "150.228.105.163",
-    "last_seen": "2026-05-01 21:46:03",
+    "last_ip": "150.228.105.31",
+    "last_seen": "2026-05-01 22:02:40",
     "refresh_token_hash": "1ff60ffb9d9f6daa7571d54d73f25f5ec683046a5551e099ce27b509d21b2a83",
     "last_login": "2026-05-01 21:46:02",
-    "balance": 1.1
+    "balance": 5.1
   },
   "8699562044": {
     "usage": 0,
