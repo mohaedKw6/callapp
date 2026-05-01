@@ -3121,11 +3121,11 @@
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 2,
     "last_login_date": "2026-04-27",
-    "balance": 5.05,
-    "last_ip": "31.31.190.9",
-    "last_seen": "2026-04-30 23:59:34",
-    "refresh_token_hash": "d010f652ce5da6be10abb06914a2f1b96dc79847e1e46ec1e5c6f8335ed75e82",
-    "last_login": "2026-04-27 19:46:31"
+    "balance": 4.8,
+    "last_ip": "37.238.206.24",
+    "last_seen": "2026-05-01 20:29:15",
+    "refresh_token_hash": "e0cacbc76c981de36100c39bd072145dd02f5d485768caa0224b1b409f938ee6",
+    "last_login": "2026-05-01 20:25:52"
   },
   "6207882045": {
     "usage": 0,
