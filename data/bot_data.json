@@ -74,11 +74,11 @@
       "first_seen": "2026-04-09 08:11:14",
       "username": "G_M_A_Q",
       "first_name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥",
-      "streak": 11,
-      "last_login_date": "2026-04-30",
-      "balance": 5.85,
+      "streak": 12,
+      "last_login_date": "2026-05-01",
+      "balance": 5.9,
       "dan_calls": 360,
-      "last_daily_bonus": "2026-04-30",
+      "last_daily_bonus": "2026-05-01",
       "last_ip": "102.46.160.248",
       "last_seen": "2026-04-26 10:51:30"
     },
@@ -5315,6 +5315,15 @@
       "first_name": "مرعب الدمار",
       "streak": 1,
       "last_login_date": "2026-04-30"
+    },
+    "7746420552": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-01 02:15:05",
+      "username": "MarwanAlAsli",
+      "first_name": "جافا",
+      "streak": 1,
+      "last_login_date": "2026-05-01"
     }
   },
   "premium": {},
