@@ -1584,7 +1584,7 @@
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "first_seen": "2026-04-26 20:08:14",
-      "total_calls": 25,
+      "total_calls": 27,
       "phones_called": [
         "967771544081",
         "967778230399",
@@ -6272,6 +6272,58 @@
       "status": "ended",
       "ip_address": "156.214.49.187",
       "timestamp": "2026-05-01 14:21:17"
+    },
+    {
+      "call_id": "f16203120f1ca596",
+      "user_id": "640391482",
+      "to": "+9647862244355",
+      "from": "+447577354450",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-01 20:27:30",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "150.228.105.200",
+      "timestamp": "2026-05-01 20:27:30"
+    },
+    {
+      "call_id": "f16203120f1ca596",
+      "user_id": "640391482",
+      "to": "+9647862244355",
+      "from": "+447577354450",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-01 20:27:30",
+      "end_time": "2026-05-01 20:28:01",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "37.238.206.24",
+      "timestamp": "2026-05-01 20:28:01"
+    },
+    {
+      "call_id": "106764d3c74b9aee",
+      "user_id": "640391482",
+      "to": "+9647830168062",
+      "from": "+447577368845",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 20:28:25",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "37.238.206.24",
+      "timestamp": "2026-05-01 20:28:25"
+    },
+    {
+      "call_id": "106764d3c74b9aee",
+      "user_id": "640391482",
+      "to": "+9647830168062",
+      "from": "+447577368845",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-01 20:28:25",
+      "end_time": "2026-05-01 20:29:13",
+      "duration": 16,
+      "status": "ended",
+      "ip_address": "37.238.206.24",
+      "timestamp": "2026-05-01 20:29:13"
     }
   ],
   "all_phones": {
@@ -6682,19 +6734,19 @@
     },
     "9647830168062": {
       "first_call": "2026-04-27 19:20:13",
-      "total_calls": 2,
+      "total_calls": 3,
       "users_called": [
         "640391482"
       ],
-      "last_call": "2026-04-27 19:23:24"
+      "last_call": "2026-05-01 20:29:13"
     },
     "9647862244355": {
       "first_call": "2026-04-27 19:26:24",
-      "total_calls": 2,
+      "total_calls": 3,
       "users_called": [
         "640391482"
       ],
-      "last_call": "2026-04-27 19:46:38"
+      "last_call": "2026-05-01 20:28:01"
     },
     "9647894619449": {
       "first_call": "2026-04-27 19:45:16",
