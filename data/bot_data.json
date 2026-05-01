@@ -2100,7 +2100,7 @@
       "refresh_token_hash": "1b24772194fe00b4034d673e032ae71592fcee926f1a05ebe3b34f72d3a6b830",
       "last_login": "2026-04-26 22:02:15",
       "streak": 1,
-      "last_login_date": "2026-04-26",
+      "last_login_date": "2026-05-01",
       "balance": 0.4
     },
     "8206623999": {
@@ -5401,8 +5401,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 45,
-    "success_calls": 94
+    "total_calls": 47,
+    "success_calls": 98
   },
   "voice_labels": {},
   "settings": {
