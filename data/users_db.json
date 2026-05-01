@@ -3122,10 +3122,10 @@
     "streak": 2,
     "last_login_date": "2026-04-27",
     "balance": 4.7,
-    "last_ip": "104.28.154.237",
-    "last_seen": "2026-05-01 21:08:41",
-    "refresh_token_hash": "41746a6c1c145454b71e2d92a082e63cf10188f07ee21cb315c84a56b5828a35",
-    "last_login": "2026-05-01 21:08:37"
+    "last_ip": "150.228.105.163",
+    "last_seen": "2026-05-01 21:45:58",
+    "refresh_token_hash": "d9e815536dce9d137a5ba9b96d27abf46ad7ed3554e958a72466eecb73d1189d",
+    "last_login": "2026-05-01 21:45:53"
   },
   "6207882045": {
     "usage": 0,
@@ -4775,16 +4775,17 @@
   },
   "6885761058": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 1,
     "first_seen": "2026-04-27 18:45:30",
     "username": "qklllll",
     "first_name": "Heba",
     "streak": 1,
     "last_login_date": "2026-05-01",
-    "last_ip": "150.228.105.139",
-    "last_seen": "2026-04-27 19:17:33",
-    "refresh_token_hash": "ba89cddb18e1eedbd2369300eb9213937525eb7d2b7ff816103b09a700cc40e0",
-    "last_login": "2026-04-27 18:46:13"
+    "last_ip": "150.228.105.163",
+    "last_seen": "2026-05-01 21:46:03",
+    "refresh_token_hash": "1ff60ffb9d9f6daa7571d54d73f25f5ec683046a5551e099ce27b509d21b2a83",
+    "last_login": "2026-05-01 21:46:02",
+    "balance": 1.1
   },
   "8699562044": {
     "usage": 0,
@@ -5446,5 +5447,14 @@
     "last_login_date": "2026-05-01",
     "last_ip": "104.28.154.237",
     "last_seen": "2026-05-01 20:59:53"
+  },
+  "8731355995": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-01 21:52:30",
+    "username": "",
+    "first_name": "Winifred Wingo",
+    "streak": 1,
+    "last_login_date": "2026-05-01"
   }
 }
