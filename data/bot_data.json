@@ -4031,13 +4031,13 @@
       "first_name": "صلاح الدين",
       "streak": 2,
       "last_login_date": "2026-05-01",
-      "balance": 0.61,
+      "balance": 0.04,
       "last_ip": "94.26.220.242",
       "last_seen": "2026-04-30 11:39:26",
       "refresh_token_hash": "996c76fe33ef42c13afe9001fd14119ff990d87245e2c23d107aaa6a664b7645",
       "last_login": "2026-04-30 11:38:45",
-      "last_call": "2026-05-01 05:37:42",
-      "last_phone": "+967774070719"
+      "last_use": "2026-05-01 05:35:57",
+      "successful_calls": 1
     },
     "8532573830": {
       "usage": 0,
