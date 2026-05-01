@@ -4197,8 +4197,8 @@
     "first_name": "\ud835\udc7d\uabed\ud835\udc70\uabed\ud835\udc77\u0821\u0821\u0821\u0821",
     "streak": 1,
     "last_login_date": "2026-04-27",
-    "last_ip": "175.110.42.228",
-    "last_seen": "2026-04-27 11:58:28",
+    "last_ip": "185.80.143.174",
+    "last_seen": "2026-05-01 13:58:14",
     "refresh_token_hash": "92f3512971edca18b6d765d4f627b5673f6ac5dac6093dc899bb97313f3e05fe",
     "last_login": "2026-04-27 11:56:21",
     "balance": 0.3
@@ -5397,17 +5397,17 @@
   },
   "8426582765": {
     "usage": 0,
-    "referrals": 1,
+    "referrals": 2,
     "first_seen": "2026-05-01 12:57:37",
     "username": "vsf911",
     "first_name": "\ud835\uddd4\ud835\uddef\ud835\uddf1\ud835\ude02\ud835\uddff\ud835\uddee\ud835\ude07\ud835\uddfc\ud835\uddf8\ud835\uddf5\ud835\uddfc\ud835\ude03",
     "streak": 1,
     "last_login_date": "2026-05-01",
     "last_ip": "213.230.93.72",
-    "last_seen": "2026-05-01 13:41:18",
+    "last_seen": "2026-05-01 14:03:05",
     "refresh_token_hash": "8a6cb7f73df8150f1334666dbe5721b2ebc8b496b99431d569da1f844393d358",
     "last_login": "2026-05-01 13:41:07",
-    "balance": 0.0
+    "balance": 0.1
   },
   "8211042534": {
     "usage": 0,
@@ -5424,6 +5424,15 @@
     "first_seen": "2026-05-01 13:46:28",
     "username": "DARKNNESS_0",
     "first_name": "\ud835\udc37\ud835\udc52\ud835\udc5a\ud835\udc4e \u2727",
+    "streak": 1,
+    "last_login_date": "2026-05-01"
+  },
+  "7628846138": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-01 14:01:30",
+    "username": "huriyat06",
+    "first_name": "Huriyat Soliyeva",
     "streak": 1,
     "last_login_date": "2026-05-01"
   }
