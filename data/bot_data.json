@@ -5406,6 +5406,15 @@
       ],
       "created_at": "2026-04-30 16:28:12",
       "created_by": "7743754248"
+    },
+    "CDJ31EE4": {
+      "amount": 0.61,
+      "max_users": 1,
+      "used_by": [
+        "7743754248"
+      ],
+      "created_at": "2026-05-01 05:28:59",
+      "created_by": "7743754248"
     }
   },
   "registered_accounts": [
