@@ -5418,6 +5418,15 @@
       "first_name": "ꑭ",
       "streak": 1,
       "last_login_date": "2026-05-01"
+    },
+    "7044375466": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-01 13:46:28",
+      "username": "DARKNNESS_0",
+      "first_name": "𝐷𝑒𝑚𝑎 ✧",
+      "streak": 1,
+      "last_login_date": "2026-05-01"
     }
   },
   "premium": {},
@@ -5425,7 +5434,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 49,
-    "success_calls": 101
+    "success_calls": 102
   },
   "voice_labels": {},
   "settings": {
