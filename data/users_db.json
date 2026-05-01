@@ -2245,7 +2245,7 @@
     "bot_source": "sub_@Sjxijsjszijbot",
     "balance": 0.4,
     "last_ip": "156.214.49.187",
-    "last_seen": "2026-05-01 15:06:17",
+    "last_seen": "2026-05-01 15:15:26",
     "refresh_token_hash": "201a4fa7152440a5474686ff274971adc6d77b7c955b16fab34bd552ec4d9307",
     "last_login": "2026-04-26 19:37:53"
   },
@@ -2773,9 +2773,9 @@
     "first_seen": "2026-04-25 19:16:15",
     "username": "",
     "first_name": "\u0633\u0627\u0631\u0647",
-    "streak": 2,
-    "last_login_date": "2026-04-30",
-    "balance": 0.58,
+    "streak": 3,
+    "last_login_date": "2026-05-01",
+    "balance": 0.66,
     "last_use": "2026-04-26 17:54:51",
     "successful_calls": 1,
     "dtmf": {
@@ -2814,7 +2814,7 @@
     "last_seen": "2026-04-27 18:55:49",
     "refresh_token_hash": "f68ba2058b786d81a74f6635df5683d62c6970f9f5bef46967998b77b840ec6e",
     "last_login": "2026-04-27 15:33:05",
-    "last_daily_bonus": "2026-04-27"
+    "last_daily_bonus": "2026-05-01"
   },
   "6718184405": {
     "usage": 0,
