@@ -2204,8 +2204,10 @@
       "username": "",
       "first_name": "صلاح الدين",
       "first_seen": "2026-04-27 03:01:23",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967774070719"
+      ]
     },
     "8532573830": {
       "username": "",
@@ -5984,6 +5986,14 @@
       "status": "ended",
       "ip_address": "109.61.83.180",
       "timestamp": "2026-04-30 20:26:01"
+    },
+    {
+      "user_id": "7743754248",
+      "phone": "+967774070719",
+      "from_number": "447577368845",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-01 05:37:42"
     }
   ],
   "all_phones": {
@@ -6476,6 +6486,14 @@
         "8496976895"
       ],
       "last_call": "2026-04-30 20:26:01"
+    },
+    "967774070719": {
+      "first_call": "2026-05-01 05:37:42",
+      "total_calls": 1,
+      "users_called": [
+        "7743754248"
+      ],
+      "last_call": "2026-05-01 05:37:42"
     }
   }
 }
