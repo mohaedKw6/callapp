@@ -5342,5 +5342,15 @@
     "first_name": "\u0627\u062e",
     "streak": 1,
     "last_login_date": "2026-05-01"
+  },
+  "8092953169": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-01 02:49:48",
+    "username": "m3b1x",
+    "first_name": "\ud835\udc41\ud835\udc34\ud835\udc45\ud835\udc48\ud835\udc47\ud835\udee9 \ud835\udeef\ud835\udc3f\ud835\udc4c\ud835\udee9\ud835\udc48\ud835\udc47\ud835\udc48\ud835\udee9\ud835\udc35\ud835\udc38\ud835\udc45",
+    "streak": 1,
+    "last_login_date": "2026-05-01",
+    "bot_source": "sub_@AOFTJV_BOT"
   }
 }
