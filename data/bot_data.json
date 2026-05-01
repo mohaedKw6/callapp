@@ -5395,14 +5395,37 @@
       "first_name": "الديب واحد بس",
       "streak": 1,
       "last_login_date": "2026-05-01"
+    },
+    "8426582765": {
+      "usage": 0,
+      "referrals": 1,
+      "first_seen": "2026-05-01 12:57:37",
+      "username": "vsf911",
+      "first_name": "𝗔𝗯𝗱𝘂𝗿𝗮𝘇𝗼𝗸𝗵𝗼𝘃",
+      "streak": 1,
+      "last_login_date": "2026-05-01",
+      "last_ip": "213.230.93.72",
+      "last_seen": "2026-05-01 13:04:01",
+      "refresh_token_hash": "3f7ab77b30ba63818b4756e3d16c7a57d2c63796651662e73c3743dfa4bd429b",
+      "last_login": "2026-05-01 12:58:26",
+      "balance": 0.0
+    },
+    "8211042534": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-01 13:00:12",
+      "username": "markaz102",
+      "first_name": "ꑭ",
+      "streak": 1,
+      "last_login_date": "2026-05-01"
     }
   },
   "premium": {},
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 47,
-    "success_calls": 98
+    "total_calls": 49,
+    "success_calls": 100
   },
   "voice_labels": {},
   "settings": {
@@ -7987,7 +8010,8 @@
     "jewagoh419@virawolf.com",
     "misox89733@tivogo.com",
     "canivax935@viasuma.com",
-    "sarih84841@viasuma.com"
+    "sarih84841@viasuma.com",
+    "sapilah930@tivogo.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
