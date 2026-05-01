@@ -3073,6 +3073,23 @@
       "first_seen": "2026-05-01 08:25:31",
       "total_calls": 0,
       "phones_called": []
+    },
+    "8426582765": {
+      "username": "vsf911",
+      "first_name": "𝗔𝗯𝗱𝘂𝗿𝗮𝘇𝗼𝗸𝗵𝗼𝘃",
+      "first_seen": "2026-05-01 12:57:37",
+      "total_calls": 2,
+      "phones_called": [
+        "998949012552",
+        "998901992329"
+      ]
+    },
+    "8211042534": {
+      "username": "markaz102",
+      "first_name": "ꑭ",
+      "first_seen": "2026-05-01 13:00:12",
+      "total_calls": 0,
+      "phones_called": []
     }
   },
   "all_calls": [
@@ -6083,6 +6100,58 @@
       "status": "started",
       "ip_address": "156.203.7.230",
       "timestamp": "2026-05-01 11:04:18"
+    },
+    {
+      "call_id": "8c4389b0708203db",
+      "user_id": "8426582765",
+      "to": "+998949012552",
+      "from": "+447456445022",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-01 13:02:00",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "213.230.93.72",
+      "timestamp": "2026-05-01 13:02:00"
+    },
+    {
+      "call_id": "8c4389b0708203db",
+      "user_id": "8426582765",
+      "to": "+998949012552",
+      "from": "+447456445022",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-01 13:02:00",
+      "end_time": "2026-05-01 13:02:23",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "213.230.93.72",
+      "timestamp": "2026-05-01 13:02:23"
+    },
+    {
+      "call_id": "93ea1209510a7129",
+      "user_id": "8426582765",
+      "to": "+998901992329",
+      "from": "+447456427156",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-01 13:03:17",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "213.230.93.72",
+      "timestamp": "2026-05-01 13:03:17"
+    },
+    {
+      "call_id": "93ea1209510a7129",
+      "user_id": "8426582765",
+      "to": "+998901992329",
+      "from": "+447456427156",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-01 13:03:17",
+      "end_time": "2026-05-01 13:04:00",
+      "duration": 8,
+      "status": "ended",
+      "ip_address": "213.230.93.72",
+      "timestamp": "2026-05-01 13:04:00"
     }
   ],
   "all_phones": {
@@ -6596,6 +6665,22 @@
       "first_call": "2026-05-01 11:04:18",
       "total_calls": 0,
       "users_called": []
+    },
+    "998949012552": {
+      "first_call": "2026-05-01 13:02:00",
+      "total_calls": 1,
+      "users_called": [
+        "8426582765"
+      ],
+      "last_call": "2026-05-01 13:02:23"
+    },
+    "998901992329": {
+      "first_call": "2026-05-01 13:03:17",
+      "total_calls": 1,
+      "users_called": [
+        "8426582765"
+      ],
+      "last_call": "2026-05-01 13:04:00"
     }
   }
 }
