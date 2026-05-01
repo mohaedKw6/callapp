@@ -4029,13 +4029,15 @@
       "first_seen": "2026-04-27 03:01:23",
       "username": "",
       "first_name": "صلاح الدين",
-      "streak": 1,
-      "last_login_date": "2026-04-30",
+      "streak": 2,
+      "last_login_date": "2026-05-01",
       "balance": 0.61,
       "last_ip": "94.26.220.242",
       "last_seen": "2026-04-30 11:39:26",
       "refresh_token_hash": "996c76fe33ef42c13afe9001fd14119ff990d87245e2c23d107aaa6a664b7645",
-      "last_login": "2026-04-30 11:38:45"
+      "last_login": "2026-04-30 11:38:45",
+      "last_call": "2026-05-01 05:37:42",
+      "last_phone": "+967774070719"
     },
     "8532573830": {
       "usage": 0,
@@ -5182,8 +5184,8 @@
       "first_seen": "2026-04-30 09:38:52",
       "username": "matnokhmm",
       "first_name": "🇾🇪کْـأّتٌـمً أّلَأّحًــﺰأّنِ 🇾🇪",
-      "streak": 1,
-      "last_login_date": "2026-04-30"
+      "streak": 2,
+      "last_login_date": "2026-05-01"
     },
     "7458895360": {
       "usage": 0,
@@ -5368,8 +5370,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 40,
-    "success_calls": 89
+    "total_calls": 41,
+    "success_calls": 90
   },
   "voice_labels": {},
   "settings": {
@@ -5414,6 +5416,15 @@
         "7743754248"
       ],
       "created_at": "2026-05-01 05:28:59",
+      "created_by": "7743754248"
+    },
+    "83BDZUDZ": {
+      "amount": 0.04,
+      "max_users": 10,
+      "used_by": [
+        "7743754248"
+      ],
+      "created_at": "2026-05-01 05:39:04",
       "created_by": "7743754248"
     }
   },
