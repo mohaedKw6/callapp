@@ -3121,9 +3121,9 @@
     "first_name": "\ud835\udc09\ud835\udc1a\ud835\udc21\ud835\udc2b\ud835\udc1a\ud835\udc27",
     "streak": 2,
     "last_login_date": "2026-04-27",
-    "balance": 4.8,
-    "last_ip": "37.238.206.24",
-    "last_seen": "2026-05-01 20:29:15",
+    "balance": 4.7,
+    "last_ip": "151.244.159.202",
+    "last_seen": "2026-05-01 20:53:48",
     "refresh_token_hash": "e0cacbc76c981de36100c39bd072145dd02f5d485768caa0224b1b409f938ee6",
     "last_login": "2026-05-01 20:25:52"
   },
@@ -5443,6 +5443,8 @@
     "username": "MR_ML5",
     "first_name": "\u0645\u064a\u0645\u064a",
     "streak": 1,
-    "last_login_date": "2026-05-01"
+    "last_login_date": "2026-05-01",
+    "last_ip": "104.28.154.237",
+    "last_seen": "2026-05-01 20:55:08"
   }
 }
