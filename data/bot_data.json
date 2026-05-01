@@ -5326,7 +5326,11 @@
       "first_name": "جافا",
       "streak": 1,
       "last_login_date": "2026-05-01",
-      "balance": 0.2
+      "balance": 0.05,
+      "last_ip": "156.203.7.230",
+      "last_seen": "2026-05-01 11:04:18",
+      "refresh_token_hash": "0513261d2d259c3e9384382d8b8a70f861e06728328f30f992931781d8ff6cab",
+      "last_login": "2026-05-01 11:00:59"
     },
     "8736864096": {
       "usage": 0,
