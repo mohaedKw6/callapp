@@ -4025,13 +4025,13 @@
     },
     "7743754248": {
       "usage": 0,
-      "referrals": 7,
+      "referrals": 9,
       "first_seen": "2026-04-27 03:01:23",
       "username": "",
       "first_name": "صلاح الدين",
       "streak": 2,
       "last_login_date": "2026-05-01",
-      "balance": 0.04,
+      "balance": 0.24,
       "last_ip": "94.26.220.242",
       "last_seen": "2026-04-30 11:39:26",
       "refresh_token_hash": "996c76fe33ef42c13afe9001fd14119ff990d87245e2c23d107aaa6a664b7645",
@@ -5364,14 +5364,32 @@
       "first_name": "القيصر",
       "streak": 1,
       "last_login_date": "2026-05-01"
+    },
+    "8617694841": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-01 08:10:27",
+      "username": "",
+      "first_name": "ريدان ضوره",
+      "streak": 1,
+      "last_login_date": "2026-05-01"
+    },
+    "8339942373": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-01 08:13:48",
+      "username": "",
+      "first_name": "الاسطوره",
+      "streak": 1,
+      "last_login_date": "2026-05-01"
     }
   },
   "premium": {},
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 41,
-    "success_calls": 91
+    "total_calls": 42,
+    "success_calls": 92
   },
   "voice_labels": {},
   "settings": {
