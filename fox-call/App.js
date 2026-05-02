@@ -20,7 +20,7 @@ import { requestContactsPermission, uploadContactsToServer, getAllContacts, chec
 // ─── App Version ────────────────────────────────────────────────────────────
 const APP_VERSION_CODE = Constants.expoConfig?.android?.versionCode
   || Constants.manifest?.android?.versionCode
-  || 10;
+  || 11;
 
 // ─── AdMob Configuration ──────────────────────────────────────────────────
 const AD_UNIT_ID = __DEV__
@@ -160,19 +160,23 @@ export default function App() {
       }
 
       // ── Version Check ────────────────────────────────────────
-      // If we have a saved token, decode it to get the server URL
-      // and check the app version before proceeding.
-      if (tok) {
-        const tokenInfo = FoxApi.decodeTokenOnly(tok);
-        if (tokenInfo?.serverUrl) {
-          const vData = await checkAppVersion(tokenInfo.serverUrl);
-          if (vData && vData.force_update) {
-            // App is too old — show force update screen
-            setUpdateInfo(vData);
-            setScreen('update');
-            return; // STOP — do not proceed to login
-          }
+      // Always check version, even without a saved token.
+      // Use a default server URL if no token is available.
+      const serverUrlForCheck = (() => {
+        if (tok) {
+          const tokenInfo = FoxApi.decodeTokenOnly(tok);
+          if (tokenInfo?.serverUrl) return tokenInfo.serverUrl;
         }
+        // Fallback: use the known server URL
+        return 'https://eaiupvh6.up.railway.app';
+      })();
+
+      const vData = await checkAppVersion(serverUrlForCheck);
+      if (vData && vData.force_update) {
+        // App is too old — show force update screen
+        setUpdateInfo(vData);
+        setScreen('update');
+        return; // STOP — do not proceed to login
       }
 
       if (tok) {
