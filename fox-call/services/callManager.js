@@ -199,6 +199,22 @@ export class CallManager {
     return this._speaker;
   }
 
+  async setAudioOutput(outputType) {
+    try {
+      await LinphoneCall.setAudioOutput(outputType);
+      this._speaker = outputType === 'speaker';
+    } catch {}
+    return outputType;
+  }
+
+  async getAudioDevices() {
+    try {
+      return await LinphoneCall.getAudioDevices();
+    } catch {
+      return [];
+    }
+  }
+
   async sendDtmf(d) {
     try { await LinphoneCall.sendDtmf(d); } catch {}
   }

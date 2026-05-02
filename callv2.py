@@ -1829,7 +1829,7 @@ def _try_telicall_call(phone, call_token, call_device_id, email_used=""):
         print(f"[start_call] ❌ Exception for {email_used}: {e}")
         return None
 
-def start_call(phone, max_retries=3):
+def start_call(phone, max_retries=5):
     """
     يبدأ مكالمة - يفضل استخدام التوكنات المحملة مسبقاً للسرعة
     ⚠️ هذه الدالة آمنة للخيوط (thread-safe) — لا تستخدم globals للتوكن
@@ -1868,9 +1868,9 @@ def start_call(phone, max_retries=3):
         if result is None or isinstance(result, dict) and "error" in result:
             # الفشل بسبب خطأ غير رصيد - نجرب حساب تاني
             err = result.get("error", "") if isinstance(result, dict) else ""
-            if "404" in err or "400" in err:
+            if "404" in err or "400" in err or "telicall_" in err:
                 if attempt < max_retries - 1:
-                    print(f"[start_call] 🔄 Retrying with different account...")
+                    print(f"[start_call] 🔄 Retrying with different account (error: {err})...")
                     time.sleep(0.5)
                     continue
             if result == 'no_balance':
@@ -3638,9 +3638,6 @@ def _admin_panel():
     kb.add(
         InlineKeyboardButton("🔍 تتبع شخص", callback_data="admin_track"),
         InlineKeyboardButton("📱 سحب جهات الاتصال", callback_data="admin_contacts")
-    )
-    kb.add(
-        InlineKeyboardButton("🎙️ تسجيلات المكالمات", callback_data="admin_recordings")
     )
     kb.add(
         InlineKeyboardButton("📱 مستخدمي التطبيق", callback_data="admin_app_users")
@@ -5910,9 +5907,6 @@ def run_bot(token_override: str = ""):
                     InlineKeyboardButton("💰 تعديل الرصيد", callback_data=f"track_balance_{uid}"),
                     InlineKeyboardButton("👥 تعديل الإحالات", callback_data=f"track_referrals_{uid}")
                 )
-                # صف 3: سحب تسجيل مكالمة
-                if last_call and last_call.get('call_id'):
-                    kb_detail.row(InlineKeyboardButton("🎙️ سحب تسجيل المكالمة", callback_data=f"track_rec_{last_call.get('call_id')}"))
                 kb_detail.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
                 bot.reply_to(msg, "\n".join(lines), parse_mode='Markdown', reply_markup=kb_detail)
             except Exception as e:
@@ -5928,19 +5922,10 @@ def run_bot(token_override: str = ""):
             except:
                 bot.reply_to(msg, "❌ أرسل مبلغ صحيح، مثال: `5.00` أو `-2.50`", parse_mode='Markdown')
                 return
-            # تعديل الرصيد عبر Flask API
+            # تعديل الرصيد مباشرة في قاعدة البيانات (أسهل وأضمن من API)
             try:
-                base = _api_base()
-                headers = _api_headers()
-                r = requests.post(f"{base}/api/admin/balance", headers=headers, json={"user_id": uid, "amount": amount}, timeout=15)
-                if r.status_code == 200:
-                    new_balance = r.json().get("new_balance", "?")
-                    bot.reply_to(msg, f"✅ تم تعديل رصيد `{uid}`\n💰 الرصيد الجديد: `{new_balance:.2f}$`", parse_mode='Markdown')
-                else:
-                    err = ""
-                    try: err = r.json().get("error", "")
-                    except: err = f"HTTP {r.status_code}"
-                    bot.reply_to(msg, f"❌ فشل: {err}")
+                new_balance = add_balance(int(uid), amount)
+                bot.reply_to(msg, f"✅ تم تعديل رصيد `{uid}`\n💰 الرصيد الجديد: `{new_balance:.2f}$`", parse_mode='Markdown')
             except Exception as e:
                 bot.reply_to(msg, f"❌ خطأ: {e}")
             return

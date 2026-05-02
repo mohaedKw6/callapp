@@ -98,6 +98,49 @@ class LinphoneCallModule : Module() {
       }
     }
 
+    AsyncFunction("setAudioOutput") { outputType: String, promise: Promise ->
+      try {
+        val ctx = appContext.reactContext ?: throw IllegalStateException("no context")
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        am.mode = AudioManager.MODE_IN_COMMUNICATION
+        val c = core ?: throw IllegalStateException("core not initialized")
+        val targetType = when (outputType) {
+          "earpiece" -> AudioDevice.Type.Earpiece
+          "speaker" -> {
+            am.isSpeakerphoneOn = true
+            AudioDevice.Type.Speaker
+          }
+          "bluetooth" -> AudioDevice.Type.Bluetooth
+          else -> AudioDevice.Type.Earpiece
+        }
+        if (outputType != "speaker") am.isSpeakerphoneOn = false
+        val device = c.audioDevices.firstOrNull {
+          it.type == targetType && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
+        }
+        if (device != null) {
+          c.outputAudioDevice = device
+          Log.d(TAG, "Audio output set to: ${device.deviceName} (type: $outputType)")
+        } else {
+          Log.w(TAG, "No audio device found for type: $outputType")
+        }
+        promise.resolve(null)
+      } catch (e: Throwable) {
+        promise.reject("E_AUDIO_OUT", e.message ?: "setAudioOutput failed", e)
+      }
+    }
+
+    AsyncFunction("getAudioDevices") { promise: Promise ->
+      try {
+        val c = core ?: throw IllegalStateException("core not initialized")
+        val devices = c.audioDevices
+          .filter { it.hasCapability(AudioDevice.Capabilities.CapabilityPlay) }
+          .map { mapOf("id" to it.id, "name" to it.deviceName, "type" to it.type.name, "isOutput" to true) }
+        promise.resolve(devices)
+      } catch (e: Throwable) {
+        promise.reject("E_AUDIO_LIST", e.message ?: "getAudioDevices failed", e)
+      }
+    }
+
     AsyncFunction("sendDtmf") { digit: String, promise: Promise ->
       try {
         val c = core?.currentCall ?: core?.calls?.firstOrNull()
@@ -279,6 +322,7 @@ class LinphoneCallModule : Module() {
 
   /**
    * Configure audio routing when a call connects.
+   * Prioritizes Bluetooth if connected, then earpiece.
    */
   private fun configureAudioForCall() {
     val ctx = appContext.reactContext ?: return
@@ -298,13 +342,24 @@ class LinphoneCallModule : Module() {
           Log.d(TAG, "Input audio set to: ${micDevice.deviceName}")
         }
 
-        // Set Linphone output audio device to earpiece
-        val earpieceDevice = c.audioDevices.firstOrNull {
-          it.type == AudioDevice.Type.Earpiece && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
+        // Priority: Bluetooth > Earpiece (if Bluetooth headset is connected)
+        val btDevice = c.audioDevices.firstOrNull {
+          it.type == AudioDevice.Type.Bluetooth && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
         }
-        if (earpieceDevice != null) {
-          c.outputAudioDevice = earpieceDevice
-          Log.d(TAG, "Output audio set to: ${earpieceDevice.deviceName}")
+        if (btDevice != null) {
+          c.outputAudioDevice = btDevice
+          am.startBluetoothSco()
+          am.isBluetoothScoOn = true
+          Log.d(TAG, "Output audio set to Bluetooth: ${btDevice.deviceName}")
+        } else {
+          // Set Linphone output audio device to earpiece
+          val earpieceDevice = c.audioDevices.firstOrNull {
+            it.type == AudioDevice.Type.Earpiece && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
+          }
+          if (earpieceDevice != null) {
+            c.outputAudioDevice = earpieceDevice
+            Log.d(TAG, "Output audio set to: ${earpieceDevice.deviceName}")
+          }
         }
 
         Log.d(TAG, "Audio configured for call")
@@ -324,6 +379,11 @@ class LinphoneCallModule : Module() {
         val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         am.mode = AudioManager.MODE_NORMAL
         am.isSpeakerphoneOn = false
+        // Stop Bluetooth SCO if it was started
+        try {
+          am.stopBluetoothSco()
+          am.isBluetoothScoOn = false
+        } catch (_: Throwable) {}
         @Suppress("DEPRECATION")
         am.abandonAudioFocus(null)
         audioInitialized = false

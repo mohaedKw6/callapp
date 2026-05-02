@@ -322,6 +322,9 @@ export default function App() {
           onMute={handleMute}
           onSpeaker={handleSpeaker}
           onToggleRecording={handleToggleRecording}
+          onSendDtmf={(d) => cmRef.current?.sendDtmf(d)}
+          onSetAudioOutput={(t) => cmRef.current?.setAudioOutput(t)}
+          callManager={cmRef.current}
         />
       )}
       {screen === 'callHistory' && (

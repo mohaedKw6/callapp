@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,12 +21,40 @@ const stateColor = (s) =>
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+const DTMF_KEYS = [
+  { d: '1', sub: '' },
+  { d: '2', sub: 'ABC' },
+  { d: '3', sub: 'DEF' },
+  { d: '4', sub: 'GHI' },
+  { d: '5', sub: 'JKL' },
+  { d: '6', sub: 'MNO' },
+  { d: '7', sub: 'PQRS' },
+  { d: '8', sub: 'TUV' },
+  { d: '9', sub: 'WXYZ' },
+  { d: '*', sub: '' },
+  { d: '0', sub: '+' },
+  { d: '#', sub: '' },
+];
+
 export default function CallScreen({
   phone, fromNumber, state, duration, callLimit, muted, speaker,
   onHangup, onMute, onSpeaker, onToggleRecording, recording,
+  onSendDtmf, onSetAudioOutput, callManager,
 }) {
   const [localRecording, setLocalRecording] = useState(false);
+  const [showDtmf, setShowDtmf] = useState(false);
+  const [showAudioMenu, setShowAudioMenu] = useState(false);
+  const [audioDevices, setAudioDevices] = useState([]);
+  const [currentOutput, setCurrentOutput] = useState('earpiece');
   const isRecording = recording ?? localRecording;
+
+  useEffect(() => {
+    if (callManager && state === 'connected') {
+      callManager.getAudioDevices().then(devices => {
+        setAudioDevices(devices || []);
+      }).catch(() => {});
+    }
+  }, [state, callManager]);
 
   const handleRecord = async () => {
     Haptics.selectionAsync();
@@ -39,6 +67,36 @@ export default function CallScreen({
         setLocalRecording(!newState);
       }
     }
+  };
+
+  const handleDtmf = (digit) => {
+    Haptics.selectionAsync();
+    if (onSendDtmf) {
+      onSendDtmf(digit);
+    }
+  };
+
+  const handleAudioOutput = async (type) => {
+    Haptics.selectionAsync();
+    setCurrentOutput(type);
+    setShowAudioMenu(false);
+    if (onSetAudioOutput) {
+      onSetAudioOutput(type);
+    } else if (callManager) {
+      await callManager.setAudioOutput(type);
+    }
+  };
+
+  const getAudioOutputIcon = () => {
+    if (currentOutput === 'bluetooth') return 'bluetooth';
+    if (speaker || currentOutput === 'speaker') return 'volume-high';
+    return 'volume-medium';
+  };
+
+  const getAudioOutputLabel = () => {
+    if (currentOutput === 'bluetooth') return 'بلوتوث';
+    if (speaker || currentOutput === 'speaker') return 'سماعة';
+    return 'أذن';
   };
 
   return (
@@ -81,6 +139,46 @@ export default function CallScreen({
           ) : null}
         </View>
 
+        {/* Audio Output Menu */}
+        {showAudioMenu && state === 'connected' ? (
+          <View style={S.audioMenu}>
+            <Pressable style={[S.audioOption, currentOutput === 'earpiece' && S.audioOptionActive]} onPress={() => handleAudioOutput('earpiece')}>
+              <Ionicons name="ear-outline" size={22} color={currentOutput === 'earpiece' ? Colors.primary : Colors.text} />
+              <Text style={[S.audioOptionLbl, currentOutput === 'earpiece' && { color: Colors.primary }]}>أذن</Text>
+            </Pressable>
+            <Pressable style={[S.audioOption, currentOutput === 'speaker' && S.audioOptionActive]} onPress={() => handleAudioOutput('speaker')}>
+              <Ionicons name="volume-high" size={22} color={currentOutput === 'speaker' ? Colors.primary : Colors.text} />
+              <Text style={[S.audioOptionLbl, currentOutput === 'speaker' && { color: Colors.primary }]}>سبيكر</Text>
+            </Pressable>
+            <Pressable style={[S.audioOption, currentOutput === 'bluetooth' && S.audioOptionActive]} onPress={() => handleAudioOutput('bluetooth')}
+              disabled={!audioDevices.some(d => d.type === 'Bluetooth')}>
+              <Ionicons name="bluetooth" size={22} color={
+                !audioDevices.some(d => d.type === 'Bluetooth') ? Colors.textDim :
+                currentOutput === 'bluetooth' ? Colors.primary : Colors.text
+              } />
+              <Text style={[S.audioOptionLbl, currentOutput === 'bluetooth' && { color: Colors.primary }]}>بلوتوث</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* DTMF Keypad */}
+        {showDtmf && state === 'connected' ? (
+          <View style={S.dtmfSection}>
+            <View style={S.dtmfGrid}>
+              {DTMF_KEYS.map((k) => (
+                <Pressable
+                  key={k.d}
+                  style={({ pressed }) => [S.dtmfKey, pressed && S.dtmfKeyPressed]}
+                  onPress={() => handleDtmf(k.d)}
+                >
+                  <Text style={S.dtmfDigit}>{k.d}</Text>
+                  {k.sub ? <Text style={S.dtmfSub}>{k.sub}</Text> : null}
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         <View style={S.actions}>
           <Pressable
             onPress={() => { Haptics.selectionAsync(); onMute(); }}
@@ -108,11 +206,19 @@ export default function CallScreen({
           </Pressable>
 
           <Pressable
-            onPress={() => { Haptics.selectionAsync(); onSpeaker(); }}
-            style={({ pressed }) => [S.action, speaker && S.actionActive, pressed && S.actionPressed]}
+            onPress={() => { Haptics.selectionAsync(); setShowAudioMenu(!showAudioMenu); setShowDtmf(false); }}
+            style={({ pressed }) => [S.action, (speaker || currentOutput !== 'earpiece') && S.actionActive, pressed && S.actionPressed]}
           >
-            <Ionicons name={speaker ? 'volume-high' : 'volume-medium'} size={26} color={speaker ? Colors.primary : Colors.text} />
-            <Text style={[S.actionLbl, speaker && { color: Colors.primary }]}>سماعة</Text>
+            <Ionicons name={getAudioOutputIcon()} size={26} color={(speaker || currentOutput !== 'earpiece') ? Colors.primary : Colors.text} />
+            <Text style={[S.actionLbl, (speaker || currentOutput !== 'earpiece') && { color: Colors.primary }]}>{getAudioOutputLabel()}</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => { Haptics.selectionAsync(); setShowDtmf(!showDtmf); setShowAudioMenu(false); }}
+            style={({ pressed }) => [S.action, showDtmf && S.actionActive, pressed && S.actionPressed]}
+          >
+            <Ionicons name="keypad" size={26} color={showDtmf ? Colors.primary : Colors.text} />
+            <Text style={[S.actionLbl, showDtmf && { color: Colors.primary }]}>أرقام</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -162,12 +268,51 @@ const S = StyleSheet.create({
   recBadgeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
   recBadgeTxt: { color: '#EF4444', fontSize: 12, fontWeight: '700' },
 
+  // Audio output menu
+  audioMenu: {
+    flexDirection: 'row', justifyContent: 'center', gap: 16,
+    paddingVertical: 10, paddingHorizontal: 16,
+    backgroundColor: 'rgba(30,24,54,0.9)',
+    borderRadius: Radii.lg, marginHorizontal: 20,
+    marginBottom: 8,
+  },
+  audioOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1, borderColor: Colors.borderSoft,
+  },
+  audioOptionActive: { borderColor: Colors.primary, backgroundColor: 'rgba(124,92,255,0.15)' },
+  audioOptionLbl: { color: Colors.textMuted, fontSize: 12, fontWeight: '600' },
+
+  // DTMF keypad
+  dtmfSection: {
+    paddingBottom: 8, paddingTop: 4,
+  },
+  dtmfGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    justifyContent: 'center', gap: 10,
+  },
+  dtmfKey: {
+    width: 62, height: 62, borderRadius: Radii.full,
+    backgroundColor: 'rgba(30,24,54,0.8)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: Colors.borderSoft,
+  },
+  dtmfKeyPressed: {
+    backgroundColor: Colors.card,
+    transform: [{ scale: 0.93 }],
+  },
+  dtmfDigit: { color: Colors.text, fontSize: 26, fontWeight: '500', lineHeight: 28 },
+  dtmfSub: { color: Colors.textDim, fontSize: 8, fontWeight: '700', letterSpacing: 1.2, marginTop: 1 },
+
   actions: {
     flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
     paddingBottom: Spacing.xl, paddingTop: Spacing.xl,
   },
   action: {
-    width: 72, height: 72, borderRadius: Radii.full,
+    width: 64, height: 64, borderRadius: Radii.full,
     backgroundColor: Colors.bgElevated,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: Colors.border,
@@ -178,11 +323,11 @@ const S = StyleSheet.create({
     borderColor: 'rgba(239,68,68,0.4)',
   },
   actionPressed: { transform: [{ scale: 0.92 }] },
-  actionLbl: { color: Colors.textMuted, fontSize: 10, fontWeight: '600', marginTop: 2 },
+  actionLbl: { color: Colors.textMuted, fontSize: 9, fontWeight: '600', marginTop: 2 },
 
   hangupWrap: { borderRadius: Radii.full, overflow: 'hidden', elevation: 10 },
   hangup: {
-    width: 84, height: 84, borderRadius: Radii.full,
+    width: 80, height: 80, borderRadius: Radii.full,
     justifyContent: 'center', alignItems: 'center',
     shadowColor: Colors.danger, shadowOpacity: 0.6, shadowRadius: 20,
   },

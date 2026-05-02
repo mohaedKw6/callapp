@@ -34,6 +34,15 @@ const api = {
     const m = get();
     return m ? m.setSpeaker(on) : noop();
   },
+  setAudioOutput(outputType) {
+    const m = get();
+    return m ? m.setAudioOutput(outputType) : noop();
+  },
+  getAudioDevices() {
+    const m = get();
+    if (!m) return Promise.resolve([]);
+    return m.getAudioDevices();
+  },
   sendDtmf(d) {
     const m = get();
     return m ? m.sendDtmf(d) : noop();
