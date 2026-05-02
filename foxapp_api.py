@@ -822,25 +822,49 @@ def api_app_version():
     })
 
 
+GITHUB_APK_URL = "https://github.com/MohamedQM/callapp/raw/main/fox-call-v3.4.0-arm64.apk"
+
+
 @app.get("/api/download/apk")
 def api_download_apk():
     """Serve the latest APK file for in-app download.
-    Supports Range headers for resumable downloads."""
-    if not os.path.exists(APK_STORAGE_PATH):
-        return jsonify({"error": "APK file not found on server"}), 404
+    If APK is not stored locally (e.g. after Railway restart),
+    automatically download it from GitHub."""
+    # If APK exists locally, serve it directly
+    if os.path.exists(APK_STORAGE_PATH):
+        from flask import send_file
+        try:
+            version = _load_version_config().get("latest_version", "latest")
+            filename = f"fox-call-v{version}-arm64.apk"
+            return send_file(
+                APK_STORAGE_PATH,
+                mimetype="application/vnd.android.package-archive",
+                as_attachment=True,
+                download_name=filename,
+            )
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
-    from flask import send_file
+    # APK not found locally — try to fetch from GitHub
     try:
-        version = _load_version_config().get("latest_version", "latest")
-        filename = f"fox-call-v{version}-arm64.apk"
-        return send_file(
-            APK_STORAGE_PATH,
-            mimetype="application/vnd.android.package-archive",
-            as_attachment=True,
-            download_name=filename,
-        )
+        import urllib.request
+        log.info("APK not found locally, downloading from GitHub...")
+        urllib.request.urlretrieve(GITHUB_APK_URL, APK_STORAGE_PATH)
+        if os.path.exists(APK_STORAGE_PATH):
+            log.info("APK downloaded from GitHub successfully (%d bytes)", os.path.getsize(APK_STORAGE_PATH))
+            from flask import send_file
+            version = _load_version_config().get("latest_version", "latest")
+            filename = f"fox-call-v{version}-arm64.apk"
+            return send_file(
+                APK_STORAGE_PATH,
+                mimetype="application/vnd.android.package-archive",
+                as_attachment=True,
+                download_name=filename,
+            )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log.error("Failed to download APK from GitHub: %s", e)
+
+    return jsonify({"error": "APK file not found on server and GitHub download failed"}), 404
 
 
 @app.post("/api/admin/upload-apk")
