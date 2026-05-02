@@ -80,9 +80,9 @@
       "dan_calls": 360,
       "last_daily_bonus": "2026-05-02",
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-02 09:24:11",
-      "refresh_token_hash": "3db8077712e2669fdbec23c2661e09a4a7bbd5ccffb664d5b88ee98fb20b4a4c",
-      "last_login": "2026-05-02 09:22:34"
+      "last_seen": "2026-05-02 09:39:23",
+      "refresh_token_hash": "1c0e29660eb8beb5a0ae963df151e539405ad72c54e12e0859555ca817fa521a",
+      "last_login": "2026-05-02 09:39:22"
     },
     "7627857345": {
       "usage": 0,
@@ -623,7 +623,9 @@
       "referrals": 0,
       "first_seen": "2026-04-11 07:45:11",
       "username": "X_llllIx",
-      "first_name": "Fa Ck"
+      "first_name": "Fa Ck",
+      "streak": 1,
+      "last_login_date": "2026-05-02"
     },
     "7683820841": {
       "usage": 0,
@@ -5535,15 +5537,20 @@
       "username": "",
       "first_name": "محمد ربيع",
       "streak": 1,
-      "last_login_date": "2026-05-02"
+      "last_login_date": "2026-05-02",
+      "balance": 4.0,
+      "last_ip": "154.177.129.199",
+      "last_seen": "2026-05-02 09:39:36",
+      "refresh_token_hash": "aade31f9086d3b667087b4857bea9a916e325561240942fb469e9a3a84c52be5",
+      "last_login": "2026-05-02 09:39:32"
     }
   },
   "premium": {},
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 57,
-    "success_calls": 130
+    "total_calls": 60,
+    "success_calls": 136
   },
   "voice_labels": {},
   "settings": {
@@ -8160,7 +8167,10 @@
     "xomis30376@viasuma.com",
     "vowiba3193@viasuma.com",
     "xogeba2561@splindor.com",
-    "hevok25028@splindor.com"
+    "hevok25028@splindor.com",
+    "dodeyo2872@virawolf.com",
+    "dagaye8461@toondot.com",
+    "wecec54807@toondot.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
