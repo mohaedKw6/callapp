@@ -35,6 +35,25 @@ export default function UpdateScreen({ downloadUrl, messageAr, latestVersion, ap
       setProgress(0);
       setErrorMsg('');
 
+      // Resolve the actual download URL
+      // If downloadUrl points to our /api/fresh-download-url/ endpoint, fetch it first
+      // to get a direct GitHub download URL (bypasses Railway proxy for large files)
+      let actualDownloadUrl = downloadUrl;
+      if (downloadUrl.includes('/api/fresh-download-url/')) {
+        try {
+          const res = await fetch(downloadUrl, { timeout: 15000 });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.download_url) {
+              actualDownloadUrl = data.download_url;
+              console.log('[UpdateScreen] Got fresh download URL from server');
+            }
+          }
+        } catch (e) {
+          console.log('[UpdateScreen] Could not fetch fresh URL, using original:', e?.message);
+        }
+      }
+
       // Delete old APK if exists
       const fileInfo = await getInfoAsync(APK_LOCAL_URI);
       if (fileInfo.exists) {
@@ -43,7 +62,7 @@ export default function UpdateScreen({ downloadUrl, messageAr, latestVersion, ap
 
       // Download with progress callback
       const downloadResumable = createDownloadResumable(
-        downloadUrl,
+        actualDownloadUrl,
         APK_LOCAL_URI,
         {},
         (downloadProgress) => {

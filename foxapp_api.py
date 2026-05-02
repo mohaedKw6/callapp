@@ -782,14 +782,14 @@ def _apk_filename() -> str:
 def _resolve_download_url() -> str:
     """Resolve the APK download URL.
     If download_url is set in version_config, use it.
-    Otherwise, construct from PUBLIC_URL + /api/download/<filename>.
+    Otherwise, use the fresh-download endpoint which returns a direct GitHub URL.
     """
     config = _load_version_config()
     custom_url = config.get("download_url", "")
     if custom_url:
         return custom_url
-    # Default: serve from this server with the APK filename
-    return f"{PUBLIC_URL}/api/download/{_apk_filename()}"
+    # Default: use the fresh-download endpoint (returns a direct download URL from GitHub)
+    return f"{PUBLIC_URL}/api/fresh-download-url/{_apk_filename()}"
 
 
 @app.get("/api/app-version")
@@ -830,14 +830,13 @@ def api_app_version():
 
 GITHUB_REPO = "MohamedQM/callapp"  # GitHub repo for APK storage
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
-# APKs are served from GitHub Releases (supports large files up to 2GB)
-# For private repos, we get a temporary download URL via the GitHub API
-# and stream the APK to the client in chunks (avoids loading entire file in memory)
+# APKs are stored as GitHub Releases (supports large files up to 2GB)
+# For private repos, we get a temporary direct download URL via the GitHub API
 
 
 def _get_github_release_download_url(tag: str, filename: str) -> str | None:
     """Get a temporary download URL for a GitHub Release asset (private repo).
-    Returns the direct download URL, or None on failure."""
+    Returns the direct download URL (time-limited Azure blob URL), or None on failure."""
     import urllib.request
     import json as _json
 
@@ -901,6 +900,56 @@ def _get_github_release_download_url(tag: str, filename: str) -> str | None:
     except Exception as e:
         log.error("Failed to get download URL: %s", e)
         return None
+
+
+@app.get("/api/fresh-download-url/<filename>")
+def api_fresh_download_url(filename):
+    """Get a fresh, temporary direct download URL for the APK from GitHub Releases.
+    Returns JSON: {"download_url": "...", "size": ..., "filename": "..."}
+    The URL is time-limited (expires in ~5 minutes).
+    This is used by the app to get a direct download URL that bypasses Railway's proxy.
+    """
+    import re
+
+    # Validate the filename
+    if not filename.endswith(".apk") or not filename.startswith("fox-call-"):
+        return jsonify({"error": "Invalid APK filename"}), 400
+
+    # If APK exists locally, serve it from this server
+    if os.path.exists(APK_STORAGE_PATH):
+        local_url = f"{PUBLIC_URL}/api/download/{filename}"
+        try:
+            apk_size = os.path.getsize(APK_STORAGE_PATH)
+        except Exception:
+            apk_size = 0
+        return jsonify({
+            "download_url": local_url,
+            "size": apk_size,
+            "filename": filename,
+        })
+
+    # Get download URL from GitHub Releases
+    try:
+        ver_match = re.search(r'v(\d+\.\d+\.\d+)', filename)
+        if ver_match:
+            tag = f"v{ver_match.group(1)}"
+        else:
+            tag = f"v{_load_version_config().get('latest_version', 'latest')}"
+
+        download_url = _get_github_release_download_url(tag, filename)
+        if download_url:
+            log.info("Returning fresh download URL for %s", filename)
+            return jsonify({
+                "download_url": download_url,
+                "size": 0,
+                "filename": filename,
+            })
+        else:
+            log.error("Could not get download URL from GitHub for %s", filename)
+    except Exception as e:
+        log.error("Failed to get fresh download URL: %s", e)
+
+    return jsonify({"error": "Could not get download URL"}), 404
 
 
 @app.get("/api/download/<filename>")
