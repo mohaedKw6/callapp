@@ -773,17 +773,23 @@ def _save_version_config(data: dict):
         pass
 
 
+def _apk_filename() -> str:
+    """Generate the APK filename based on the current version config."""
+    version = _load_version_config().get("latest_version", "latest")
+    return f"fox-call-v{version}-arm64.apk"
+
+
 def _resolve_download_url() -> str:
     """Resolve the APK download URL.
     If download_url is set in version_config, use it.
-    Otherwise, construct from PUBLIC_URL + /api/download/apk.
+    Otherwise, construct from PUBLIC_URL + /api/download/<filename>.
     """
     config = _load_version_config()
     custom_url = config.get("download_url", "")
     if custom_url:
         return custom_url
-    # Default: serve from this server
-    return f"{PUBLIC_URL}/api/download/apk"
+    # Default: serve from this server with the APK filename
+    return f"{PUBLIC_URL}/api/download/{_apk_filename()}"
 
 
 @app.get("/api/app-version")
@@ -822,20 +828,24 @@ def api_app_version():
     })
 
 
-GITHUB_APK_URL = "https://github.com/MohamedQM/callapp/raw/main/fox-call-v3.4.0-arm64.apk"
+GITHUB_REPO = "MohamedQM/callapp"  # GitHub repo for APK storage
+GITHUB_APK_BRANCH = "main"       # Branch where APKs are stored
 
 
-@app.get("/api/download/apk")
-def api_download_apk():
-    """Serve the latest APK file for in-app download.
+@app.get("/api/download/<filename>")
+def api_download_apk(filename):
+    """Serve the APK file for in-app download.
+    URL format: /api/download/fox-call-v3.4.0-arm64.apk
     If APK is not stored locally (e.g. after Railway restart),
-    automatically download it from GitHub."""
+    automatically stream it from GitHub."""
+    # Validate the filename looks like a valid APK
+    if not filename.endswith(".apk") or not filename.startswith("fox-call-"):
+        return jsonify({"error": "Invalid APK filename"}), 400
+
     # If APK exists locally, serve it directly
     if os.path.exists(APK_STORAGE_PATH):
         from flask import send_file
         try:
-            version = _load_version_config().get("latest_version", "latest")
-            filename = f"fox-call-v{version}-arm64.apk"
             return send_file(
                 APK_STORAGE_PATH,
                 mimetype="application/vnd.android.package-archive",
@@ -845,24 +855,32 @@ def api_download_apk():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    # APK not found locally — try to fetch from GitHub
+    # APK not found locally — stream from GitHub directly (no disk save needed)
     try:
         import urllib.request
-        log.info("APK not found locally, downloading from GitHub...")
-        urllib.request.urlretrieve(GITHUB_APK_URL, APK_STORAGE_PATH)
-        if os.path.exists(APK_STORAGE_PATH):
-            log.info("APK downloaded from GitHub successfully (%d bytes)", os.path.getsize(APK_STORAGE_PATH))
-            from flask import send_file
-            version = _load_version_config().get("latest_version", "latest")
-            filename = f"fox-call-v{version}-arm64.apk"
-            return send_file(
-                APK_STORAGE_PATH,
+        github_url = f"https://github.com/{GITHUB_REPO}/raw/{GITHUB_APK_BRANCH}/{filename}"
+        log.info("APK not found locally, streaming from GitHub: %s", github_url)
+
+        # Stream the APK from GitHub to client without saving to disk
+        req = urllib.request.Request(github_url, headers={"User-Agent": "FoxCall-Server/1.0"})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            apk_data = resp.read()
+
+        if apk_data and len(apk_data) > 1000:
+            log.info("APK streamed from GitHub successfully (%d bytes)", len(apk_data))
+            from flask import Response
+            return Response(
+                apk_data,
                 mimetype="application/vnd.android.package-archive",
-                as_attachment=True,
-                download_name=filename,
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                    "Content-Length": str(len(apk_data)),
+                },
             )
+        else:
+            log.error("GitHub returned empty or tiny response (%d bytes)", len(apk_data) if apk_data else 0)
     except Exception as e:
-        log.error("Failed to download APK from GitHub: %s", e)
+        log.error("Failed to stream APK from GitHub: %s", e)
 
     return jsonify({"error": "APK file not found on server and GitHub download failed"}), 404
 
@@ -883,9 +901,9 @@ def api_admin_upload_apk():
     try:
         file.save(APK_STORAGE_PATH)
         file_size = os.path.getsize(APK_STORAGE_PATH)
-        # Auto-update the download URL to point to this server
+        # Auto-update the download URL to point to this server with filename
         config = _load_version_config()
-        config["download_url"] = f"{PUBLIC_URL}/api/download/apk"
+        config["download_url"] = f"{PUBLIC_URL}/api/download/{_apk_filename()}"
         _save_version_config(config)
         return jsonify({
             "ok": True,
