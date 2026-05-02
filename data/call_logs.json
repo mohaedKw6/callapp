@@ -2716,8 +2716,10 @@
       "username": "qklllll",
       "first_name": "Heba",
       "first_seen": "2026-04-27 18:45:30",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 2,
+      "phones_called": [
+        "9647710322467"
+      ]
     },
     "8699562044": {
       "username": "Fa50_m",
@@ -6702,6 +6704,58 @@
       "status": "ended",
       "ip_address": "156.214.49.187",
       "timestamp": "2026-05-02 13:30:57"
+    },
+    {
+      "call_id": "6019b124b794ff02",
+      "user_id": "6885761058",
+      "to": "+9647710322467",
+      "from": "+447577364910",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-02 22:50:59",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "195.7.10.80",
+      "timestamp": "2026-05-02 22:50:59"
+    },
+    {
+      "call_id": "6019b124b794ff02",
+      "user_id": "6885761058",
+      "to": "+9647710322467",
+      "from": "+447577364910",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-02 22:50:59",
+      "end_time": "2026-05-02 22:51:55",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "195.7.10.80",
+      "timestamp": "2026-05-02 22:51:55"
+    },
+    {
+      "call_id": "e4bc8b9834a98c65",
+      "user_id": "6885761058",
+      "to": "+9647710322467",
+      "from": "+447577351049",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-02 22:52:00",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "195.7.10.80",
+      "timestamp": "2026-05-02 22:52:00"
+    },
+    {
+      "call_id": "e4bc8b9834a98c65",
+      "user_id": "6885761058",
+      "to": "+9647710322467",
+      "from": "+447577351049",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-02 22:52:00",
+      "end_time": "2026-05-02 22:53:36",
+      "duration": 60,
+      "status": "ended",
+      "ip_address": "195.7.10.80",
+      "timestamp": "2026-05-02 22:53:36"
     }
   ],
   "all_phones": {
@@ -7296,6 +7350,14 @@
         "6173875759"
       ],
       "last_call": "2026-05-02 09:48:07"
+    },
+    "9647710322467": {
+      "first_call": "2026-05-02 22:50:59",
+      "total_calls": 2,
+      "users_called": [
+        "6885761058"
+      ],
+      "last_call": "2026-05-02 22:53:36"
     }
   }
 }
