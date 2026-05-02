@@ -73,13 +73,15 @@
     "first_seen": "2026-04-09 08:11:14",
     "username": "G_M_A_Q",
     "first_name": "\u26e5-\ud835\udd3e_\ud835\udd44_\ud835\udd38_\u211a-\u26e5",
-    "streak": 12,
-    "last_login_date": "2026-05-01",
-    "balance": 5.9,
+    "streak": 13,
+    "last_login_date": "2026-05-02",
+    "balance": 5.75,
     "dan_calls": 360,
-    "last_daily_bonus": "2026-05-01",
-    "last_ip": "102.46.160.248",
-    "last_seen": "2026-04-26 10:51:30"
+    "last_daily_bonus": "2026-05-02",
+    "last_ip": "156.214.49.187",
+    "last_seen": "2026-05-02 09:24:11",
+    "refresh_token_hash": "3db8077712e2669fdbec23c2661e09a4a7bbd5ccffb664d5b88ee98fb20b4a4c",
+    "last_login": "2026-05-02 09:22:34"
   },
   "7627857345": {
     "usage": 0,
@@ -2245,7 +2247,7 @@
     "bot_source": "sub_@Sjxijsjszijbot",
     "balance": 0.4,
     "last_ip": "156.214.49.187",
-    "last_seen": "2026-05-01 15:15:26",
+    "last_seen": "2026-05-02 09:21:38",
     "refresh_token_hash": "201a4fa7152440a5474686ff274971adc6d77b7c955b16fab34bd552ec4d9307",
     "last_login": "2026-04-26 19:37:53"
   },
@@ -5522,6 +5524,15 @@
     "first_seen": "2026-05-02 03:42:59",
     "username": "A_L_i_g",
     "first_name": "\u0627\u0645\u064a\u0631 \u0627\u0644\u0633\u0639\u0627\u062f\u0629 .\ud81a\udd54 \u0741 \u02d6 \u2026\u2026",
+    "streak": 1,
+    "last_login_date": "2026-05-02"
+  },
+  "6173875759": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-02 09:27:43",
+    "username": "",
+    "first_name": "\u0645\u062d\u0645\u062f \u0631\u0628\u064a\u0639",
     "streak": 1,
     "last_login_date": "2026-05-02"
   }
