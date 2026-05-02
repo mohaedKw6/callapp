@@ -80,7 +80,7 @@
       "dan_calls": 360,
       "last_daily_bonus": "2026-05-02",
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-02 09:39:23",
+      "last_seen": "2026-05-02 10:51:22",
       "refresh_token_hash": "1c0e29660eb8beb5a0ae963df151e539405ad72c54e12e0859555ca817fa521a",
       "last_login": "2026-05-02 09:39:22"
     },
@@ -2250,9 +2250,9 @@
       "bot_source": "sub_@Sjxijsjszijbot",
       "balance": 0.4,
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-02 09:21:38",
-      "refresh_token_hash": "201a4fa7152440a5474686ff274971adc6d77b7c955b16fab34bd552ec4d9307",
-      "last_login": "2026-04-26 19:37:53"
+      "last_seen": "2026-05-02 10:52:06",
+      "refresh_token_hash": "bc2ca71dcad3c1ed7d9fef0d689acbb059414315bbd7523266f98ceb7ca96b28",
+      "last_login": "2026-05-02 10:51:24"
     },
     "8090445921": {
       "usage": 0,
@@ -5549,8 +5549,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 60,
-    "success_calls": 139
+    "total_calls": 61,
+    "success_calls": 142
   },
   "voice_labels": {},
   "settings": {
@@ -8170,7 +8170,8 @@
     "hevok25028@splindor.com",
     "dodeyo2872@virawolf.com",
     "dagaye8461@toondot.com",
-    "wecec54807@toondot.com"
+    "wecec54807@toondot.com",
+    "nafil44579@toondot.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
