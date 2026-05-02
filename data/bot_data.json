@@ -5566,7 +5566,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 67,
-    "success_calls": 149
+    "success_calls": 150
   },
   "voice_labels": {},
   "settings": {
@@ -5656,6 +5656,15 @@
         "6173875759"
       ],
       "created_at": "2026-05-02 09:35:13",
+      "created_by": "962731079"
+    },
+    "Q40CNVMQ": {
+      "amount": 1.0,
+      "max_users": 1,
+      "used_by": [
+        "6594705905"
+      ],
+      "created_at": "2026-05-02 14:51:23",
       "created_by": "962731079"
     }
   },
