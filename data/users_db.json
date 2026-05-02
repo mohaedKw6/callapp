@@ -2244,17 +2244,17 @@
     "first_seen": "2026-04-20 20:16:33",
     "username": "G_iMi_Q",
     "first_name": "\u26e5\u0640\ud835\udd3e_\ud835\udd5a\ud835\udd44\ud835\udd5a_\u211a-\u26e5",
-    "streak": 1,
-    "last_login_date": "2026-05-02",
+    "streak": 2,
+    "last_login_date": "2026-04-26",
     "bot_source": "sub_@Sjxijsjszijbot",
-    "balance": 1.0,
+    "balance": 0.05,
     "last_ip": "156.214.49.187",
-    "last_seen": "2026-05-02 20:30:26",
-    "refresh_token_hash": "d5019bd6e75657b59ef37e84463f76eb67aa2bc819d406efcaa4ce37cf589835",
-    "last_login": "2026-05-02 20:30:00",
-    "active_fox_token_hash": "f8234880c314f20bf0525c4aa5255b60ee63a78d9057d91537903f2be0ca46e2",
-    "active_device_id": "e4486497c3728809",
-    "active_token_set_at": "2026-05-02 20:30:00"
+    "last_seen": "2026-05-02 13:30:59",
+    "refresh_token_hash": "fdf83f37e9297a388f21f85f4ba03196e78e5001e3e452bb5c8fa30c7e5614e1",
+    "last_login": "2026-05-02 13:30:02",
+    "active_fox_token_hash": "4a73b5d3b73e8072924dd0738eae4f878037662589bc4d5f3ab726d71e09689b",
+    "active_device_id": "34518e3738d11cd7",
+    "active_token_set_at": "2026-05-02 13:30:02"
   },
   "8090445921": {
     "usage": 0,
@@ -4788,14 +4788,11 @@
     "first_name": "Heba",
     "streak": 1,
     "last_login_date": "2026-05-01",
-    "last_ip": "150.228.105.200",
-    "last_seen": "2026-05-02 16:32:34",
-    "refresh_token_hash": "04ae695f4ad492c8a48adb790d8f42af5d95367e0c79c20be4bdb2bf94194b60",
-    "last_login": "2026-05-02 16:13:04",
-    "balance": 3.8,
-    "active_fox_token_hash": "bf51b8a168423ca912a61354cf15a287a3491ce3d8384a09baf891413dc1bf34",
-    "active_device_id": "eefb6bf1bd3ce18b",
-    "active_token_set_at": "2026-05-02 16:13:04"
+    "last_ip": "150.228.105.31",
+    "last_seen": "2026-05-01 22:02:40",
+    "refresh_token_hash": "1ff60ffb9d9f6daa7571d54d73f25f5ec683046a5551e099ce27b509d21b2a83",
+    "last_login": "2026-05-01 21:46:02",
+    "balance": 5.2
   },
   "8699562044": {
     "usage": 0,
@@ -5366,8 +5363,8 @@
     "first_seen": "2026-05-01 02:49:48",
     "username": "m3b1x",
     "first_name": "\ud835\udc41\ud835\udc34\ud835\udc45\ud835\udc48\ud835\udc47\ud835\udee9 \ud835\udeef\ud835\udc3f\ud835\udc4c\ud835\udee9\ud835\udc48\ud835\udc47\ud835\udc48\ud835\udee9\ud835\udc35\ud835\udc38\ud835\udc45",
-    "streak": 2,
-    "last_login_date": "2026-05-02",
+    "streak": 1,
+    "last_login_date": "2026-05-01",
     "bot_source": "sub_@AOFTJV_BOT"
   },
   "8321022843": {
@@ -5561,45 +5558,5 @@
     "last_seen": "2026-05-02 11:13:54",
     "refresh_token_hash": "79cca1a1c42458ba08e160ecfe75f9236ad610f3d679b9aee24e2e89b64f866a",
     "last_login": "2026-05-02 11:12:58"
-  },
-  "7921374634": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-02 15:17:21",
-    "username": "weaihd",
-    "first_name": "\u0645\u0631\u0633\u0644 \u0644\u0639\u0632\u0631\u0627\u0626\u064a\u0644",
-    "streak": 1,
-    "last_login_date": "2026-05-02"
-  },
-  "8175825969": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-02 17:06:23",
-    "username": "F0_505",
-    "first_name": "\ud835\udc7a\ud835\udc6f\ud835\udc68\ud835\udc75\ud835\udc72\ud835\udc7a \ud835\udc6c\ud835\udc73 \ud835\udc68\ud835\udc7a\ud835\udc7e\ud835\udc68\ud835\udc75\ud835\udc80 \ufe0f",
-    "streak": 1,
-    "last_login_date": "2026-05-02"
-  },
-  "8584181323": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-02 17:26:01",
-    "username": "QWERplv",
-    "first_name": "\u0627\u0633\u064a\u0631 \u0627\u0644\u0635\u0645\u062a",
-    "streak": 1,
-    "last_login_date": "2026-05-02"
-  },
-  "8589711073": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-02 20:23:57",
-    "username": "ZZG11O",
-    "first_name": "\ud835\ude51\ud835\ude44\ud835\ude4f\ud835\ude4a",
-    "streak": 1,
-    "last_login_date": "2026-05-02",
-    "active_fox_token_hash": "7350cdfa6af91c37b2bf59ced2d8b298e7ebd6c431f79dedee4c34f0c4555265",
-    "active_device_id": "",
-    "active_token_set_at": "2026-05-02 20:24:34",
-    "refresh_token_hash": ""
   }
 }
