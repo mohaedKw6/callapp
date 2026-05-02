@@ -13,6 +13,10 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
   const [contactsModalVisible, setContactsModalVisible] = useState(false);
   const [contactsSearch, setContactsSearch] = useState('');
 
+  const callCost = user?.cost || 0.20;
+  const currentBalance = user?.balance ?? 0;
+  const canCall = phone && currentBalance >= callCost;
+
   const refresh = async () => {
     setRefreshing(true);
     try { await onRefresh(); } finally { setRefreshing(false); }
@@ -103,7 +107,7 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
           <View style={S.balStats}>
             <View style={S.balStat}>
               <Ionicons name="call-outline" size={14} color="rgba(255,255,255,0.85)" />
-              <Text style={S.balStatTxt}>$0.05 غير مرحل | $0.20 مرحل</Text>
+              <Text style={S.balStatTxt}>$0.20 للمكالمة</Text>
             </View>
             <View style={S.balStat}>
               <Ionicons name="layers-outline" size={14} color="rgba(255,255,255,0.85)" />
@@ -125,6 +129,14 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
           {phone ? <DeleteKey onPress={del} onLongPress={clear} /> : null}
         </View>
 
+        {/* Low balance warning */}
+        {phone && currentBalance < callCost && (
+          <View style={S.lowBalWarning}>
+            <Ionicons name="warning" size={16} color="#e74c3c" />
+            <Text style={S.lowBalText}>رصيدك غير كافي للمكالمة ({currentBalance.toFixed(2)}$)</Text>
+          </View>
+        )}
+
         {/* Numpad */}
         <Numpad onPress={press} onDelete={del} onLongDelete={clear} />
 
@@ -142,8 +154,8 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
           {/* Call button */}
           <Pressable
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onCall(); }}
-            disabled={!phone}
-            style={({ pressed }) => [S.callBtnWrap, !phone && S.btnDisabled, pressed && S.btnPressed]}
+            disabled={!canCall}
+            style={({ pressed }) => [S.callBtnWrap, !canCall && S.btnDisabled, pressed && S.btnPressed]}
           >
             <LinearGradient colors={['#22C55E', '#16A34A']} style={S.callBtn}>
               <Ionicons name="call" size={32} color="#fff" />
@@ -367,4 +379,11 @@ const S = StyleSheet.create({
 
   contactsEmpty: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
   contactsEmptyTxt: { color: Colors.textDim, fontSize: 14 },
+  lowBalWarning: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, marginHorizontal: Spacing.xl, marginBottom: Spacing.md,
+    backgroundColor: 'rgba(231,76,60,0.12)',
+    borderRadius: Radii.md, paddingVertical: 8, paddingHorizontal: 12,
+  },
+  lowBalText: { color: '#e74c3c', fontSize: 12, fontWeight: '600' },
 });

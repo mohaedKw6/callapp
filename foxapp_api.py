@@ -1200,16 +1200,16 @@ def api_call_start():
 
     cv = _cv()
     cost = _call_cost()
-    unanswered_cost = _unanswered_call_cost()
     bal = _balance(uid)
-    if bal < unanswered_cost - 0.001:
+    # Block call entirely if balance is less than the full call cost
+    if bal < cost - 0.001:
         return (
             jsonify(
                 {
                     "error": (
-                        f"\u0631\u0635\u064a\u062f\u0643 \u0645\u0634 \u0643\u0627\u0641\u064a"
-                        f" ({bal:.2f}$). \u0627\u0644\u062d\u062f \u0627\u0644\u0623\u062f\u0646\u0649"
-                        f" {unanswered_cost:.2f}$"
+                        f"رصيدك مش كافي"
+                        f" ({bal:.2f}$). الحد الأدنى"
+                        f" {cost:.2f}$"
                     )
                 }
             ),
@@ -1290,9 +1290,8 @@ def api_call_start():
     except Exception:
         pass
 
-    # Deduct partial balance (unanswered call fee)
-    # If the call is answered, the remaining will be deducted on /api/call/end
-    cv.deduct_balance(uid, unanswered_cost)
+    # Deduct full call cost upfront
+    cv.deduct_balance(uid, cost)
 
     # Update bot stats
     try:
@@ -1348,9 +1347,9 @@ def api_call_start():
             "from": from_num,
             "to": result.get("to", to),
             "balance": _balance(uid),
-            "cost_deducted": round(unanswered_cost, 2),
+            "cost_deducted": round(cost, 2),
             "cost_total": round(cost, 2),
-            "cost_remaining": round(cost - unanswered_cost, 2),
+            "cost_remaining": 0,
         }
     )
 
@@ -1386,17 +1385,7 @@ def api_call_end():
             call_id=call_id,
         )
 
-    # Charge remaining amount if call was answered (duration > 0)
-    if duration > 0 and call_info:
-        try:
-            cost = _call_cost()
-            unanswered_cost = _unanswered_call_cost()
-            remaining_charge = round(cost - unanswered_cost, 2)
-            if remaining_charge > 0:
-                cv = _cv()
-                cv.deduct_balance(uid, remaining_charge)
-        except Exception:
-            pass
+    # No additional charge — full cost was already deducted at call start
 
     # Update bot stats
     try:

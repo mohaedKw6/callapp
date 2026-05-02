@@ -3,7 +3,7 @@
   "latest_version_code": 10,
   "minimum_version_code": 10,
   "force_update": true,
-  "download_url": "https://github.com/MohamedQM/callapp/raw/main/fox-call-v3.3.0-arm64.apk",
+  "download_url": "",
   "update_message_ar": "يتوفر تحديث جديد للتطبيق! يرجى تحميل النسخة الجديدة للمتابعة.",
   "update_message_en": "A new update is available! Please download the latest version to continue."
 }

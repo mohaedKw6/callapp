@@ -322,6 +322,13 @@ export default function App() {
 
   const handleCall = async () => {
     if (!phone || !cmRef.current) return;
+    // Check balance before allowing call
+    const callCost = user?.cost || 0.20;
+    const currentBalance = user?.balance ?? 0;
+    if (currentBalance < callCost) {
+      Alert.alert('رصيد غير كافي', `رصيدك ${currentBalance.toFixed(2)}$ مش كافي للمكالمة. الحد الأدنى ${callCost.toFixed(2)}$`);
+      return;
+    }
     const ok = await requestMicPermission();
     if (!ok) {
       Alert.alert('تنبيه', 'لازم تسمح للميكروفون عشان تعمل مكالمة');
