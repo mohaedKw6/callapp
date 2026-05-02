@@ -205,9 +205,10 @@
       "username": "G_M_A_Q",
       "first_name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥",
       "first_seen": "2026-04-16 13:31:05",
-      "total_calls": 2,
+      "total_calls": 3,
       "phones_called": [
-        "201118975909"
+        "201118975909",
+        "201149831911"
       ]
     },
     "7391448184": {
@@ -3149,6 +3150,13 @@
       "username": "A_L_i_g",
       "first_name": "امير السعادة .𖥔 ݁ ˖ ……",
       "first_seen": "2026-05-02 03:42:59",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "6173875759": {
+      "username": "",
+      "first_name": "محمد ربيع",
+      "first_seen": "2026-05-02 09:27:43",
       "total_calls": 0,
       "phones_called": []
     }
@@ -6447,6 +6455,32 @@
       "status": "ended",
       "ip_address": "213.230.86.62",
       "timestamp": "2026-05-02 05:59:19"
+    },
+    {
+      "call_id": "602798668487c77d",
+      "user_id": "962731079",
+      "to": "+201149831911",
+      "from": "+447447498266",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-02 09:23:11",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "156.214.49.187",
+      "timestamp": "2026-05-02 09:23:11"
+    },
+    {
+      "call_id": "602798668487c77d",
+      "user_id": "962731079",
+      "to": "+201149831911",
+      "from": "+447447498266",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-02 09:23:11",
+      "end_time": "2026-05-02 09:24:10",
+      "duration": 38,
+      "status": "ended",
+      "ip_address": "156.214.49.187",
+      "timestamp": "2026-05-02 09:24:10"
     }
   ],
   "all_phones": {
@@ -7016,6 +7050,14 @@
         "8426582765"
       ],
       "last_call": "2026-05-02 05:59:19"
+    },
+    "201149831911": {
+      "first_call": "2026-05-02 09:23:11",
+      "total_calls": 1,
+      "users_called": [
+        "962731079"
+      ],
+      "last_call": "2026-05-02 09:24:10"
     }
   }
 }
