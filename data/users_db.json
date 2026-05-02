@@ -4788,11 +4788,14 @@
     "first_name": "Heba",
     "streak": 1,
     "last_login_date": "2026-05-01",
-    "last_ip": "150.228.105.31",
-    "last_seen": "2026-05-01 22:02:40",
-    "refresh_token_hash": "1ff60ffb9d9f6daa7571d54d73f25f5ec683046a5551e099ce27b509d21b2a83",
-    "last_login": "2026-05-01 21:46:02",
-    "balance": 5.2
+    "last_ip": "150.228.105.17",
+    "last_seen": "2026-05-02 16:16:47",
+    "refresh_token_hash": "04ae695f4ad492c8a48adb790d8f42af5d95367e0c79c20be4bdb2bf94194b60",
+    "last_login": "2026-05-02 16:13:04",
+    "balance": 4.2,
+    "active_fox_token_hash": "bf51b8a168423ca912a61354cf15a287a3491ce3d8384a09baf891413dc1bf34",
+    "active_device_id": "eefb6bf1bd3ce18b",
+    "active_token_set_at": "2026-05-02 16:13:04"
   },
   "8699562044": {
     "usage": 0,
