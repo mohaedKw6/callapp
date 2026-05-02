@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { cacheDirectory, createDownloadResumable } from 'expo-file-system';
+import { getInfoAsync, deleteAsync } from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Colors } from '../theme/colors';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const APK_FILE_NAME = 'fox-call-update.apk';
-const APK_LOCAL_URI = FileSystem.cacheDirectory + APK_FILE_NAME;
+const APK_LOCAL_URI = cacheDirectory + APK_FILE_NAME;
 // FileProvider authority (must match AndroidManifest.xml)
 const FILE_PROVIDER_AUTHORITY = 'com.mohamedqm.foxcall.fileprovider';
 const CONTENT_URI = `content://${FILE_PROVIDER_AUTHORITY}/cache/${APK_FILE_NAME}`;
@@ -35,13 +36,13 @@ export default function UpdateScreen({ downloadUrl, messageAr, latestVersion, ap
       setErrorMsg('');
 
       // Delete old APK if exists
-      const fileInfo = await FileSystem.getInfoAsync(APK_LOCAL_URI);
+      const fileInfo = await getInfoAsync(APK_LOCAL_URI);
       if (fileInfo.exists) {
-        await FileSystem.deleteAsync(APK_LOCAL_URI);
+        await deleteAsync(APK_LOCAL_URI);
       }
 
       // Download with progress callback
-      const downloadResumable = FileSystem.createDownloadResumable(
+      const downloadResumable = createDownloadResumable(
         downloadUrl,
         APK_LOCAL_URI,
         {},
@@ -76,7 +77,7 @@ export default function UpdateScreen({ downloadUrl, messageAr, latestVersion, ap
       setPhase('installing');
 
       // Verify file exists
-      const fileInfo = await FileSystem.getInfoAsync(APK_LOCAL_URI);
+      const fileInfo = await getInfoAsync(APK_LOCAL_URI);
       if (!fileInfo.exists) {
         throw new Error('ملف التحديث غير موجود');
       }
