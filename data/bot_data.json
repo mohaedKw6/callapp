@@ -2250,12 +2250,12 @@
       "bot_source": "sub_@Sjxijsjszijbot",
       "balance": 1.0,
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-02 14:52:12",
-      "refresh_token_hash": "",
-      "last_login": "2026-05-02 13:30:02",
+      "last_seen": "2026-05-02 20:30:26",
+      "refresh_token_hash": "d5019bd6e75657b59ef37e84463f76eb67aa2bc819d406efcaa4ce37cf589835",
+      "last_login": "2026-05-02 20:30:00",
       "active_fox_token_hash": "f8234880c314f20bf0525c4aa5255b60ee63a78d9057d91537903f2be0ca46e2",
-      "active_device_id": "",
-      "active_token_set_at": "2026-05-02 14:52:05"
+      "active_device_id": "e4486497c3728809",
+      "active_token_set_at": "2026-05-02 20:30:00"
     },
     "8090445921": {
       "usage": 0,
@@ -5589,6 +5589,19 @@
       "first_name": "اسير الصمت",
       "streak": 1,
       "last_login_date": "2026-05-02"
+    },
+    "8589711073": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-02 20:23:57",
+      "username": "ZZG11O",
+      "first_name": "𝙑𝙄𝙏𝙊",
+      "streak": 1,
+      "last_login_date": "2026-05-02",
+      "active_fox_token_hash": "7350cdfa6af91c37b2bf59ced2d8b298e7ebd6c431f79dedee4c34f0c4555265",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-02 20:24:34",
+      "refresh_token_hash": ""
     }
   },
   "premium": {},
