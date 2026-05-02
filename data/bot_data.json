@@ -74,13 +74,15 @@
       "first_seen": "2026-04-09 08:11:14",
       "username": "G_M_A_Q",
       "first_name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥",
-      "streak": 12,
-      "last_login_date": "2026-05-01",
-      "balance": 5.9,
+      "streak": 13,
+      "last_login_date": "2026-05-02",
+      "balance": 5.75,
       "dan_calls": 360,
-      "last_daily_bonus": "2026-05-01",
-      "last_ip": "102.46.160.248",
-      "last_seen": "2026-04-26 10:51:30"
+      "last_daily_bonus": "2026-05-02",
+      "last_ip": "156.214.49.187",
+      "last_seen": "2026-05-02 09:24:11",
+      "refresh_token_hash": "3db8077712e2669fdbec23c2661e09a4a7bbd5ccffb664d5b88ee98fb20b4a4c",
+      "last_login": "2026-05-02 09:22:34"
     },
     "7627857345": {
       "usage": 0,
@@ -2246,7 +2248,7 @@
       "bot_source": "sub_@Sjxijsjszijbot",
       "balance": 0.4,
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-01 15:15:26",
+      "last_seen": "2026-05-02 09:21:38",
       "refresh_token_hash": "201a4fa7152440a5474686ff274971adc6d77b7c955b16fab34bd552ec4d9307",
       "last_login": "2026-04-26 19:37:53"
     },
@@ -5525,6 +5527,15 @@
       "first_name": "امير السعادة .𖥔 ݁ ˖ ……",
       "streak": 1,
       "last_login_date": "2026-05-02"
+    },
+    "6173875759": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-02 09:27:43",
+      "username": "",
+      "first_name": "محمد ربيع",
+      "streak": 1,
+      "last_login_date": "2026-05-02"
     }
   },
   "premium": {},
@@ -5532,7 +5543,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 57,
-    "success_calls": 129
+    "success_calls": 130
   },
   "voice_labels": {},
   "settings": {
@@ -5613,6 +5624,15 @@
         "6885761058"
       ],
       "created_at": "2026-05-01 21:57:05",
+      "created_by": "962731079"
+    },
+    "1M2Y87DO": {
+      "amount": 4.0,
+      "max_users": 1,
+      "used_by": [
+        "6173875759"
+      ],
+      "created_at": "2026-05-02 09:35:13",
       "created_by": "962731079"
     }
   },
