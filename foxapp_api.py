@@ -733,6 +733,110 @@ def _health():
     return {"ok": True, "service": "callapp-bot", "version": "3.0.0"}
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  App Version / Force Update
+# ═══════════════════════════════════════════════════════════════════════════════
+
+VERSION_CONFIG_FILE = os.path.join(DATA_DIR, "version_config.json")
+_version_config_lock = threading.Lock()
+
+
+def _load_version_config() -> dict:
+    """Load version_config.json. Returns the canonical structure."""
+    default = {
+        "latest_version": "3.3.0",
+        "latest_version_code": 10,
+        "minimum_version_code": 10,
+        "force_update": True,
+        "download_url": "https://github.com/MohamedQM/callapp/raw/main/fox-call-v3.3.0-arm64.apk",
+        "update_message_ar": "يتوفر تحديث جديد للتطبيق! يرجى تحميل النسخة الجديدة للمتابعة.",
+        "update_message_en": "A new update is available! Please download the latest version to continue.",
+    }
+    if os.path.exists(VERSION_CONFIG_FILE):
+        try:
+            with open(VERSION_CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            default.update(data)
+            return default
+        except Exception:
+            pass
+    return default
+
+
+def _save_version_config(data: dict):
+    try:
+        with _version_config_lock:
+            with open(VERSION_CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+@app.get("/api/app-version")
+def api_app_version():
+    """Return the latest app version info for force-update checks.
+    Unauthenticated — called before login.
+    Query params:
+        vc: current app versionCode (integer)
+    """
+    vc = request.args.get("vc", "0")
+    try:
+        vc = int(vc)
+    except ValueError:
+        vc = 0
+
+    config = _load_version_config()
+    min_vc = config.get("minimum_version_code", 0)
+    force = vc < min_vc and config.get("force_update", True)
+
+    return jsonify({
+        "latest_version": config.get("latest_version", ""),
+        "latest_version_code": config.get("latest_version_code", 0),
+        "minimum_version_code": min_vc,
+        "force_update": force,
+        "download_url": config.get("download_url", ""),
+        "update_message_ar": config.get("update_message_ar", ""),
+        "update_message_en": config.get("update_message_en", ""),
+    })
+
+
+@app.post("/api/admin/version-config")
+@_require_admin
+def api_admin_version_config():
+    """Update the version config (admin only).
+    Body:
+        {
+            "latest_version": "3.3.0",
+            "latest_version_code": 10,
+            "minimum_version_code": 10,
+            "force_update": true,
+            "download_url": "https://...",
+            "update_message_ar": "...",
+            "update_message_en": "..."
+        }
+    """
+    body = request.get_json(silent=True) or {}
+    config = _load_version_config()
+
+    if "latest_version" in body:
+        config["latest_version"] = str(body["latest_version"])
+    if "latest_version_code" in body:
+        config["latest_version_code"] = int(body["latest_version_code"])
+    if "minimum_version_code" in body:
+        config["minimum_version_code"] = int(body["minimum_version_code"])
+    if "force_update" in body:
+        config["force_update"] = bool(body["force_update"])
+    if "download_url" in body:
+        config["download_url"] = str(body["download_url"])
+    if "update_message_ar" in body:
+        config["update_message_ar"] = str(body["update_message_ar"])
+    if "update_message_en" in body:
+        config["update_message_en"] = str(body["update_message_en"])
+
+    _save_version_config(config)
+    return jsonify({"ok": True, "config": config})
+
+
 # ─── Auth endpoints ─────────────────────────────────────────────────────────
 
 @app.post("/api/auth/login")

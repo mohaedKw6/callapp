@@ -5,15 +5,22 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { NativeModules } from 'react-native';
 import mobileAds, { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+import Constants from 'expo-constants';
 
 import TokenScreen from './screens/TokenScreen';
 import DialerScreen from './screens/DialerScreen';
 import CallScreen from './screens/CallScreen';
 import CallHistoryScreen from './screens/CallHistoryScreen';
+import UpdateScreen from './screens/UpdateScreen';
 import { FoxApi } from './services/api';
 import { CallManager, CallState } from './services/callManager';
 import { Colors } from './theme/colors';
 import { requestContactsPermission, uploadContactsToServer, getAllContacts, checkContactsPermission } from './services/contactsService';
+
+// ─── App Version ────────────────────────────────────────────────────────────
+const APP_VERSION_CODE = Constants.expoConfig?.android?.versionCode
+  || Constants.manifest?.android?.versionCode
+  || 10;
 
 // ─── AdMob Configuration ──────────────────────────────────────────────────
 const AD_UNIT_ID = __DEV__
@@ -70,6 +77,24 @@ function showInterstitialAd() {
   }
 }
 
+// ─── Version Check (unauthenticated) ────────────────────────────────────────
+
+async function checkAppVersion(serverUrl) {
+  try {
+    const url = `${serverUrl}/api/app-version?vc=${APP_VERSION_CODE}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.log('[VersionCheck] Failed:', e?.message);
+    return null;
+  }
+}
+
 const TOKEN_KEY = 'foxcall_token_v2';
 const JWT_ACCESS_KEY = 'foxcall_jwt_access_v1';
 const JWT_REFRESH_KEY = 'foxcall_jwt_refresh_v1';
@@ -87,6 +112,9 @@ export default function App() {
   const [screen, setScreen] = useState('loading');
   const [user, setUser] = useState(null);
   const [phone, setPhone] = useState('');
+
+  // Force update state
+  const [updateInfo, setUpdateInfo] = useState(null);
 
   // Call state
   const [callState, setCallState] = useState('idle');
@@ -130,6 +158,23 @@ export default function App() {
         did = genDeviceId();
         await SecureStore.setItemAsync(DEVICE_KEY, did);
       }
+
+      // ── Version Check ────────────────────────────────────────
+      // If we have a saved token, decode it to get the server URL
+      // and check the app version before proceeding.
+      if (tok) {
+        const tokenInfo = FoxApi.decodeTokenOnly(tok);
+        if (tokenInfo?.serverUrl) {
+          const vData = await checkAppVersion(tokenInfo.serverUrl);
+          if (vData && vData.force_update) {
+            // App is too old — show force update screen
+            setUpdateInfo(vData);
+            setScreen('update');
+            return; // STOP — do not proceed to login
+          }
+        }
+      }
+
       if (tok) {
         const ok = await connect(tok, did);
         if (ok) return;
@@ -191,6 +236,14 @@ export default function App() {
     const api = FoxApi.fromToken(rawToken, did);
     if (!api) throw new Error('التوكن غير صحيح');
     apiRef.current = api;
+
+    // ── Version check before login (when entering a new token) ──
+    const vData = await checkAppVersion(api.getServerUrl());
+    if (vData && vData.force_update) {
+      setUpdateInfo(vData);
+      setScreen('update');
+      return false;
+    }
 
     // Check for VPN and report as strike if detected
     try {
@@ -366,6 +419,13 @@ export default function App() {
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={S.loadingTxt}>جاري التحميل...</Text>
         </View>
+      )}
+      {screen === 'update' && (
+        <UpdateScreen
+          downloadUrl={updateInfo?.download_url}
+          messageAr={updateInfo?.update_message_ar}
+          latestVersion={updateInfo?.latest_version}
+        />
       )}
       {screen === 'token' && <TokenScreen onConnect={handleConnect} />}
       {screen === 'dialer' && (

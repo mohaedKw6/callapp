@@ -95,12 +95,15 @@ android {
         versionCode 10
         versionName "3.3.0"
 
-        // Build for arm64 only to reduce APK size significantly
-        ndk {
-            abiFilters 'arm64-v8a'
-        }
-
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+    }
+    splits {
+        abi {
+            reset()
+            enable true
+            universalApk false
+            include 'arm64-v8a'
+        }
     }
     signingConfigs {
         debug {

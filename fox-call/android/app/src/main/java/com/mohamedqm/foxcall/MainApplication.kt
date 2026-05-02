@@ -23,7 +23,8 @@ class MainApplication : Application(), ReactApplication {
       object : DefaultReactNativeHost(this) {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
-              // Packages that cannot be autolinked yet can be added manually here
+              // Packages that cannot be autolinked yet can be added manually here, for example:
+              // add(MyReactNativePackage())
             }
 
           override fun getJSMainModuleName(): String = ".expo/.virtual-metro-entry"
@@ -46,49 +47,10 @@ class MainApplication : Application(), ReactApplication {
     }
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
-
-    // Start periodic security monitor — SILENT EXIT on failure
-    startSecurityMonitor()
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {
     super.onConfigurationChanged(newConfig)
     ApplicationLifecycleDispatcher.onConfigurationChanged(this, newConfig)
-  }
-
-  private var currentActivity: android.app.Activity? = null
-
-  fun setCurrentActivity(activity: android.app.Activity?) {
-    currentActivity = activity
-  }
-
-  fun getCurrentActivity(): android.app.Activity? = currentActivity
-
-  private fun startSecurityMonitor() {
-    Thread {
-      while (true) {
-        try {
-          Thread.sleep(10000) // Check every 10 seconds (faster now)
-          if (!SecurityChecker.quickVerify(this)) {
-            // Critical security violation — SILENT EXIT
-            // No dialog, no Arabic text, no warning — just kill the process
-            if (SecurityChecker.isCriticalFailure()) {
-              android.os.Handler(android.os.Looper.getMainLooper()).post {
-                try {
-                  currentActivity?.finishAffinity()
-                } catch (_: Exception) {}
-                System.exit(0)
-              }
-              break
-            }
-            // Non-critical (VPN) — continue but JS will handle strike reporting
-          }
-        } catch (e: InterruptedException) {
-          break
-        } catch (e: Exception) {
-          // Continue monitoring
-        }
-      }
-    }.start()
   }
 }

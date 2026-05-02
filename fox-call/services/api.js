@@ -155,6 +155,16 @@ export class FoxApi {
     return new FoxApi(info, deviceId, rawToken);
   }
 
+  /** Decode a Fox Token without creating an API instance (for version check). */
+  static decodeTokenOnly(rawToken) {
+    return decodeFoxToken(rawToken);
+  }
+
+  /** Get the server URL this API instance is connected to. */
+  getServerUrl() {
+    return this._serverUrl;
+  }
+
   // ------------------------------------------------------------------ Auth
 
   async login() {
