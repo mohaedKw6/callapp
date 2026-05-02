@@ -831,14 +831,16 @@ def api_app_version():
 GITHUB_REPO = "MohamedQM/callapp"  # GitHub repo for APK storage
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
 # APKs are served from GitHub Releases (supports large files up to 2GB)
-# For private repos, we use the GitHub API with authentication
+# For private repos, we get a temporary download URL via the GitHub API
+# and redirect the client there (avoids loading 67MB in server memory)
 
 
-def _stream_apk_from_github_release(tag: str, filename: str):
-    """Stream an APK file from a GitHub Release (works for private repos).
-    Returns the raw APK bytes, or None on failure."""
+def _get_github_release_download_url(tag: str, filename: str) -> str | None:
+    """Get a temporary download URL for a GitHub Release asset (private repo).
+    Returns the direct download URL, or None on failure."""
     import urllib.request
     import json as _json
+    from http.client import HTTPException
 
     # Step 1: Find the release by tag to get the asset ID
     api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{tag}"
@@ -854,6 +856,7 @@ def _stream_apk_from_github_release(tag: str, filename: str):
 
     # Step 2: Find the matching asset
     asset_id = None
+    asset_size = 0
     for asset in release_data.get("assets", []):
         if asset.get("name") == filename:
             asset_id = asset.get("id")
@@ -862,31 +865,53 @@ def _stream_apk_from_github_release(tag: str, filename: str):
 
     if not asset_id:
         log.error("Asset '%s' not found in release '%s'", filename, tag)
-        return None, 0
+        return None
 
-    log.info("Found asset ID %d, size %d bytes. Downloading...", asset_id, asset_size)
+    log.info("Found asset ID %d, size %d bytes. Getting download URL...", asset_id, asset_size)
 
-    # Step 3: Download the asset via the GitHub API (follows 302 redirect to Azure blob)
+    # Step 3: Get the temporary download URL by hitting the asset API endpoint
+    # with Accept: application/octet-stream — GitHub returns a 302 redirect
+    # to a time-limited Azure blob URL. We extract the Location header.
     asset_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/assets/{asset_id}"
+
+    # Use a custom opener that does NOT follow redirects so we can capture the Location header
+    class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            # Don't follow the redirect — just return None
+            return None
+
+    opener = urllib.request.build_opener(_NoRedirectHandler)
+
     req = urllib.request.Request(asset_url, headers={
         "Authorization": f"token {GITHUB_TOKEN}",
         "User-Agent": "FoxCall-Server/1.0",
         "Accept": "application/octet-stream",
     })
 
-    # Follow the redirect manually (urllib handles 302 automatically)
-    with urllib.request.urlopen(req, timeout=180) as resp:
-        apk_data = resp.read()
-
-    return apk_data, len(apk_data) if apk_data else 0
+    try:
+        resp = opener.open(req, timeout=15)
+        # If we get here (no redirect), something unexpected happened
+        log.warning("Expected 302 redirect but got %d", resp.status if hasattr(resp, 'status') else 200)
+        return None
+    except urllib.error.HTTPError as e:
+        if e.code == 302:
+            redirect_url = e.headers.get("Location")
+            if redirect_url:
+                log.info("Got download redirect URL (length=%d chars)", len(redirect_url))
+                return redirect_url
+        log.error("Unexpected HTTP error getting download URL: %d %s", e.code, e.reason)
+        return None
+    except Exception as e:
+        log.error("Failed to get download URL: %s", e)
+        return None
 
 
 @app.get("/api/download/<filename>")
 def api_download_apk(filename):
     """Serve the APK file for in-app download.
     URL format: /api/download/fox-call-v3.4.0-arm64.apk
-    If APK is not stored locally (e.g. after Railway restart),
-    automatically stream it from GitHub Releases."""
+    If APK is stored locally, serve it directly.
+    Otherwise, redirect the client to a temporary GitHub Release download URL."""
     import re
 
     # Validate the filename looks like a valid APK
@@ -906,7 +931,7 @@ def api_download_apk(filename):
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    # APK not found locally — stream from GitHub Releases
+    # APK not found locally — redirect to GitHub Release download URL
     try:
         # Extract version from filename (e.g. fox-call-v3.4.0-arm64.apk → v3.4.0)
         ver_match = re.search(r'v(\d+\.\d+\.\d+)', filename)
@@ -915,24 +940,17 @@ def api_download_apk(filename):
         else:
             tag = f"v{_load_version_config().get('latest_version', 'latest')}"
 
-        log.info("APK not found locally, streaming from GitHub Release: tag=%s, file=%s", tag, filename)
-        apk_data, data_len = _stream_apk_from_github_release(tag, filename)
+        log.info("APK not found locally, getting GitHub Release URL: tag=%s, file=%s", tag, filename)
+        download_url = _get_github_release_download_url(tag, filename)
 
-        if apk_data and data_len > 1000:
-            log.info("APK streamed from GitHub successfully (%d bytes)", data_len)
-            from flask import Response
-            return Response(
-                apk_data,
-                mimetype="application/vnd.android.package-archive",
-                headers={
-                    "Content-Disposition": f'attachment; filename="{filename}"',
-                    "Content-Length": str(data_len),
-                },
-            )
+        if download_url:
+            log.info("Redirecting client to GitHub Release download URL")
+            from flask import redirect
+            return redirect(download_url, code=302)
         else:
-            log.error("GitHub returned empty or tiny response (%d bytes)", data_len)
+            log.error("Could not get download URL from GitHub")
     except Exception as e:
-        log.error("Failed to stream APK from GitHub: %s", e)
+        log.error("Failed to get GitHub download URL: %s", e)
 
     return jsonify({"error": "APK file not found on server and GitHub download failed"}), 404
 
