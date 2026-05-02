@@ -5474,7 +5474,39 @@
       "username": "raian711",
       "first_name": "ᵣₐᵢₐₙ-ₛₒ𝆑ₜ™",
       "streak": 1,
-      "last_login_date": "2026-05-02"
+      "last_login_date": "2026-05-02",
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "replay",
+          "label": "🔁 إعادة صوت",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "notify",
+          "label": "📳 إشعار فقط",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      }
     }
   },
   "premium": {},
