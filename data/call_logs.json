@@ -3082,10 +3082,11 @@
       "username": "vsf911",
       "first_name": "𝗔𝗯𝗱𝘂𝗿𝗮𝘇𝗼𝗸𝗵𝗼𝘃",
       "first_seen": "2026-05-01 12:57:37",
-      "total_calls": 3,
+      "total_calls": 4,
       "phones_called": [
         "998949012552",
-        "998901992329"
+        "998901992329",
+        "998941900744"
       ]
     },
     "8211042534": {
@@ -6420,6 +6421,32 @@
       "status": "ended",
       "ip_address": "151.244.159.202",
       "timestamp": "2026-05-01 20:53:38"
+    },
+    {
+      "call_id": "020ad68661397f6a",
+      "user_id": "8426582765",
+      "to": "+998941900744",
+      "from": "+447456427156",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-02 05:57:44",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "213.230.86.62",
+      "timestamp": "2026-05-02 05:57:44"
+    },
+    {
+      "call_id": "020ad68661397f6a",
+      "user_id": "8426582765",
+      "to": "+998941900744",
+      "from": "+447456427156",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-02 05:57:44",
+      "end_time": "2026-05-02 05:59:19",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "213.230.86.62",
+      "timestamp": "2026-05-02 05:59:19"
     }
   ],
   "all_phones": {
@@ -6981,6 +7008,14 @@
         "640391482"
       ],
       "last_call": "2026-05-01 20:53:38"
+    },
+    "998941900744": {
+      "first_call": "2026-05-02 05:57:44",
+      "total_calls": 1,
+      "users_called": [
+        "8426582765"
+      ],
+      "last_call": "2026-05-02 05:59:19"
     }
   }
 }
