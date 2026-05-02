@@ -904,31 +904,23 @@ def _get_github_release_download_url(tag: str, filename: str) -> str | None:
 
 @app.get("/api/fresh-download-url/<filename>")
 def api_fresh_download_url(filename):
-    """Get a fresh, temporary direct download URL for the APK from GitHub Releases.
-    Returns JSON: {"download_url": "...", "size": ..., "filename": "..."}
-    The URL is time-limited (expires in ~5 minutes).
-    This is used by the app to get a direct download URL that bypasses Railway's proxy.
+    """Redirect to a fresh, temporary direct download URL for the APK from GitHub Releases.
+    This endpoint does a 302 redirect to the actual download URL on GitHub/Azure CDN.
+    Works with any HTTP client that follows redirects (including expo-file-system).
     """
     import re
+    from flask import redirect
 
     # Validate the filename
     if not filename.endswith(".apk") or not filename.startswith("fox-call-"):
         return jsonify({"error": "Invalid APK filename"}), 400
 
-    # If APK exists locally, serve it from this server
+    # If APK exists locally, redirect to the local download endpoint
     if os.path.exists(APK_STORAGE_PATH):
         local_url = f"{PUBLIC_URL}/api/download/{filename}"
-        try:
-            apk_size = os.path.getsize(APK_STORAGE_PATH)
-        except Exception:
-            apk_size = 0
-        return jsonify({
-            "download_url": local_url,
-            "size": apk_size,
-            "filename": filename,
-        })
+        return redirect(local_url, code=302)
 
-    # Get download URL from GitHub Releases
+    # Get download URL from GitHub Releases and redirect
     try:
         ver_match = re.search(r'v(\d+\.\d+\.\d+)', filename)
         if ver_match:
@@ -938,12 +930,8 @@ def api_fresh_download_url(filename):
 
         download_url = _get_github_release_download_url(tag, filename)
         if download_url:
-            log.info("Returning fresh download URL for %s", filename)
-            return jsonify({
-                "download_url": download_url,
-                "size": 0,
-                "filename": filename,
-            })
+            log.info("Redirecting to fresh download URL for %s", filename)
+            return redirect(download_url, code=302)
         else:
             log.error("Could not get download URL from GitHub for %s", filename)
     except Exception as e:
