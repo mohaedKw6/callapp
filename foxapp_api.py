@@ -832,7 +832,7 @@ GITHUB_REPO = "MohamedQM/callapp"  # GitHub repo for APK storage
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
 # APKs are served from GitHub Releases (supports large files up to 2GB)
 # For private repos, we get a temporary download URL via the GitHub API
-# and redirect the client there (avoids loading 67MB in server memory)
+# and stream the APK to the client in chunks (avoids loading entire file in memory)
 
 
 def _get_github_release_download_url(tag: str, filename: str) -> str | None:
@@ -840,7 +840,6 @@ def _get_github_release_download_url(tag: str, filename: str) -> str | None:
     Returns the direct download URL, or None on failure."""
     import urllib.request
     import json as _json
-    from http.client import HTTPException
 
     # Step 1: Find the release by tag to get the asset ID
     api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{tag}"
@@ -877,8 +876,7 @@ def _get_github_release_download_url(tag: str, filename: str) -> str | None:
     # Use a custom opener that does NOT follow redirects so we can capture the Location header
     class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):
-            # Don't follow the redirect — just return None
-            return None
+            return None  # Don't follow the redirect
 
     opener = urllib.request.build_opener(_NoRedirectHandler)
 
@@ -889,9 +887,8 @@ def _get_github_release_download_url(tag: str, filename: str) -> str | None:
     })
 
     try:
-        resp = opener.open(req, timeout=15)
-        # If we get here (no redirect), something unexpected happened
-        log.warning("Expected 302 redirect but got %d", resp.status if hasattr(resp, 'status') else 200)
+        opener.open(req, timeout=15)
+        log.warning("Expected 302 redirect but got a 200")
         return None
     except urllib.error.HTTPError as e:
         if e.code == 302:
@@ -911,7 +908,7 @@ def api_download_apk(filename):
     """Serve the APK file for in-app download.
     URL format: /api/download/fox-call-v3.4.0-arm64.apk
     If APK is stored locally, serve it directly.
-    Otherwise, redirect the client to a temporary GitHub Release download URL."""
+    Otherwise, stream from GitHub Releases in chunks."""
     import re
 
     # Validate the filename looks like a valid APK
@@ -931,7 +928,7 @@ def api_download_apk(filename):
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    # APK not found locally — redirect to GitHub Release download URL
+    # APK not found locally — stream from GitHub Releases
     try:
         # Extract version from filename (e.g. fox-call-v3.4.0-arm64.apk → v3.4.0)
         ver_match = re.search(r'v(\d+\.\d+\.\d+)', filename)
@@ -940,17 +937,39 @@ def api_download_apk(filename):
         else:
             tag = f"v{_load_version_config().get('latest_version', 'latest')}"
 
-        log.info("APK not found locally, getting GitHub Release URL: tag=%s, file=%s", tag, filename)
+        log.info("APK not found locally, streaming from GitHub Release: tag=%s, file=%s", tag, filename)
         download_url = _get_github_release_download_url(tag, filename)
 
         if download_url:
-            log.info("Redirecting client to GitHub Release download URL")
-            from flask import redirect
-            return redirect(download_url, code=302)
+            # Stream the APK from GitHub in chunks to avoid loading entire file in memory
+            import urllib.request
+            from flask import Response, stream_with_context
+
+            log.info("Streaming APK from GitHub to client in chunks...")
+
+            def generate():
+                req = urllib.request.Request(download_url, headers={
+                    "User-Agent": "FoxCall-Server/1.0",
+                })
+                with urllib.request.urlopen(req, timeout=180) as resp:
+                    while True:
+                        chunk = resp.read(65536)  # 64KB chunks
+                        if not chunk:
+                            break
+                        yield chunk
+
+            return Response(
+                stream_with_context(generate()),
+                mimetype="application/vnd.android.package-archive",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                    "Transfer-Encoding": "chunked",
+                },
+            )
         else:
             log.error("Could not get download URL from GitHub")
     except Exception as e:
-        log.error("Failed to get GitHub download URL: %s", e)
+        log.error("Failed to stream APK from GitHub: %s", e)
 
     return jsonify({"error": "APK file not found on server and GitHub download failed"}), 404
 
