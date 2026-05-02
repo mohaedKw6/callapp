@@ -490,6 +490,81 @@ _active_calls_lock = threading.Lock()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  Fox Token Session Tracking — one active token per user
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _fox_token_hash(fox_token: str) -> str:
+    """Compute SHA-256 hash of a Fox Token for tracking."""
+    return hashlib.sha256(fox_token.strip().encode()).hexdigest()
+
+
+def _set_active_fox_token(uid: str, fox_token: str, device_id: str = ""):
+    """Store the currently active Fox Token hash for a user.
+    This is called when a new token is created or when a user logs in."""
+    try:
+        cv = _cv()
+        db = cv.load_users_db()
+        if uid in db:
+            db[uid]["active_fox_token_hash"] = _fox_token_hash(fox_token)
+            db[uid]["active_device_id"] = device_id
+            db[uid]["active_token_set_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cv.save_users_db(db)
+    except Exception:
+        pass
+
+
+def _invalidate_all_sessions(uid: str):
+    """Invalidate all active sessions for a user by clearing their refresh token hash.
+    This forces any logged-in device to re-authenticate on the next refresh attempt."""
+    try:
+        cv = _cv()
+        db = cv.load_users_db()
+        if uid in db:
+            db[uid]["refresh_token_hash"] = ""
+            db[uid]["active_device_id"] = ""
+            cv.save_users_db(db)
+    except Exception:
+        pass
+
+
+def _notify_telegram_device_login(uid: str, new_device_id: str, ip: str):
+    """Send a Telegram notification to the user that someone logged in from a new device."""
+    try:
+        cv = _cv()
+        bot = cv.get_bot_instance() if hasattr(cv, 'get_bot_instance') else None
+        if bot:
+            bot.send_message(
+                int(uid),
+                f"🔔 *تنبيه أمني*\n\n"
+                f"تم تسجيل الدخول لحسابك من جهاز جديد:\n"
+                f"📱 الجهاز: `{new_device_id[:16]}...`\n"
+                f"🌐 IP: `{ip}`\n"
+                f"🕐 الوقت: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"إذا لم تكن أنت، أنشئ توكن جديد من البوت لإلغاء الجلسة السابقة.",
+                parse_mode='Markdown'
+            )
+    except Exception:
+        pass
+
+
+def _notify_telegram_token_revoked(uid: str):
+    """Send a Telegram notification that the user's token has been revoked (new token created)."""
+    try:
+        cv = _cv()
+        bot = cv.get_bot_instance() if hasattr(cv, 'get_bot_instance') else None
+        if bot:
+            bot.send_message(
+                int(uid),
+                "🔑 *تم إنشاء توكن جديد*\n\n"
+                "تم إلغاء التوكن القديم تلقائياً.\n"
+                "أي جهاز كان يستخدم التوكن القديم سيتم تسجيل خروجه.",
+                parse_mode='Markdown'
+            )
+    except Exception:
+        pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Helpers — lazy import of callv2 to avoid circular load
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -576,6 +651,16 @@ def _require_jwt(f):
         uid = str(payload.get("sub", ""))
         if not uid:
             return jsonify({"error": "invalid token payload"}), 401
+
+        # 1.5 Check if the user's session has been revoked (device mismatch)
+        try:
+            cv = _cv()
+            db = cv.load_users_db()
+            active_device = db.get(uid, {}).get("active_device_id", "")
+            if active_device and payload.get("device_id", "") != active_device:
+                return jsonify({"error": "session_revoked", "message": "تم تسجيل الدخول من جهاز آخر. أنشئ توكن جديد."}), 401
+        except Exception:
+            pass
 
         # 2. Request-signature verification
         if not _verify_request_signature(jwt_token):
@@ -679,6 +764,30 @@ def api_auth_login():
     if _is_banned(uid):
         return jsonify({"error": "banned"}), 403
 
+    # ── Fox Token session enforcement ──────────────────────────
+    # Only allow login with the currently active Fox Token.
+    # If a new token was generated, old tokens are rejected.
+    fox_token_hash = hashlib.sha256(fox_token.encode()).hexdigest()
+    try:
+        cv = _cv()
+        db = cv.load_users_db()
+        active_hash = db.get(uid, {}).get("active_fox_token_hash", "")
+        active_device = db.get(uid, {}).get("active_device_id", "")
+
+        if active_hash and fox_token_hash != active_hash:
+            # This is an OLD token — reject it
+            return jsonify({
+                "error": "هذا التوكن قديم وتم إلغاؤه. أنشئ توكن جديد من البوت."
+            }), 401
+
+        # Check if another device is already logged in with this token
+        if active_device and active_device != device_id and active_hash == fox_token_hash:
+            # Notify the user that someone is logging in from another device
+            ip = _get_client_ip()
+            _notify_telegram_device_login(uid, device_id, ip)
+    except Exception:
+        pass
+
     # Capture and store IP
     ip = _get_client_ip()
     _update_user_ip(uid, ip)
@@ -699,6 +808,9 @@ def api_auth_login():
             cv.save_users_db(db)
     except Exception:
         pass
+
+    # Mark this Fox Token as the active one for this user
+    _set_active_fox_token(uid, fox_token, device_id)
 
     log.info("User %s authenticated from IP %s", uid, ip)
 
@@ -773,6 +885,36 @@ def api_auth_refresh():
             "expires_in": JWT_EXPIRY_SECONDS,
         }
     )
+
+
+@app.post("/api/auth/check-token")
+def api_auth_check_token():
+    """Check if a Fox Token is still valid (matches the active token for the user).
+    Used by the app to detect when a token has been revoked."""
+    body = request.get_json(silent=True) or {}
+    fox_token = (body.get("token") or "").strip()
+
+    if not fox_token:
+        return jsonify({"valid": False, "reason": "missing token"}), 400
+
+    decoded = decode_token(fox_token)
+    if not decoded:
+        return jsonify({"valid": False, "reason": "invalid token"}), 401
+
+    uid = decoded["user_id"]
+    fox_token_hash = hashlib.sha256(fox_token.encode()).hexdigest()
+
+    try:
+        cv = _cv()
+        db = cv.load_users_db()
+        active_hash = db.get(uid, {}).get("active_fox_token_hash", "")
+
+        if active_hash and fox_token_hash != active_hash:
+            return jsonify({"valid": False, "reason": "token_revoked"})
+    except Exception:
+        pass
+
+    return jsonify({"valid": True})
 
 
 # ─── Protected API endpoints ────────────────────────────────────────────────

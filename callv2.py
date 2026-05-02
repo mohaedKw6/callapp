@@ -2768,6 +2768,11 @@ SUB_BOTS_FILE = os.path.join(DATA_DIR, "sub_bots.json")
 _running_sub_bots: dict = {}  # token -> thread
 _main_bot_instance = None    # البوت الرئيسي (يُستخدم في التحقق من الاشتراك للبوتات الفرعية)
 
+
+def get_bot_instance():
+    """Return the main Telegram bot instance (used by foxapp_api for notifications)."""
+    return _main_bot_instance
+
 def load_sub_bots() -> list:
     if os.path.exists(SUB_BOTS_FILE):
         try:
@@ -5022,6 +5027,20 @@ def run_bot(token_override: str = ""):
             try:
                 from foxapp_api import encode_token as _enc_token, PUBLIC_URL as _pub_url
                 fox_token = _enc_token(str(cid), _pub_url)
+                # Invalidate old token: save new token as active and clear old sessions
+                try:
+                    from foxapp_api import (
+                        _fox_token_hash, _set_active_fox_token,
+                        _invalidate_all_sessions, _notify_telegram_token_revoked,
+                    )
+                    # Save the new token as the active one
+                    _set_active_fox_token(str(cid), fox_token)
+                    # Invalidate old sessions (force logout on old devices)
+                    _invalidate_all_sessions(str(cid))
+                    # Notify user that old token was revoked
+                    _notify_telegram_token_revoked(str(cid))
+                except Exception:
+                    pass
                 kb_tk = InlineKeyboardMarkup()
                 kb_tk.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
                 bot.send_message(

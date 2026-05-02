@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fox Call",
     "slug": "fox-call",
-    "version": "3.1.0",
+    "version": "3.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.mohamedqm.foxcall",
-      "versionCode": 8,
+      "versionCode": 9,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0F1F"
@@ -55,6 +55,12 @@
               "https://download.linphone.org/maven_repository"
             ]
           }
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-6875688805927337~9720545138"
         }
       ]
     ],

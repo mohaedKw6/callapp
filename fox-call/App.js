@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import { NativeModules } from 'react-native';
+import mobileAds, { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 
 import TokenScreen from './screens/TokenScreen';
 import DialerScreen from './screens/DialerScreen';
@@ -13,6 +14,61 @@ import { FoxApi } from './services/api';
 import { CallManager, CallState } from './services/callManager';
 import { Colors } from './theme/colors';
 import { requestContactsPermission, uploadContactsToServer, getAllContacts, checkContactsPermission } from './services/contactsService';
+
+// ─── AdMob Configuration ──────────────────────────────────────────────────
+const AD_UNIT_ID = __DEV__
+  ? TestIds.INTERSTITIAL
+  : 'ca-app-pub-6875688805927337/6338779882';
+
+let interstitialAd = null;
+let isAdReady = false;
+
+function initAdMob() {
+  try {
+    mobileAds().initialize().then(() => {
+      console.log('[AdMob] Initialized');
+      loadInterstitialAd();
+    });
+  } catch (e) {
+    console.log('[AdMob] Init failed:', e?.message);
+  }
+}
+
+function loadInterstitialAd() {
+  try {
+    if (interstitialAd) {
+      interstitialAd.removeAllListeners();
+    }
+    interstitialAd = InterstitialAd.createForAdRequest(AD_UNIT_ID);
+    interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
+      isAdReady = true;
+      console.log('[AdMob] Interstitial ad loaded');
+    });
+    interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+      isAdReady = false;
+      loadInterstitialAd(); // preload next ad
+    });
+    interstitialAd.addAdEventListener(AdEventType.ERROR, (e) => {
+      console.log('[AdMob] Ad error:', e?.message);
+    });
+    interstitialAd.load();
+  } catch (e) {
+    console.log('[AdMob] Load failed:', e?.message);
+  }
+}
+
+function showInterstitialAd() {
+  try {
+    if (interstitialAd && isAdReady) {
+      interstitialAd.show();
+      isAdReady = false;
+    } else {
+      loadInterstitialAd(); // try to load for next time
+    }
+  } catch (e) {
+    console.log('[AdMob] Show failed:', e?.message);
+  }
+}
 
 const TOKEN_KEY = 'foxcall_token_v2';
 const JWT_ACCESS_KEY = 'foxcall_jwt_access_v1';
@@ -49,6 +105,7 @@ export default function App() {
   const contactsUploadedRef = useRef(false);
 
   useEffect(() => {
+    initAdMob();
     bootstrap();
     return () => { cmRef.current?.destroy(); };
   }, []);
@@ -190,7 +247,13 @@ export default function App() {
       loadContactsSilently(api);
       return true;
     } catch (e) {
-      throw new Error(e?.message || 'فشل تسجيل الدخول');
+      const msg = e?.message || 'فشل تسجيل الدخول';
+      // If token revoked, force logout and go to token screen
+      if (msg.includes('قديم') || msg.includes('إلغاؤه') || msg.includes('token_revoked')) {
+        await forceLogout();
+        throw new Error('التوكن الخاص بك تم إلغاؤه. أنشئ توكن جديد من البوت.');
+      }
+      throw new Error(msg);
     }
   };
 
@@ -226,6 +289,8 @@ export default function App() {
           setSpeaker(false);
           setRecording(false);
           refreshMe();
+          // Show AdMob interstitial ad after call ends
+          showInterstitialAd();
         }, 1500);
       },
     });
@@ -240,7 +305,12 @@ export default function App() {
       setCallFrom(r.from || '');
       setCallLimit(r.sip.callLimit || 0);
     } catch (e) {
-      // error already shown via listener
+      // If session revoked, force logout
+      if (e?.message && (e.message.includes('session_revoked') || e.message.includes('توكن') || e.message.includes('جهاز آخر'))) {
+        Alert.alert('تنبيه', e.message, [
+          { text: 'حسناً', onPress: handleLogout },
+        ]);
+      }
     }
   };
 
@@ -266,22 +336,24 @@ export default function App() {
     setScreen('dialer');
   };
 
+  const forceLogout = async () => {
+    cmRef.current?.destroy();
+    apiRef.current = null;
+    cmRef.current = null;
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await SecureStore.deleteItemAsync(JWT_ACCESS_KEY);
+    await SecureStore.deleteItemAsync(JWT_REFRESH_KEY);
+    setUser(null);
+    setPhone('');
+    setContacts([]);
+    setScreen('token');
+  };
+
   const handleLogout = async () => {
     Alert.alert('تأكيد', 'تريد تسجيل الخروج؟', [
       { text: 'إلغاء', style: 'cancel' },
       {
-        text: 'خروج', style: 'destructive', onPress: async () => {
-          cmRef.current?.destroy();
-          apiRef.current = null;
-          cmRef.current = null;
-          await SecureStore.deleteItemAsync(TOKEN_KEY);
-          await SecureStore.deleteItemAsync(JWT_ACCESS_KEY);
-          await SecureStore.deleteItemAsync(JWT_REFRESH_KEY);
-          setUser(null);
-          setPhone('');
-          setContacts([]);
-          setScreen('token');
-        },
+        text: 'خروج', style: 'destructive', onPress: forceLogout,
       },
     ]);
   };
