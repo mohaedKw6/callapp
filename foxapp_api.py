@@ -829,7 +829,56 @@ def api_app_version():
 
 
 GITHUB_REPO = "MohamedQM/callapp"  # GitHub repo for APK storage
-GITHUB_APK_BRANCH = "main"       # Branch where APKs are stored
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
+# APKs are served from GitHub Releases (supports large files up to 2GB)
+# For private repos, we use the GitHub API with authentication
+
+
+def _stream_apk_from_github_release(tag: str, filename: str):
+    """Stream an APK file from a GitHub Release (works for private repos).
+    Returns the raw APK bytes, or None on failure."""
+    import urllib.request
+    import json as _json
+
+    # Step 1: Find the release by tag to get the asset ID
+    api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{tag}"
+    log.info("Looking up GitHub Release tag '%s': %s", tag, api_url)
+
+    req = urllib.request.Request(api_url, headers={
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "User-Agent": "FoxCall-Server/1.0",
+        "Accept": "application/vnd.github.v3+json",
+    })
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        release_data = _json.loads(resp.read().decode())
+
+    # Step 2: Find the matching asset
+    asset_id = None
+    for asset in release_data.get("assets", []):
+        if asset.get("name") == filename:
+            asset_id = asset.get("id")
+            asset_size = asset.get("size", 0)
+            break
+
+    if not asset_id:
+        log.error("Asset '%s' not found in release '%s'", filename, tag)
+        return None, 0
+
+    log.info("Found asset ID %d, size %d bytes. Downloading...", asset_id, asset_size)
+
+    # Step 3: Download the asset via the GitHub API (follows 302 redirect to Azure blob)
+    asset_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/assets/{asset_id}"
+    req = urllib.request.Request(asset_url, headers={
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "User-Agent": "FoxCall-Server/1.0",
+        "Accept": "application/octet-stream",
+    })
+
+    # Follow the redirect manually (urllib handles 302 automatically)
+    with urllib.request.urlopen(req, timeout=180) as resp:
+        apk_data = resp.read()
+
+    return apk_data, len(apk_data) if apk_data else 0
 
 
 @app.get("/api/download/<filename>")
@@ -837,7 +886,9 @@ def api_download_apk(filename):
     """Serve the APK file for in-app download.
     URL format: /api/download/fox-call-v3.4.0-arm64.apk
     If APK is not stored locally (e.g. after Railway restart),
-    automatically stream it from GitHub."""
+    automatically stream it from GitHub Releases."""
+    import re
+
     # Validate the filename looks like a valid APK
     if not filename.endswith(".apk") or not filename.startswith("fox-call-"):
         return jsonify({"error": "Invalid APK filename"}), 400
@@ -855,30 +906,31 @@ def api_download_apk(filename):
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    # APK not found locally — stream from GitHub directly (no disk save needed)
+    # APK not found locally — stream from GitHub Releases
     try:
-        import urllib.request
-        github_url = f"https://github.com/{GITHUB_REPO}/raw/{GITHUB_APK_BRANCH}/{filename}"
-        log.info("APK not found locally, streaming from GitHub: %s", github_url)
+        # Extract version from filename (e.g. fox-call-v3.4.0-arm64.apk → v3.4.0)
+        ver_match = re.search(r'v(\d+\.\d+\.\d+)', filename)
+        if ver_match:
+            tag = f"v{ver_match.group(1)}"
+        else:
+            tag = f"v{_load_version_config().get('latest_version', 'latest')}"
 
-        # Stream the APK from GitHub to client without saving to disk
-        req = urllib.request.Request(github_url, headers={"User-Agent": "FoxCall-Server/1.0"})
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            apk_data = resp.read()
+        log.info("APK not found locally, streaming from GitHub Release: tag=%s, file=%s", tag, filename)
+        apk_data, data_len = _stream_apk_from_github_release(tag, filename)
 
-        if apk_data and len(apk_data) > 1000:
-            log.info("APK streamed from GitHub successfully (%d bytes)", len(apk_data))
+        if apk_data and data_len > 1000:
+            log.info("APK streamed from GitHub successfully (%d bytes)", data_len)
             from flask import Response
             return Response(
                 apk_data,
                 mimetype="application/vnd.android.package-archive",
                 headers={
                     "Content-Disposition": f'attachment; filename="{filename}"',
-                    "Content-Length": str(len(apk_data)),
+                    "Content-Length": str(data_len),
                 },
             )
         else:
-            log.error("GitHub returned empty or tiny response (%d bytes)", len(apk_data) if apk_data else 0)
+            log.error("GitHub returned empty or tiny response (%d bytes)", data_len)
     except Exception as e:
         log.error("Failed to stream APK from GitHub: %s", e)
 
