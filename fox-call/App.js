@@ -425,6 +425,7 @@ export default function App() {
           downloadUrl={updateInfo?.download_url}
           messageAr={updateInfo?.update_message_ar}
           latestVersion={updateInfo?.latest_version}
+          apkSize={updateInfo?.apk_size}
         />
       )}
       {screen === 'token' && <TokenScreen onConnect={handleConnect} />}

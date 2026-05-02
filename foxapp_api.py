@@ -738,6 +738,7 @@ def _health():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 VERSION_CONFIG_FILE = os.path.join(DATA_DIR, "version_config.json")
+APK_STORAGE_PATH = os.path.join(DATA_DIR, "fox-call-latest.apk")
 _version_config_lock = threading.Lock()
 
 
@@ -748,7 +749,7 @@ def _load_version_config() -> dict:
         "latest_version_code": 10,
         "minimum_version_code": 10,
         "force_update": True,
-        "download_url": "https://github.com/MohamedQM/callapp/raw/main/fox-call-v3.3.0-arm64.apk",
+        "download_url": "",
         "update_message_ar": "يتوفر تحديث جديد للتطبيق! يرجى تحميل النسخة الجديدة للمتابعة.",
         "update_message_en": "A new update is available! Please download the latest version to continue.",
     }
@@ -772,6 +773,19 @@ def _save_version_config(data: dict):
         pass
 
 
+def _resolve_download_url() -> str:
+    """Resolve the APK download URL.
+    If download_url is set in version_config, use it.
+    Otherwise, construct from PUBLIC_URL + /api/download/apk.
+    """
+    config = _load_version_config()
+    custom_url = config.get("download_url", "")
+    if custom_url:
+        return custom_url
+    # Default: serve from this server
+    return f"{PUBLIC_URL}/api/download/apk"
+
+
 @app.get("/api/app-version")
 def api_app_version():
     """Return the latest app version info for force-update checks.
@@ -788,16 +802,75 @@ def api_app_version():
     config = _load_version_config()
     min_vc = config.get("minimum_version_code", 0)
     force = vc < min_vc and config.get("force_update", True)
+    download_url = _resolve_download_url()
+    apk_size = 0
+    try:
+        if os.path.exists(APK_STORAGE_PATH):
+            apk_size = os.path.getsize(APK_STORAGE_PATH)
+    except Exception:
+        pass
 
     return jsonify({
         "latest_version": config.get("latest_version", ""),
         "latest_version_code": config.get("latest_version_code", 0),
         "minimum_version_code": min_vc,
         "force_update": force,
-        "download_url": config.get("download_url", ""),
+        "download_url": download_url,
+        "apk_size": apk_size,
         "update_message_ar": config.get("update_message_ar", ""),
         "update_message_en": config.get("update_message_en", ""),
     })
+
+
+@app.get("/api/download/apk")
+def api_download_apk():
+    """Serve the latest APK file for in-app download.
+    Supports Range headers for resumable downloads."""
+    if not os.path.exists(APK_STORAGE_PATH):
+        return jsonify({"error": "APK file not found on server"}), 404
+
+    from flask import send_file
+    try:
+        version = _load_version_config().get("latest_version", "latest")
+        filename = f"fox-call-v{version}-arm64.apk"
+        return send_file(
+            APK_STORAGE_PATH,
+            mimetype="application/vnd.android.package-archive",
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/admin/upload-apk")
+@_require_admin
+def api_admin_upload_apk():
+    """Upload APK file to server (admin only).
+    Accepts multipart/form-data with 'file' field.
+    """
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided. Use multipart/form-data with 'file' field."}), 400
+
+    file = request.files["file"]
+    if not file.filename or not file.filename.endswith(".apk"):
+        return jsonify({"error": "Only .apk files are allowed"}), 400
+
+    try:
+        file.save(APK_STORAGE_PATH)
+        file_size = os.path.getsize(APK_STORAGE_PATH)
+        # Auto-update the download URL to point to this server
+        config = _load_version_config()
+        config["download_url"] = f"{PUBLIC_URL}/api/download/apk"
+        _save_version_config(config)
+        return jsonify({
+            "ok": True,
+            "size": file_size,
+            "size_mb": round(file_size / (1024 * 1024), 2),
+            "download_url": config["download_url"],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.post("/api/admin/version-config")
