@@ -2720,9 +2720,10 @@
       "username": "qklllll",
       "first_name": "Heba",
       "first_seen": "2026-04-27 18:45:30",
-      "total_calls": 2,
+      "total_calls": 3,
       "phones_called": [
-        "9647710322467"
+        "9647710322467",
+        "9647830168062"
       ]
     },
     "8699562044": {
@@ -7190,6 +7191,45 @@
       "status": "ended",
       "ip_address": "41.65.235.162",
       "timestamp": "2026-05-03 20:04:16"
+    },
+    {
+      "call_id": "564976f79c80748e",
+      "user_id": "6885761058",
+      "to": "+9647830168062",
+      "from": "+447577354200",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-03 20:26:15",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "150.228.105.200",
+      "timestamp": "2026-05-03 20:26:15"
+    },
+    {
+      "call_id": "5db5db510e43ef61",
+      "user_id": "6885761058",
+      "to": "+9647830168062",
+      "from": "+447577370330",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-03 20:27:19",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "150.228.105.205",
+      "timestamp": "2026-05-03 20:27:19"
+    },
+    {
+      "call_id": "5db5db510e43ef61",
+      "user_id": "6885761058",
+      "to": "+9647830168062",
+      "from": "+447577370330",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-03 20:27:19",
+      "end_time": "2026-05-03 20:28:11",
+      "duration": 18,
+      "status": "ended",
+      "ip_address": "150.228.105.52",
+      "timestamp": "2026-05-03 20:28:11"
     }
   ],
   "all_phones": {
@@ -7601,11 +7641,12 @@
     },
     "9647830168062": {
       "first_call": "2026-04-27 19:20:13",
-      "total_calls": 3,
+      "total_calls": 4,
       "users_called": [
-        "640391482"
+        "640391482",
+        "6885761058"
       ],
-      "last_call": "2026-05-01 20:29:13"
+      "last_call": "2026-05-03 20:28:11"
     },
     "9647862244355": {
       "first_call": "2026-04-27 19:26:24",
