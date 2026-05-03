@@ -3145,14 +3145,14 @@
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "balance": 4.7,
-      "last_ip": "150.228.105.79",
-      "last_seen": "2026-05-03 13:08:07",
-      "refresh_token_hash": "c24fe020f78e55df291abd64da346028a621565e442a11c7eeded846eceab23b",
-      "last_login": "2026-05-03 13:08:06",
+      "balance": 4.5,
+      "last_ip": "151.236.169.43",
+      "last_seen": "2026-05-03 15:11:25",
+      "refresh_token_hash": "5b1ab7eb7a839224fa88bbf7217f19e8a51444e54ff43f60571bc841aa6df813",
+      "last_login": "2026-05-03 15:07:44",
       "active_fox_token_hash": "572bb51b6ffa4896013e96be317ee4fd3cd7f570685989437f4e9525560265a8",
       "active_device_id": "d34665526cde402e",
-      "active_token_set_at": "2026-05-03 13:08:06"
+      "active_token_set_at": "2026-05-03 15:07:44"
     },
     "6207882045": {
       "usage": 0,
@@ -5735,8 +5735,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 76,
-    "success_calls": 159
+    "total_calls": 78,
+    "success_calls": 162
   },
   "voice_labels": {},
   "settings": {
@@ -8370,7 +8370,8 @@
     "donax61051@virawolf.com",
     "nohaxe7185@tivogo.com",
     "bacegih117@toondot.com",
-    "nemegi6414@virawolf.com"
+    "nemegi6414@virawolf.com",
+    "senovew980@virawolf.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
