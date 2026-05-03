@@ -3146,8 +3146,8 @@
       "streak": 2,
       "last_login_date": "2026-04-27",
       "balance": 4.1,
-      "last_ip": "151.236.169.43",
-      "last_seen": "2026-05-03 15:18:02",
+      "last_ip": "151.236.169.165",
+      "last_seen": "2026-05-03 15:51:02",
       "refresh_token_hash": "5b1ab7eb7a839224fa88bbf7217f19e8a51444e54ff43f60571bc841aa6df813",
       "last_login": "2026-05-03 15:07:44",
       "active_fox_token_hash": "572bb51b6ffa4896013e96be317ee4fd3cd7f570685989437f4e9525560265a8",
@@ -3565,13 +3565,13 @@
     },
     "8176652280": {
       "usage": 0,
-      "referrals": 1,
+      "referrals": 2,
       "first_seen": "2026-04-26 20:47:41",
       "username": "",
       "first_name": "👑آمحمدᬼ👑⑅⃝القحطاني👑1⑅⃝",
       "streak": 1,
       "last_login_date": "2026-05-03",
-      "balance": 0.1,
+      "balance": 0.2,
       "last_use": "2026-04-29 12:44:22",
       "successful_calls": 1,
       "dtmf": {
@@ -5742,6 +5742,15 @@
       "first_name": "👑آلَهۣۗہكۣۗـۙرᬼ👑⑅⃝آلَغۣۗـۙآمۣۗـۙضۗ👑4⑅⃝",
       "streak": 1,
       "last_login_date": "2026-05-03"
+    },
+    "8730167162": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 15:49:37",
+      "username": "",
+      "first_name": "محمد حامد",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
     }
   },
   "premium": {},
@@ -5844,7 +5853,9 @@
     "3PL4MNRC": {
       "amount": 0.2,
       "max_users": 1,
-      "used_by": [],
+      "used_by": [
+        "6808024255"
+      ],
       "created_at": "2026-05-03 14:50:21",
       "created_by": "962731079"
     }
