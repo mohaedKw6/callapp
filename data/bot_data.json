@@ -5425,17 +5425,17 @@
     },
     "8426582765": {
       "usage": 0,
-      "referrals": 2,
+      "referrals": 3,
       "first_seen": "2026-05-01 12:57:37",
       "username": "vsf911",
       "first_name": "𝗔𝗯𝗱𝘂𝗿𝗮𝘇𝗼𝗸𝗵𝗼𝘃",
       "streak": 1,
       "last_login_date": "2026-05-01",
-      "last_ip": "213.230.86.62",
-      "last_seen": "2026-05-02 05:59:20",
+      "last_ip": "213.230.93.72",
+      "last_seen": "2026-05-03 14:33:44",
       "refresh_token_hash": "99ea2debe30fc0b673fc9f3c5df36d2cb69f3bd4e7d6ba2d333b110f85d99ef3",
       "last_login": "2026-05-02 05:39:11",
-      "balance": 0.0
+      "balance": 0.1
     },
     "8211042534": {
       "usage": 0,
@@ -5718,6 +5718,15 @@
       "first_seen": "2026-05-03 12:55:37",
       "username": "Hug6jk",
       "first_name": "G Drops💧 💠 H",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
+    },
+    "6130621315": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 14:31:13",
+      "username": "",
+      "first_name": "$$$$",
       "streak": 1,
       "last_login_date": "2026-05-03"
     }
