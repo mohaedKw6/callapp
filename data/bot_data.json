@@ -94,9 +94,9 @@
       "streak": 4,
       "last_login_date": "2026-05-02",
       "last_daily_bonus": "2026-05-02",
-      "balance": 1.15,
+      "balance": 0.95,
       "last_ip": "31.31.189.202",
-      "last_seen": "2026-05-03 07:35:43",
+      "last_seen": "2026-05-03 08:28:03",
       "refresh_token_hash": "11e1891234e27b9796461833dc271fad85b31b654d8f77c25353866a063b6ff2",
       "last_login": "2026-05-03 07:35:01",
       "active_fox_token_hash": "ed9b2a059c114dba464a005399984b708542b4c1e65c84f9d6ea7780f15a1656",
@@ -5705,8 +5705,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 71,
-    "success_calls": 151
+    "total_calls": 72,
+    "success_calls": 152
   },
   "voice_labels": {},
   "settings": {
