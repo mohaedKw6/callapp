@@ -2751,12 +2751,14 @@
   },
   "6250968067": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 2,
     "first_seen": "2026-04-24 23:37:12",
     "username": "mmohad9",
     "first_name": "Mohad Hady",
     "streak": 1,
-    "last_login_date": "2026-05-03"
+    "last_login_date": "2026-05-03",
+    "balance": 0.15,
+    "last_use": "2026-05-03 08:20:02"
   },
   "7006026878": {
     "usage": 0,
@@ -5676,6 +5678,24 @@
     "first_seen": "2026-05-03 08:03:46",
     "username": "",
     "first_name": "\u0627\u0644\u064a\u0648\u062a\u064a\u0628\u0631 \u0627\u0644\u064a\u0645\u0627\u0646\u064a \u0634\u062e\u0635\u064a\u0627",
+    "streak": 1,
+    "last_login_date": "2026-05-03"
+  },
+  "6301925011": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-03 08:18:00",
+    "username": "V_pq_V",
+    "first_name": "\u0645\u0627\u062c\u062f \u300a\uff2f\uff30\u300b",
+    "streak": 1,
+    "last_login_date": "2026-05-03"
+  },
+  "5863427745": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-03 08:18:51",
+    "username": "SARAbtyi",
+    "first_name": "S A R A",
     "streak": 1,
     "last_login_date": "2026-05-03"
   }
