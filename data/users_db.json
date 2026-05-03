@@ -3146,9 +3146,12 @@
     "last_login_date": "2026-04-27",
     "balance": 4.7,
     "last_ip": "150.228.105.79",
-    "last_seen": "2026-05-01 22:02:36",
-    "refresh_token_hash": "d9e815536dce9d137a5ba9b96d27abf46ad7ed3554e958a72466eecb73d1189d",
-    "last_login": "2026-05-01 21:45:53"
+    "last_seen": "2026-05-03 13:08:07",
+    "refresh_token_hash": "c24fe020f78e55df291abd64da346028a621565e442a11c7eeded846eceab23b",
+    "last_login": "2026-05-03 13:08:06",
+    "active_fox_token_hash": "572bb51b6ffa4896013e96be317ee4fd3cd7f570685989437f4e9525560265a8",
+    "active_device_id": "d34665526cde402e",
+    "active_token_set_at": "2026-05-03 13:08:06"
   },
   "6207882045": {
     "usage": 0,
