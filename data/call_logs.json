@@ -1586,7 +1586,7 @@
       "username": "MM0ZZ",
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "first_seen": "2026-04-26 20:08:14",
-      "total_calls": 32,
+      "total_calls": 34,
       "phones_called": [
         "967771544081",
         "967778230399",
@@ -1606,7 +1606,8 @@
         "9647864345663",
         "9647838062915",
         "9647821132004",
-        "9647821131794"
+        "9647821131794",
+        "9647815354758"
       ]
     },
     "6207882045": {
@@ -7067,6 +7068,58 @@
       "status": "ended",
       "ip_address": "151.236.169.43",
       "timestamp": "2026-05-03 15:18:00"
+    },
+    {
+      "call_id": "0ff0ee7242172aad",
+      "user_id": "640391482",
+      "to": "+9647815354758",
+      "from": "+447456445022",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-03 16:25:46",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "151.236.169.165",
+      "timestamp": "2026-05-03 16:25:46"
+    },
+    {
+      "call_id": "0ff0ee7242172aad",
+      "user_id": "640391482",
+      "to": "+9647815354758",
+      "from": "+447456445022",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-03 16:25:46",
+      "end_time": "2026-05-03 16:26:39",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "151.236.169.165",
+      "timestamp": "2026-05-03 16:26:39"
+    },
+    {
+      "call_id": "63a29427bfd710bd",
+      "user_id": "640391482",
+      "to": "+9647815354758",
+      "from": "+447456427156",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-03 16:26:49",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "151.236.169.165",
+      "timestamp": "2026-05-03 16:26:49"
+    },
+    {
+      "call_id": "63a29427bfd710bd",
+      "user_id": "640391482",
+      "to": "+9647815354758",
+      "from": "+447456427156",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-03 16:26:49",
+      "end_time": "2026-05-03 16:27:20",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "151.236.169.165",
+      "timestamp": "2026-05-03 16:27:20"
     }
   ],
   "all_phones": {
@@ -7693,6 +7746,14 @@
         "640391482"
       ],
       "last_call": "2026-05-03 15:18:00"
+    },
+    "9647815354758": {
+      "first_call": "2026-05-03 16:25:46",
+      "total_calls": 2,
+      "users_called": [
+        "640391482"
+      ],
+      "last_call": "2026-05-03 16:27:20"
     }
   }
 }
