@@ -5790,15 +5790,37 @@
   },
   "6938860056": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 2,
     "first_seen": "2026-05-03 19:38:47",
     "username": "D_O_1K",
     "first_name": "\u2e19\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\ua80b\u2739\u20dd\u200c\ua670\u2744\ufe0f \ud835\udd38\u210d\ud835\udd44\ud835\udd3c\ud835\udd3b \ud835\udd44\ud835\udd46\u210d\ud835\udd38\ud835\udd44\ud835\udd3cD.\u2655.\ud80c\udc80",
     "streak": 1,
     "last_login_date": "2026-05-03",
     "active_fox_token_hash": "c65b937cffb13c177e61f1cd0e3c02465e2b3add3d8c2261985a0896c27af11a",
-    "active_device_id": "",
-    "active_token_set_at": "2026-05-03 19:40:17",
-    "refresh_token_hash": ""
+    "active_device_id": "c3eddd23874680ed",
+    "active_token_set_at": "2026-05-03 19:55:22",
+    "refresh_token_hash": "8a1031fb872cceb62cfd4e597ec222fe334fcf18f051f38c92c3fba4938fb48e",
+    "last_ip": "41.65.235.162",
+    "last_seen": "2026-05-03 19:55:23",
+    "last_login": "2026-05-03 19:55:22",
+    "balance": 0.2
+  },
+  "8114680250": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-03 19:57:10",
+    "username": "Z_R_D0",
+    "first_name": "\u200c\ud83c\udde6\u200c\ud83c\udded\u200c\u200c\ud83c\uddf2\u200c\ud83c\uddea\u200c\ud83c\udde9\u200c",
+    "streak": 1,
+    "last_login_date": "2026-05-03"
+  },
+  "8512774370": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-03 19:58:58",
+    "username": "SU_N_0",
+    "first_name": "\u0f3d\u963f\u0f3d\u0f3d\u0f3d\u535c\u0f3d\u2718\u675c\u0f3d\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31 \ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31?",
+    "streak": 1,
+    "last_login_date": "2026-05-03"
   }
 }
