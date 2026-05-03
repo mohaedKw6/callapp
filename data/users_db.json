@@ -5801,9 +5801,9 @@
     "active_token_set_at": "2026-05-03 19:55:22",
     "refresh_token_hash": "8a1031fb872cceb62cfd4e597ec222fe334fcf18f051f38c92c3fba4938fb48e",
     "last_ip": "41.65.235.162",
-    "last_seen": "2026-05-03 19:55:23",
+    "last_seen": "2026-05-03 20:04:18",
     "last_login": "2026-05-03 19:55:22",
-    "balance": 0.2
+    "balance": 0.0
   },
   "8114680250": {
     "usage": 0,
@@ -5820,6 +5820,24 @@
     "first_seen": "2026-05-03 19:58:58",
     "username": "SU_N_0",
     "first_name": "\u0f3d\u963f\u0f3d\u0f3d\u0f3d\u535c\u0f3d\u2718\u675c\u0f3d\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31 \ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31\ud808\udc31?",
+    "streak": 1,
+    "last_login_date": "2026-05-03"
+  },
+  "8269413211": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-03 20:06:26",
+    "username": "l0_sp",
+    "first_name": "\ud81a\udcc2",
+    "streak": 1,
+    "last_login_date": "2026-05-03"
+  },
+  "5556482866": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-03 20:10:01",
+    "username": "ip6px",
+    "first_name": "\ud83c\udf39\ud83c\uddea\ud83c\uddec\ud835\udc40\ud835\udc3c\ud835\udc37\ud835\udc42 \ud835\udc3d\ud835\udc42\ud835\udc3e\ud835\udc38\ud835\udc45\ud83c\uddea\ud83c\uddec\ud83c\udf39",
     "streak": 1,
     "last_login_date": "2026-05-03"
   }
