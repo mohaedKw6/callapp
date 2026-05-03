@@ -2284,8 +2284,8 @@
     "username": "kksbjbck",
     "first_name": "\u0645\u0644\u0643 \u0627\u0644\u0627\u0631\u0642\u0627\u0645 \u0627\u0644\u0648\u0647\u0645\u064a\u0647",
     "streak": 1,
-    "last_login_date": "2026-04-30",
-    "balance": 0.2,
+    "last_login_date": "2026-05-03",
+    "balance": 0.15,
     "last_ip": "109.61.83.180",
     "last_seen": "2026-04-30 20:26:03",
     "refresh_token_hash": "c2c186f25edf307e1123a2bc194ac88e43bd9f08389bc31b22750da5987a537b",
@@ -2321,7 +2321,8 @@
         "label": "# \u0647\u0627\u0634",
         "enabled": true
       }
-    }
+    },
+    "last_use": "2026-05-03 01:28:33"
   },
   "7201504157": {
     "usage": 0,
@@ -5592,5 +5593,14 @@
     "last_ip": "197.63.122.223",
     "last_seen": "2026-05-02 21:34:41",
     "last_login": "2026-05-02 21:34:38"
+  },
+  "861802669": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-03 01:27:22",
+    "username": "jj_ia",
+    "first_name": "\u0645",
+    "streak": 1,
+    "last_login_date": "2026-05-03"
   }
 }
