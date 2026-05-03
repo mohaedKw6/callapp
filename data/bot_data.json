@@ -1546,13 +1546,23 @@
     },
     "6808024255": {
       "usage": 0,
-      "referrals": 3,
+      "referrals": 8,
       "first_seen": "2026-04-16 13:20:43",
       "username": "yu_pq3",
-      "first_name": "𝐓𝐀𝐑𝐈𝐐",
+      "first_name": "الـعنيد",
       "daily_date": "2026-04-20",
       "daily_used": 1,
-      "last_use": "2026-04-20 16:32:38"
+      "last_use": "2026-04-20 16:32:38",
+      "streak": 1,
+      "last_login_date": "2026-05-03",
+      "active_fox_token_hash": "8f5b4430afa5d32792f11d6089169845c0a73b6e078cf4bab618482248f375a3",
+      "active_device_id": "c33677a9340acd7e",
+      "active_token_set_at": "2026-05-03 07:51:57",
+      "refresh_token_hash": "086ca0e6f2a2203b3941150783403efee9762a39ba18bc4feb8147f93f45b933",
+      "last_ip": "185.80.46.37",
+      "last_seen": "2026-05-03 07:52:32",
+      "last_login": "2026-05-03 07:51:57",
+      "balance": 0.5
     },
     "8551516062": {
       "usage": 0,
@@ -5604,6 +5614,51 @@
       "first_seen": "2026-05-03 01:27:22",
       "username": "jj_ia",
       "first_name": "م",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
+    },
+    "7599303489": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 07:56:37",
+      "username": "alsiadv",
+      "first_name": "³³شخــۥـ℘ـۥــيآ|𝑻𝑨𝑹𝑬Q|الفــۥـ℘ـۥــخم",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
+    },
+    "7575393651": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 07:57:12",
+      "username": "Tariq_71t",
+      "first_name": "𝐓𝐀𝐑𝐈𝐐",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
+    },
+    "8327684191": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 07:57:59",
+      "username": "Tariq12tariq09",
+      "first_name": "الـيوتيبر اليماني شخصيا 🤤",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
+    },
+    "8726401868": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 07:58:14",
+      "username": "tariq12340u",
+      "first_name": "علي",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
+    },
+    "8628277657": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 07:58:33",
+      "username": "",
+      "first_name": "𝐓𝐀𝐑𝐈𝐐",
       "streak": 1,
       "last_login_date": "2026-05-03"
     }
