@@ -2752,12 +2752,14 @@
     },
     "6250968067": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 2,
       "first_seen": "2026-04-24 23:37:12",
       "username": "mmohad9",
       "first_name": "Mohad Hady",
       "streak": 1,
-      "last_login_date": "2026-05-03"
+      "last_login_date": "2026-05-03",
+      "balance": 0.15,
+      "last_use": "2026-05-03 08:20:02"
     },
     "7006026878": {
       "usage": 0,
@@ -5679,14 +5681,32 @@
       "first_name": "اليوتيبر اليماني شخصيا",
       "streak": 1,
       "last_login_date": "2026-05-03"
+    },
+    "6301925011": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 08:18:00",
+      "username": "V_pq_V",
+      "first_name": "ماجد 《ＯＰ》",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
+    },
+    "5863427745": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-03 08:18:51",
+      "username": "SARAbtyi",
+      "first_name": "S A R A",
+      "streak": 1,
+      "last_login_date": "2026-05-03"
     }
   },
   "premium": {},
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 70,
-    "success_calls": 150
+    "total_calls": 71,
+    "success_calls": 151
   },
   "voice_labels": {},
   "settings": {
