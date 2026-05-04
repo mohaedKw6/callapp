@@ -2796,9 +2796,9 @@
     "first_seen": "2026-04-25 19:16:15",
     "username": "",
     "first_name": "\u0633\u0627\u0631\u0647",
-    "streak": 3,
-    "last_login_date": "2026-05-01",
-    "balance": 0.66,
+    "streak": 1,
+    "last_login_date": "2026-05-04",
+    "balance": 0.46,
     "last_use": "2026-04-26 17:54:51",
     "successful_calls": 1,
     "dtmf": {
@@ -2833,11 +2833,14 @@
         "enabled": true
       }
     },
-    "last_ip": "209.198.132.6",
-    "last_seen": "2026-04-27 18:55:49",
-    "refresh_token_hash": "f68ba2058b786d81a74f6635df5683d62c6970f9f5bef46967998b77b840ec6e",
+    "last_ip": "150.228.11.189",
+    "last_seen": "2026-05-04 11:19:30",
+    "refresh_token_hash": "",
     "last_login": "2026-04-27 15:33:05",
-    "last_daily_bonus": "2026-05-01"
+    "last_daily_bonus": "2026-05-01",
+    "active_fox_token_hash": "a84b503fb552795d3d067e25f5495fa9c9bbbefa1749532caf626b23aa70a884",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-04 11:17:42"
   },
   "6718184405": {
     "usage": 0,
