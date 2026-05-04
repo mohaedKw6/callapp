@@ -1559,8 +1559,8 @@
       "active_device_id": "c33677a9340acd7e",
       "active_token_set_at": "2026-05-03 07:51:57",
       "refresh_token_hash": "086ca0e6f2a2203b3941150783403efee9762a39ba18bc4feb8147f93f45b933",
-      "last_ip": "185.80.46.37",
-      "last_seen": "2026-05-03 09:58:12",
+      "last_ip": "185.80.46.146",
+      "last_seen": "2026-05-04 02:34:01",
       "last_login": "2026-05-03 07:51:57",
       "balance": 0.9
     },
@@ -5844,6 +5844,15 @@
       "first_name": "🌹🇪🇬𝑀𝐼𝐷𝑂 𝐽𝑂𝐾𝐸𝑅🇪🇬🌹",
       "streak": 1,
       "last_login_date": "2026-05-03"
+    },
+    "805260870": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-04 02:32:28",
+      "username": "",
+      "first_name": "ㅤㅤ",
+      "streak": 1,
+      "last_login_date": "2026-05-04"
     }
   },
   "premium": {},
