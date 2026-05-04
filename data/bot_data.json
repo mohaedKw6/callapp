@@ -94,14 +94,14 @@
       "streak": 1,
       "last_login_date": "2026-05-04",
       "last_daily_bonus": "2026-05-02",
-      "balance": 99.75,
+      "balance": 99.55,
       "last_ip": "31.31.184.6",
-      "last_seen": "2026-05-04 13:17:05",
-      "refresh_token_hash": "ffd0228221e9d1aad1f8576b976e3d4cd3f7b7a1467cf61a992ef1e729ce760b",
-      "last_login": "2026-05-04 13:16:28",
+      "last_seen": "2026-05-04 13:29:51",
+      "refresh_token_hash": "f92ec7eb535be44105b52461c3fd94f4af5b1f2e0430c5a447578da211d8df78",
+      "last_login": "2026-05-04 13:29:02",
       "active_fox_token_hash": "3de60dedbb92c5b88064009a7869733fdaad49a1b16c6c52a61133e1a3ebcd5a",
       "active_device_id": "bc0d2ca30d240ce7",
-      "active_token_set_at": "2026-05-04 13:16:28"
+      "active_token_set_at": "2026-05-04 13:29:02"
     },
     "8752475170": {
       "usage": 0,
@@ -3150,9 +3150,9 @@
       "first_name": "𝐉𝐚𝐡𝐫𝐚𝐧",
       "streak": 2,
       "last_login_date": "2026-04-27",
-      "balance": 3.7,
+      "balance": 2.9,
       "last_ip": "31.31.182.89",
-      "last_seen": "2026-05-04 13:00:50",
+      "last_seen": "2026-05-04 13:29:54",
       "refresh_token_hash": "4dd64a4fcd9eb135fd3e934d258b228c61ad26ab53420737816b16b84f1d4445",
       "last_login": "2026-05-04 13:00:31",
       "active_fox_token_hash": "572bb51b6ffa4896013e96be317ee4fd3cd7f570685989437f4e9525560265a8",
@@ -5919,7 +5919,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 94,
-    "success_calls": 180
+    "success_calls": 181
   },
   "voice_labels": {},
   "settings": {
