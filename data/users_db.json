@@ -195,10 +195,12 @@
   },
   "5092770862": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 3,
     "first_seen": "2026-04-09 16:45:55",
     "username": "k_V_Xp",
-    "first_name": "E_ERORR \ufe0e\ufe0e"
+    "first_name": "E_ERORR \ufe0e\ufe0e",
+    "balance": 0.25,
+    "last_use": "2026-05-04 12:57:12"
   },
   "8071397879": {
     "usage": 0,
@@ -3148,13 +3150,13 @@
     "streak": 2,
     "last_login_date": "2026-04-27",
     "balance": 3.7,
-    "last_ip": "151.236.169.165",
-    "last_seen": "2026-05-03 16:27:22",
-    "refresh_token_hash": "5b1ab7eb7a839224fa88bbf7217f19e8a51444e54ff43f60571bc841aa6df813",
-    "last_login": "2026-05-03 15:07:44",
+    "last_ip": "31.31.182.89",
+    "last_seen": "2026-05-04 13:00:50",
+    "refresh_token_hash": "4dd64a4fcd9eb135fd3e934d258b228c61ad26ab53420737816b16b84f1d4445",
+    "last_login": "2026-05-04 13:00:31",
     "active_fox_token_hash": "572bb51b6ffa4896013e96be317ee4fd3cd7f570685989437f4e9525560265a8",
-    "active_device_id": "d34665526cde402e",
-    "active_token_set_at": "2026-05-03 15:07:44"
+    "active_device_id": "f4045a101e118718",
+    "active_token_set_at": "2026-05-04 13:00:31"
   },
   "6207882045": {
     "usage": 0,
@@ -5872,6 +5874,33 @@
     "first_seen": "2026-05-04 10:56:38",
     "username": "Zeed79",
     "first_name": "ZR | ZEED",
+    "streak": 1,
+    "last_login_date": "2026-05-04"
+  },
+  "5502077996": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-04 12:54:55",
+    "username": "x_GX_HACK_x",
+    "first_name": "\u2766\ua579\u26e5\u0410\u0419\u041c\u0410\u041d \u26e5\ua579",
+    "streak": 1,
+    "last_login_date": "2026-05-04"
+  },
+  "6583422539": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-04 12:56:02",
+    "username": "Z_U_X_c",
+    "first_name": "11:11",
+    "streak": 1,
+    "last_login_date": "2026-05-04"
+  },
+  "8471964833": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-04 13:03:48",
+    "username": "",
+    "first_name": "...",
     "streak": 1,
     "last_login_date": "2026-05-04"
   }
