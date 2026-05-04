@@ -361,7 +361,7 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "first_seen": "2026-04-16 17:21:31",
-      "total_calls": 59,
+      "total_calls": 61,
       "phones_called": [
         "967771282329",
         "967781528914",
@@ -7299,6 +7299,71 @@
       "status": "ended",
       "ip_address": "150.228.11.189",
       "timestamp": "2026-05-04 11:19:29"
+    },
+    {
+      "call_id": "853205522c597820",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447577358007",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-04 13:13:34",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.184.6",
+      "timestamp": "2026-05-04 13:13:34"
+    },
+    {
+      "call_id": "853205522c597820",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447577358007",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-04 13:13:34",
+      "end_time": "2026-05-04 13:14:10",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.184.6",
+      "timestamp": "2026-05-04 13:14:10"
+    },
+    {
+      "call_id": "906a158535f54232",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447577354258",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-04 13:16:40",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.184.6",
+      "timestamp": "2026-05-04 13:16:40"
+    },
+    {
+      "call_id": "906a158535f54232",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447577354258",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-04 13:16:40",
+      "end_time": "2026-05-04 13:17:01",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "31.31.184.6",
+      "timestamp": "2026-05-04 13:17:01"
+    },
+    {
+      "call_id": "5af7736c42ac9ecc",
+      "user_id": "7627857345",
+      "to": "+967782760250",
+      "from": "+447577370285",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-04 13:17:06",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "31.31.184.6",
+      "timestamp": "2026-05-04 13:17:06"
     }
   ],
   "all_phones": {
@@ -7833,11 +7898,11 @@
     },
     "967782760250": {
       "first_call": "2026-05-01 13:15:05",
-      "total_calls": 2,
+      "total_calls": 4,
       "users_called": [
         "7627857345"
       ],
-      "last_call": "2026-05-01 13:18:22"
+      "last_call": "2026-05-04 13:17:01"
     },
     "201020152208": {
       "first_call": "2026-05-01 14:20:35",
