@@ -91,17 +91,17 @@
       "username": "llllllIlIlIlIlIlIlIl",
       "first_name": "𓆩𓄊²²𓅔 سـامـي 𓄊𓆪",
       "dan_calls": 28,
-      "streak": 4,
-      "last_login_date": "2026-05-02",
+      "streak": 1,
+      "last_login_date": "2026-05-04",
       "last_daily_bonus": "2026-05-02",
-      "balance": 0.35,
-      "last_ip": "31.31.189.202",
-      "last_seen": "2026-05-03 09:48:22",
-      "refresh_token_hash": "11e1891234e27b9796461833dc271fad85b31b654d8f77c25353866a063b6ff2",
-      "last_login": "2026-05-03 07:35:01",
-      "active_fox_token_hash": "ed9b2a059c114dba464a005399984b708542b4c1e65c84f9d6ea7780f15a1656",
+      "balance": 99.75,
+      "last_ip": "31.31.184.6",
+      "last_seen": "2026-05-04 13:17:05",
+      "refresh_token_hash": "ffd0228221e9d1aad1f8576b976e3d4cd3f7b7a1467cf61a992ef1e729ce760b",
+      "last_login": "2026-05-04 13:16:28",
+      "active_fox_token_hash": "3de60dedbb92c5b88064009a7869733fdaad49a1b16c6c52a61133e1a3ebcd5a",
       "active_device_id": "bc0d2ca30d240ce7",
-      "active_token_set_at": "2026-05-03 07:35:01"
+      "active_token_set_at": "2026-05-04 13:16:28"
     },
     "8752475170": {
       "usage": 0,
@@ -5906,12 +5906,20 @@
       "last_login_date": "2026-05-04"
     }
   },
-  "premium": {},
+  "premium": {
+    "7627857345": {
+      "added_by": 7627857345,
+      "added_at": "2026-05-04 13:14:57",
+      "type": "unlimited",
+      "calls_limit": 999999,
+      "calls_used": 0
+    }
+  },
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 89,
-    "success_calls": 176
+    "total_calls": 94,
+    "success_calls": 180
   },
   "voice_labels": {},
   "settings": {
@@ -8561,7 +8569,9 @@
     "geriwec371@splindor.com",
     "logayi3578@wudmis.com",
     "toteri2504@tivogo.com",
-    "delok44594@viasuma.com"
+    "delok44594@viasuma.com",
+    "pewira8473@virawolf.com",
+    "bewice7198@wudmis.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
