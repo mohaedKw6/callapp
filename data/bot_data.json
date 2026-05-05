@@ -5927,8 +5927,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 97,
-    "success_calls": 184
+    "total_calls": 98,
+    "success_calls": 185
   },
   "voice_labels": {},
   "settings": {
@@ -6037,6 +6037,15 @@
       ],
       "created_at": "2026-05-04 13:16:12",
       "created_by": "7627857345"
+    },
+    "G442EMCW": {
+      "amount": 1.0,
+      "max_users": 20,
+      "used_by": [
+        "6594705905"
+      ],
+      "created_at": "2026-05-05 10:34:09",
+      "created_by": "962731079"
     }
   },
   "registered_accounts": [
