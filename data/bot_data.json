@@ -5567,7 +5567,11 @@
       "username": "",
       "first_name": "12",
       "streak": 1,
-      "last_login_date": "2026-05-02"
+      "last_login_date": "2026-05-02",
+      "active_fox_token_hash": "26b33ddcbb35edc213661f92037adc4a3076b34fa367a76986f711af7fc8ed91",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-05 20:36:39",
+      "refresh_token_hash": ""
     },
     "8453134630": {
       "usage": 0,
