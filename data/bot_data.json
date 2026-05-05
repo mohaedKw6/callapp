@@ -97,11 +97,11 @@
       "balance": 99.55,
       "last_ip": "31.31.184.6",
       "last_seen": "2026-05-04 13:29:51",
-      "refresh_token_hash": "f92ec7eb535be44105b52461c3fd94f4af5b1f2e0430c5a447578da211d8df78",
+      "refresh_token_hash": "",
       "last_login": "2026-05-04 13:29:02",
-      "active_fox_token_hash": "3de60dedbb92c5b88064009a7869733fdaad49a1b16c6c52a61133e1a3ebcd5a",
-      "active_device_id": "bc0d2ca30d240ce7",
-      "active_token_set_at": "2026-05-04 13:29:02"
+      "active_fox_token_hash": "76190153fc9d96fccda11fe1b285a791b159b223e2e898b47be4b160b735cd66",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-05 08:44:40"
     },
     "8752475170": {
       "usage": 0,
