@@ -5814,7 +5814,7 @@
       "username": "D_O_1K",
       "first_name": "⸙ꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋꠋ✹⃝‌꙰❄️ 𝔸ℍ𝕄𝔼𝔻 𝕄𝕆ℍ𝔸𝕄𝔼D.♕.𓂀",
       "streak": 1,
-      "last_login_date": "2026-05-03",
+      "last_login_date": "2026-05-05",
       "active_fox_token_hash": "c65b937cffb13c177e61f1cd0e3c02465e2b3add3d8c2261985a0896c27af11a",
       "active_device_id": "c3eddd23874680ed",
       "active_token_set_at": "2026-05-03 19:55:22",
@@ -5921,7 +5921,15 @@
       "username": "y_ehabx",
       "first_name": "jo0o",
       "streak": 1,
-      "last_login_date": "2026-05-05"
+      "last_login_date": "2026-05-05",
+      "active_fox_token_hash": "4427772c751ec81a309d09e915cc288a7eac60ed215439705e935a84bdbe6c6b",
+      "active_device_id": "40e8743a1340afea",
+      "active_token_set_at": "2026-05-05 10:43:42",
+      "refresh_token_hash": "187a41f94fcf4ca89f712f6f73fced8eea1b80d07d21df284c085d6f33db359b",
+      "last_ip": "41.42.110.134",
+      "last_seen": "2026-05-05 10:45:01",
+      "last_login": "2026-05-05 10:43:42",
+      "balance": 1.0
     }
   },
   "premium": {
