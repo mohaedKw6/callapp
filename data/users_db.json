@@ -2271,9 +2271,9 @@
     "streak": 1,
     "last_login_date": "2026-05-04",
     "bot_source": "sub_@Sjxijsjszijbot",
-    "balance": 0.05,
+    "balance": 0.85,
     "last_ip": "156.214.49.187",
-    "last_seen": "2026-05-03 10:05:17",
+    "last_seen": "2026-05-05 10:37:27",
     "refresh_token_hash": "",
     "last_login": "2026-05-02 13:30:02",
     "active_fox_token_hash": "9f18c0df22c69dddb133e2aa7de03f10f523cca3f63688710f93c81927d5057e",
@@ -5912,5 +5912,14 @@
     "first_name": "...",
     "streak": 1,
     "last_login_date": "2026-05-04"
+  },
+  "5364314699": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-05 10:39:30",
+    "username": "y_ehabx",
+    "first_name": "jo0o",
+    "streak": 1,
+    "last_login_date": "2026-05-05"
   }
 }
