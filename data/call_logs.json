@@ -3034,7 +3034,7 @@
     },
     "7746420552": {
       "username": "MarwanAlAsli",
-      "first_name": "ㅤㅤㅤㅤ",
+      "first_name": "『مـۘ❈ـۘو🍌زو』👑",
       "first_seen": "2026-05-01 02:15:05",
       "total_calls": 2,
       "phones_called": [
@@ -3434,8 +3434,10 @@
       "username": "y_ehabx",
       "first_name": "jo0o",
       "first_seen": "2026-05-05 10:39:30",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "201114064394"
+      ]
     },
     "7863666428": {
       "username": "OOOOOOpoa",
@@ -3462,6 +3464,13 @@
       "username": "Bkreqjd",
       "first_name": "تعليمي",
       "first_seen": "2026-05-05 18:16:47",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "6882025501": {
+      "username": "",
+      "first_name": "Abod Ablhd",
+      "first_seen": "2026-05-05 19:21:56",
       "total_calls": 0,
       "phones_called": []
     }
@@ -7605,6 +7614,32 @@
       "status": "ended",
       "ip_address": "156.214.49.187",
       "timestamp": "2026-05-05 10:37:23"
+    },
+    {
+      "call_id": "a477b868d0a07f3f",
+      "user_id": "5364314699",
+      "to": "+201114064394",
+      "from": "+447577370469",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-05 19:27:18",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "41.42.110.134",
+      "timestamp": "2026-05-05 19:27:18"
+    },
+    {
+      "call_id": "a477b868d0a07f3f",
+      "user_id": "5364314699",
+      "to": "+201114064394",
+      "from": "+447577370469",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-05 19:27:18",
+      "end_time": "2026-05-05 19:27:58",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "41.42.110.134",
+      "timestamp": "2026-05-05 19:27:58"
     }
   ],
   "all_phones": {
@@ -8288,6 +8323,14 @@
         "6594705905"
       ],
       "last_call": "2026-05-05 10:37:23"
+    },
+    "201114064394": {
+      "first_call": "2026-05-05 19:27:18",
+      "total_calls": 1,
+      "users_called": [
+        "5364314699"
+      ],
+      "last_call": "2026-05-05 19:27:58"
     }
   }
 }
