@@ -5372,13 +5372,13 @@
   },
   "7746420552": {
     "usage": 0,
-    "referrals": 2,
+    "referrals": 3,
     "first_seen": "2026-05-01 02:15:05",
     "username": "MarwanAlAsli",
-    "first_name": "\u3164\u3164\u3164\u3164",
-    "streak": 2,
-    "last_login_date": "2026-05-02",
-    "balance": 0.05,
+    "first_name": "\u300e\u0645\u0640\u06d8\u2748\u0640\u06d8\u0648\ud83c\udf4c\u0632\u0648\u300f\ud83d\udc51",
+    "streak": 1,
+    "last_login_date": "2026-05-05",
+    "balance": 0.15,
     "last_ip": "104.28.157.79",
     "last_seen": "2026-05-02 00:42:50",
     "refresh_token_hash": "ce46ce2ca79d9953e89933dd10c49c81ee93e8f75f61ab74f945103af2648bda",
@@ -5931,9 +5931,9 @@
     "active_token_set_at": "2026-05-05 10:43:42",
     "refresh_token_hash": "187a41f94fcf4ca89f712f6f73fced8eea1b80d07d21df284c085d6f33db359b",
     "last_ip": "41.42.110.134",
-    "last_seen": "2026-05-05 10:45:01",
+    "last_seen": "2026-05-05 19:28:00",
     "last_login": "2026-05-05 10:43:42",
-    "balance": 1.0
+    "balance": 0.8
   },
   "7863666428": {
     "usage": 0,
@@ -5968,6 +5968,15 @@
     "first_seen": "2026-05-05 18:16:47",
     "username": "Bkreqjd",
     "first_name": "\u062a\u0639\u0644\u064a\u0645\u064a",
+    "streak": 1,
+    "last_login_date": "2026-05-05"
+  },
+  "6882025501": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-05 19:21:56",
+    "username": "",
+    "first_name": "Abod Ablhd",
     "streak": 1,
     "last_login_date": "2026-05-05"
   }
