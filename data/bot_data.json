@@ -6114,6 +6114,13 @@
       ],
       "created_at": "2026-05-05 10:34:09",
       "created_by": "962731079"
+    },
+    "H9SFJQ4S": {
+      "amount": 1.0,
+      "max_users": 10000,
+      "used_by": [],
+      "created_at": "2026-05-05 20:10:03",
+      "created_by": "962731079"
     }
   },
   "registered_accounts": [
