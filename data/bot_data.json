@@ -4767,7 +4767,11 @@
       "username": "u_e_3",
       "first_name": "Sєcяєт • 𝑅𝑢𝑠𝑠𝑖𝑎𝑛 𝑷𝑜𝑤𝑒𝑟",
       "streak": 1,
-      "last_login_date": "2026-04-27"
+      "last_login_date": "2026-05-05",
+      "active_fox_token_hash": "ea550fa85563f89f291dc5075af0409ceada76673de1415225fff3418d1dc6f9",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-05 12:03:23",
+      "refresh_token_hash": ""
     },
     "6496344714": {
       "usage": 0,
