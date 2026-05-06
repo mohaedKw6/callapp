@@ -80,12 +80,12 @@
       "dan_calls": 360,
       "last_daily_bonus": "2026-05-06",
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-06 21:43:43",
-      "refresh_token_hash": "edaf32791ab5d2668dbf65083a809821ea98e77f490f2b86cb09149a20ee6103",
-      "last_login": "2026-05-06 21:42:46",
+      "last_seen": "2026-05-06 22:13:46",
+      "refresh_token_hash": "9ec1c23ef03a2a56979255decb198d5ecd6317f5558f5ef73d55fa09d3c944d7",
+      "last_login": "2026-05-06 22:13:45",
       "active_fox_token_hash": "db4d75450b82057426263b8faa7f55d74ee7aecdc1b22c60e6ab926b0da40f2b",
-      "active_device_id": "e4486497c3728809",
-      "active_token_set_at": "2026-05-06 21:42:46"
+      "active_device_id": "a651b151bd2ed648",
+      "active_token_set_at": "2026-05-06 22:13:45"
     },
     "7627857345": {
       "usage": 0,
