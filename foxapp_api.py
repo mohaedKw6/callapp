@@ -1429,9 +1429,13 @@ def api_call_start():
                 502,
             )
 
-    # Mark the Telicall account token as used
+    # Mark the Telicall account token as used & remove from accounts list
     try:
-        cv.mark_email_used(result.get("email_used", "") or result.get("email", ""))
+        email_used = result.get("email_used", "") or result.get("email", "")
+        cv.mark_email_used(email_used)
+        # احذف الحساب من قائمة accounts عشان متتستعملش تاني
+        if email_used and hasattr(cv, '_remove_account_by_email'):
+            cv._remove_account_by_email(email_used)
     except Exception:
         pass
 

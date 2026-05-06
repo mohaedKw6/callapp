@@ -1829,65 +1829,94 @@ def _try_telicall_call(phone, call_token, call_device_id, email_used=""):
         print(f"[start_call] ❌ Exception for {email_used}: {e}")
         return None
 
+def _remove_account_by_email(email: str):
+    """يحذف حساب من قائمة accounts ويحفظ الملف مشفر — آمن للخيوط"""
+    if not email:
+        return
+    with _token_lock:
+        global accounts
+        before = len(accounts)
+        accounts = [a for a in accounts if a.get('email', '') != email]
+        removed = before - len(accounts)
+        if removed > 0:
+            try:
+                _save_accounts_encrypted()
+            except Exception:
+                pass
+            print(f"[start_call] 🗑️ Removed {removed} account(s) for {email} from list")
+
+
 def start_call(phone, max_retries=5):
     """
     يبدأ مكالمة - يفضل استخدام التوكنات المحملة مسبقاً للسرعة
     ⚠️ هذه الدالة آمنة للخيوط (thread-safe) — لا تستخدم globals للتوكن
     🔄 تكرر مع حسابات مختلفة لو الحساب الحالي فشل
+    🗑️ يحذف الحساب الفاشل ويحطه في قائمة المستعملين ويمسك حساب تاني بسرعة
     """
     no_balance_count = 0
-    
+    last_failed_email = ""
+
     for attempt in range(max_retries):
         # 🚀 نحاول نستخدم توكن جاهز من الكاش
         ready_token = pop_ready_token()
         call_token = None
         call_device_id = None
         email_used = ""
-        
+
         if ready_token:
             call_token = ready_token.get("token")
             call_device_id = ready_token.get("device_id")
             email_used = ready_token.get("email", "")
             print(f"[start_call] ⚡ Attempt {attempt+1}/{max_retries}: cached token for {email_used}")
         elif accounts:
-            acc = accounts[-1]
-            call_token = acc.get('x-token')
-            call_device_id = acc.get('x-client-device-id')
-            email_used = acc.get('email', '')
+            with _token_lock:
+                acc = accounts[-1]
+                call_token = acc.get('x-token')
+                call_device_id = acc.get('x-client-device-id')
+                email_used = acc.get('email', '')
             print(f"[start_call] 📂 Attempt {attempt+1}/{max_retries}: account file {email_used}")
         else:
             print(f"[start_call] ❌ No accounts available")
             return None
-        
+
         if not call_token:
             print(f"[start_call] ❌ No token available")
-            return None
-        
+            # احذف الحساب الفاضي من القائمة
+            if email_used:
+                _remove_account_by_email(email_used)
+                mark_email_used(email_used)
+            continue
+
         result = _try_telicall_call(phone, call_token, call_device_id, email_used)
-        
+
         if result is None or isinstance(result, dict) and "error" in result:
-            # الفشل بسبب خطأ غير رصيد - نجرب حساب تاني
+            # 🗑️ حذف الحساب الفاشل ووضعه في قائمة المستعملين
             err = result.get("error", "") if isinstance(result, dict) else ""
+            print(f"[start_call] ❌ Account {email_used} failed with error: {err or 'None'}")
+
+            # احذف الحساب من accounts وسجله كمستعمل
+            if email_used and email_used != last_failed_email:
+                _remove_account_by_email(email_used)
+                mark_email_used(email_used)
+                last_failed_email = email_used
+
             if "404" in err or "400" in err or "telicall_" in err:
-                if attempt < max_retries - 1:
-                    print(f"[start_call] 🔄 Retrying with different account (error: {err})...")
-                    time.sleep(0.5)
-                    continue
+                # جرب حساب تاني فوراً بدون انتظار
+                print(f"[start_call] 🔄 Switching to next account immediately (error: {err})...")
+                continue
             if result == 'no_balance':
                 no_balance_count += 1
                 if no_balance_count >= 2:
                     return 'no_balance'
-                if attempt < max_retries - 1:
-                    print(f"[start_call] 🔄 No balance, trying next account...")
-                    time.sleep(0.5)
-                    continue
-                return 'no_balance'
+                # جرب حساب تاني فوراً بدون انتظار
+                print(f"[start_call] 🔄 No balance, switching to next account immediately...")
+                continue
             # خطأ تاني - ارجع النتيجة
             return result
-        
+
         # نجاح!
         return result
-    
+
     return None
 
 # ============================================================================
