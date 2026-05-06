@@ -5378,13 +5378,16 @@
     "first_seen": "2026-05-01 02:15:05",
     "username": "MarwanAlAsli",
     "first_name": "\u300e\u0645\u0640\u06d8\u2748\u0640\u06d8\u0648\ud83c\udf4c\u0632\u0648\u300f\ud83d\udc51",
-    "streak": 1,
-    "last_login_date": "2026-05-05",
+    "streak": 2,
+    "last_login_date": "2026-05-06",
     "balance": 0.15,
     "last_ip": "104.28.157.79",
     "last_seen": "2026-05-02 00:42:50",
-    "refresh_token_hash": "ce46ce2ca79d9953e89933dd10c49c81ee93e8f75f61ab74f945103af2648bda",
-    "last_login": "2026-05-02 00:42:40"
+    "refresh_token_hash": "",
+    "last_login": "2026-05-02 00:42:40",
+    "active_fox_token_hash": "fffa9b88cbc2913baf87249480239f45514997dffeb8774be771744dfcc79d9c",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-06 20:29:43"
   },
   "8736864096": {
     "usage": 0,
@@ -5393,7 +5396,11 @@
     "username": "Jfkfyfd",
     "first_name": "\u0627\u062d\u0645\u062f",
     "streak": 1,
-    "last_login_date": "2026-05-06"
+    "last_login_date": "2026-05-06",
+    "active_fox_token_hash": "cfc7584a2b13b3f496588a3ce8da5d467efeb8120ee3c5483121ae068df93423",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-06 20:29:21",
+    "refresh_token_hash": ""
   },
   "8512411016": {
     "usage": 0,
@@ -5937,9 +5944,9 @@
     "active_token_set_at": "2026-05-05 10:43:42",
     "refresh_token_hash": "187a41f94fcf4ca89f712f6f73fced8eea1b80d07d21df284c085d6f33db359b",
     "last_ip": "41.42.110.134",
-    "last_seen": "2026-05-06 20:24:02",
+    "last_seen": "2026-05-06 20:36:29",
     "last_login": "2026-05-05 10:43:42",
-    "balance": 90.0
+    "balance": 89.6
   },
   "7863666428": {
     "usage": 0,
