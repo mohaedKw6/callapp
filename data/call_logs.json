@@ -3434,9 +3434,10 @@
       "username": "y_ehabx",
       "first_name": "jo0o",
       "first_seen": "2026-05-05 10:39:30",
-      "total_calls": 2,
+      "total_calls": 3,
       "phones_called": [
-        "201114064394"
+        "201114064394",
+        "201156443359"
       ]
     },
     "7863666428": {
@@ -7693,6 +7694,32 @@
       "status": "started",
       "ip_address": "41.42.110.134",
       "timestamp": "2026-05-06 12:32:14"
+    },
+    {
+      "call_id": "a7e00e2a804634fb",
+      "user_id": "5364314699",
+      "to": "+201156443359",
+      "from": "+447577364910",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-06 18:31:09",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "41.42.110.134",
+      "timestamp": "2026-05-06 18:31:09"
+    },
+    {
+      "call_id": "a7e00e2a804634fb",
+      "user_id": "5364314699",
+      "to": "+201156443359",
+      "from": "+447577364910",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-06 18:31:09",
+      "end_time": "2026-05-06 18:31:55",
+      "duration": 18,
+      "status": "ended",
+      "ip_address": "41.42.110.134",
+      "timestamp": "2026-05-06 18:31:55"
     }
   ],
   "all_phones": {
@@ -8384,6 +8411,14 @@
         "5364314699"
       ],
       "last_call": "2026-05-06 12:28:18"
+    },
+    "201156443359": {
+      "first_call": "2026-05-06 18:31:09",
+      "total_calls": 1,
+      "users_called": [
+        "5364314699"
+      ],
+      "last_call": "2026-05-06 18:31:55"
     }
   }
 }
