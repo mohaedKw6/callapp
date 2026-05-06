@@ -80,12 +80,12 @@
       "dan_calls": 360,
       "last_daily_bonus": "2026-05-06",
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-06 22:13:46",
-      "refresh_token_hash": "9ec1c23ef03a2a56979255decb198d5ecd6317f5558f5ef73d55fa09d3c944d7",
-      "last_login": "2026-05-06 22:13:45",
-      "active_fox_token_hash": "db4d75450b82057426263b8faa7f55d74ee7aecdc1b22c60e6ab926b0da40f2b",
-      "active_device_id": "a651b151bd2ed648",
-      "active_token_set_at": "2026-05-06 22:13:45"
+      "last_seen": "2026-05-06 22:53:54",
+      "refresh_token_hash": "cfcae3088a8d0c22bf354ccdd19470172dd7408867edba959b56a80af211dbcf",
+      "last_login": "2026-05-06 22:53:07",
+      "active_fox_token_hash": "36252424fdf8135272ad27f51246c4b744845c91706facb2579f38906f07ab9a",
+      "active_device_id": "e0f4371d530c3e7e",
+      "active_token_set_at": "2026-05-06 22:53:07"
     },
     "7627857345": {
       "usage": 0,
@@ -6029,7 +6029,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 120,
-    "success_calls": 251
+    "success_calls": 253
   },
   "voice_labels": {},
   "settings": {
@@ -6163,6 +6163,15 @@
         "5364314699"
       ],
       "created_at": "2026-05-06 19:19:51",
+      "created_by": "962731079"
+    },
+    "AF5K208R": {
+      "amount": 5.0,
+      "max_users": 1,
+      "used_by": [
+        "6594705905"
+      ],
+      "created_at": "2026-05-06 23:06:03",
       "created_by": "962731079"
     }
   },
