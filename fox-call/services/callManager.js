@@ -122,12 +122,16 @@ export class CallManager {
     if (lower.includes('used') || lower.includes('already') || lower.includes('استعمل')) {
       return 'هذا الحساب مستعمل قبل كده - جاري تجربة حساب آخر';
     }
-    // No balance errors
-    if (lower.includes('no_balance') || lower.includes('رصيدك مش كافي') || lower.includes('balance') || lower.includes('رصيد')) {
-      if (lower.includes('telicall')) {
-        return 'حساب Telicall خلص رصيده - جاري تجربة حساب آخر';
-      }
+    // User balance errors (from Fox Call server - user's own balance insufficient)
+    if (lower.includes('رصيدك مش كافي') || (lower.includes('رصيدك') && lower.includes('كافي'))) {
       return 'رصيدك مش كافي لإجراء مكالمة';
+    }
+    // Telicall account balance errors (the SIP provider account ran out, NOT the user)
+    if (lower.includes('no_balance') || lower.includes('الحساب المستخدم لا يحتوي على رصيد')) {
+      return 'حساب المكالمات خلص رصيده - حاول بعد شوية';
+    }
+    if (lower.includes('telicall') && (lower.includes('balance') || lower.includes('رصيد'))) {
+      return 'حساب المكالمات خلص رصيده - حاول بعد شوية';
     }
     // No accounts available
     if (lower.includes('no accounts') || lower.includes('لا يوجد') || lower.includes('لا توجد') || lower.includes('حسابات')) {
