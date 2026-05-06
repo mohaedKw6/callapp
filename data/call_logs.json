@@ -3434,7 +3434,7 @@
       "username": "y_ehabx",
       "first_name": "jo0o",
       "first_seen": "2026-05-05 10:39:30",
-      "total_calls": 16,
+      "total_calls": 17,
       "phones_called": [
         "201114064394",
         "201156443359",
@@ -8086,6 +8086,32 @@
       "status": "ended",
       "ip_address": "41.42.110.134",
       "timestamp": "2026-05-06 21:11:49"
+    },
+    {
+      "call_id": "ac8f33d72f6d6c1b",
+      "user_id": "5364314699",
+      "to": "+201017535705",
+      "from": "+447577368845",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-06 21:21:53",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "41.42.110.134",
+      "timestamp": "2026-05-06 21:21:53"
+    },
+    {
+      "call_id": "ac8f33d72f6d6c1b",
+      "user_id": "5364314699",
+      "to": "+201017535705",
+      "from": "+447577368845",
+      "sip_domain": "sip-uk-1.getcontact.com",
+      "start_time": "2026-05-06 21:21:53",
+      "end_time": "2026-05-06 21:22:48",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "41.42.110.134",
+      "timestamp": "2026-05-06 21:22:48"
     }
   ],
   "all_phones": {
@@ -8793,11 +8819,11 @@
     },
     "201017535705": {
       "first_call": "2026-05-06 20:33:09",
-      "total_calls": 13,
+      "total_calls": 14,
       "users_called": [
         "5364314699"
       ],
-      "last_call": "2026-05-06 21:11:49"
+      "last_call": "2026-05-06 21:22:48"
     }
   }
 }
