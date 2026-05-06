@@ -2276,7 +2276,7 @@
     "bot_source": "sub_@Sjxijsjszijbot",
     "balance": 0.85,
     "last_ip": "156.214.49.187",
-    "last_seen": "2026-05-05 10:37:27",
+    "last_seen": "2026-05-06 19:24:16",
     "refresh_token_hash": "",
     "last_login": "2026-05-02 13:30:02",
     "active_fox_token_hash": "9f18c0df22c69dddb133e2aa7de03f10f523cca3f63688710f93c81927d5057e",
@@ -5937,9 +5937,9 @@
     "active_token_set_at": "2026-05-05 10:43:42",
     "refresh_token_hash": "187a41f94fcf4ca89f712f6f73fced8eea1b80d07d21df284c085d6f33db359b",
     "last_ip": "41.42.110.134",
-    "last_seen": "2026-05-06 18:31:57",
+    "last_seen": "2026-05-06 19:21:59",
     "last_login": "2026-05-05 10:43:42",
-    "balance": 0.2
+    "balance": 90.2
   },
   "7863666428": {
     "usage": 0,
