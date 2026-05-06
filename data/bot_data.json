@@ -80,9 +80,12 @@
       "dan_calls": 360,
       "last_daily_bonus": "2026-05-06",
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-02 10:51:22",
-      "refresh_token_hash": "1c0e29660eb8beb5a0ae963df151e539405ad72c54e12e0859555ca817fa521a",
-      "last_login": "2026-05-02 09:39:22"
+      "last_seen": "2026-05-06 21:43:43",
+      "refresh_token_hash": "edaf32791ab5d2668dbf65083a809821ea98e77f490f2b86cb09149a20ee6103",
+      "last_login": "2026-05-06 21:42:46",
+      "active_fox_token_hash": "db4d75450b82057426263b8faa7f55d74ee7aecdc1b22c60e6ab926b0da40f2b",
+      "active_device_id": "e4486497c3728809",
+      "active_token_set_at": "2026-05-06 21:42:46"
     },
     "7627857345": {
       "usage": 0,
@@ -2277,7 +2280,7 @@
       "bot_source": "sub_@Sjxijsjszijbot",
       "balance": 0.85,
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-06 21:31:33",
+      "last_seen": "2026-05-06 21:42:18",
       "refresh_token_hash": "",
       "last_login": "2026-05-02 13:30:02",
       "active_fox_token_hash": "9f18c0df22c69dddb133e2aa7de03f10f523cca3f63688710f93c81927d5057e",
