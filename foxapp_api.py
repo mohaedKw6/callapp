@@ -1366,9 +1366,43 @@ def api_call_start():
         result = cv.start_call(to)
     except Exception as e:
         log.exception("start_call failed")
+        # 🔄 محاولة بروكسي من آي بي المستخدم
+        try:
+            proxy_req = cv.get_proxy_call_request(to)
+            if proxy_req:
+                log.info("Server call failed, falling back to user IP proxy for %s", to)
+                return jsonify({
+                    "proxy_required": True,
+                    "proxy_request": {
+                        "url": proxy_req["url"],
+                        "method": proxy_req["method"],
+                        "headers": proxy_req["headers"],
+                        "body": proxy_req["body"],
+                    },
+                    "email_used": proxy_req.get("email_used", ""),
+                })
+        except Exception:
+            pass
         return jsonify({"error": str(e)}), 502
 
     if result is None:
+        # 🔄 محاولة بروكسي من آي بي المستخدم
+        try:
+            proxy_req = cv.get_proxy_call_request(to)
+            if proxy_req:
+                log.info("No accounts on server, falling back to user IP proxy for %s", to)
+                return jsonify({
+                    "proxy_required": True,
+                    "proxy_request": {
+                        "url": proxy_req["url"],
+                        "method": proxy_req["method"],
+                        "headers": proxy_req["headers"],
+                        "body": proxy_req["body"],
+                    },
+                    "email_used": proxy_req.get("email_used", ""),
+                })
+        except Exception:
+            pass
         return (
             jsonify(
                 {
@@ -1382,6 +1416,23 @@ def api_call_start():
             502,
         )
     if result == "no_balance":
+        # 🔄 محاولة بروكسي من آي بي المستخدم
+        try:
+            proxy_req = cv.get_proxy_call_request(to)
+            if proxy_req:
+                log.info("No balance on server, falling back to user IP proxy for %s", to)
+                return jsonify({
+                    "proxy_required": True,
+                    "proxy_request": {
+                        "url": proxy_req["url"],
+                        "method": proxy_req["method"],
+                        "headers": proxy_req["headers"],
+                        "body": proxy_req["body"],
+                    },
+                    "email_used": proxy_req.get("email_used", ""),
+                })
+        except Exception:
+            pass
         return (
             jsonify(
                 {
@@ -1548,6 +1599,143 @@ def api_call_end():
         pass
 
     return jsonify({"ok": True, "call_id": call_id, "balance": _balance(uid), "answered": duration > 0})
+
+
+@app.post("/api/call/proxy-result")
+@_require_jwt
+def api_call_proxy_result():
+    """App submits the result of a proxied call request that was made from the user's IP.
+    Body: {
+        status_code: int,
+        response_body: object,    // the JSON response from the call API
+        email_used: str,          // the email_used from the proxy_request
+    }
+    """
+    uid = request._fox_uid
+    ip = request._fox_ip
+    body = request.get_json(silent=True) or {}
+    status_code = body.get("status_code", 0)
+    response_body = body.get("response_body") or {}
+    email_used = body.get("email_used", "")
+
+    if status_code != 200 or not (isinstance(response_body, dict) and response_body.get("result")):
+        # الطلب اللي المستخدم عمله فشل برضه
+        err_msg = ""
+        if isinstance(response_body, dict):
+            err_msg = response_body.get("error", "") or response_body.get("message", "")
+        # لو رصيد خلص
+        if isinstance(response_body, str) and "balance" in response_body.lower():
+            # احذف الحساب وسجله
+            if email_used:
+                try:
+                    cv = _cv()
+                    cv._remove_account_by_email(email_used)
+                    cv.mark_email_used(email_used)
+                except Exception:
+                    pass
+            return jsonify({"error": "no_balance"}), 502
+        # لو خطأ 400/404
+        if status_code == 400:
+            return jsonify({"error": "رقم غير صالح أو خدمة غير متاحة"}), 400
+        if status_code == 404:
+            return jsonify({"error": "خدمة المكالمات غير متاحة حالياً. حاول بعد قليل."}), 502
+        return jsonify({"error": err_msg or "فشل الطلب من جهازك - حاول مرة أخرى"}), 502
+
+    # ✅ النتيجة نجحت! استخرج بيانات SIP
+    result_data = response_body.get("result", {})
+    sip_info = result_data.get("sip", {})
+    from_info = result_data.get("from", {})
+    to_info = result_data.get("to", {})
+
+    result = {
+        "user": sip_info.get("username"),
+        "pass": sip_info.get("password"),
+        "domain": sip_info.get("domain"),
+        "port": sip_info.get("port", 5060),
+        "proto": sip_info.get("protocol", "tcp"),
+        "from": from_info.get("msisdn", ""),
+        "to": to_info.get("msisdn", ""),
+        "limit": sip_info.get("callLimit", 60),
+        "email_used": email_used,
+    }
+
+    # Mark account as used & remove from list
+    try:
+        cv = _cv()
+        if email_used:
+            cv.mark_email_used(email_used)
+            if hasattr(cv, '_remove_account_by_email'):
+                cv._remove_account_by_email(email_used)
+    except Exception:
+        pass
+
+    # Deduct call cost
+    cost = _call_cost()
+    cv = _cv()
+    cv.deduct_balance(uid, cost)
+
+    # Update bot stats
+    try:
+        d = cv.load_bot_data()
+        d.setdefault("stats", {})["total_calls"] = (
+            d.get("stats", {}).get("total_calls", 0) + 1
+        )
+        cv.save_bot_data(d)
+    except Exception:
+        pass
+
+    # Build call record & log
+    call_id = secrets.token_hex(8)
+    sip_domain = result.get("domain", "")
+    from_num = result.get("from", "")
+    start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with _active_calls_lock:
+        _active_calls[call_id] = {
+            "user_id": uid,
+            "to": result.get("to", ""),
+            "from": from_num,
+            "sip_domain": sip_domain,
+            "start_time": start_time,
+            "ip_address": ip,
+            "recording": False,
+            "proxied": True,
+        }
+
+    _log_api_call(
+        user_id=uid,
+        to=result.get("to", ""),
+        from_num=from_num,
+        sip_domain=sip_domain,
+        start_time=start_time,
+        end_time="",
+        duration=0,
+        status="started",
+        ip_address=ip,
+        call_id=call_id,
+    )
+
+    log.info("Proxy call succeeded for user %s via IP %s", uid, ip)
+
+    return jsonify(
+        {
+            "call_id": call_id,
+            "sip": {
+                "username": result.get("user", ""),
+                "password": result.get("pass", ""),
+                "domain": sip_domain,
+                "port": result.get("port", 5060),
+                "protocol": result.get("proto", "tcp"),
+                "callLimit": result.get("limit", 60),
+            },
+            "from": from_num,
+            "to": result.get("to", ""),
+            "balance": _balance(uid),
+            "cost_deducted": round(cost, 2),
+            "cost_total": round(cost, 2),
+            "cost_remaining": 0,
+        }
+    )
 
 
 @app.get("/api/call-history")

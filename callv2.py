@@ -1789,6 +1789,116 @@ def create_account():
         return True
     return False
 
+def get_proxy_call_request(phone):
+    """
+    يرجع تفاصيل طلب المكالمة عشان التطبيق يعمله من آي بي المستخدم
+    بدل ما السيرفر يعمل الطلب من آي بي السيرفر
+    Returns: dict with {url, method, headers, body} or None if no accounts
+    """
+    with _token_lock:
+        ready_token = pop_ready_token()
+        call_token = None
+        call_device_id = None
+        email_used = ""
+
+        if ready_token:
+            call_token = ready_token.get("token")
+            call_device_id = ready_token.get("device_id")
+            email_used = ready_token.get("email", "")
+        elif accounts:
+            acc = accounts[-1]
+            call_token = acc.get('x-token')
+            call_device_id = acc.get('x-client-device-id')
+            email_used = acc.get('email', '')
+        else:
+            return None
+
+    if not call_token:
+        # احذف الحساب الفاضي
+        if email_used:
+            _remove_account_by_email(email_used)
+            mark_email_used(email_used)
+        return None
+
+    if not phone.startswith('+'):
+        phone = '+' + phone
+
+    headers = get_headers(_token=call_token, _device_id=call_device_id)
+
+    return {
+        "url": f"{API_URL}/call/outbound/start",
+        "method": "POST",
+        "headers": headers,
+        "body": {"to": phone, "source": "numpad"},
+        "email_used": email_used,
+    }
+
+
+def get_proxy_account_creation_requests():
+    """
+    يرجع خطوات إنشاء حساب جديدة عشان التطبيق ينفذها من آي بي المستخدم
+    الخطوات: إنشاء إيميل → init session → send verify
+    Returns: dict with step details or None
+    """
+    import random, string
+
+    # إنشاء إيميل مؤقت
+    domain = random.choice(DOMAINS) if DOMAINS else "daouse.com"
+    name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+    temp_email_addr = f"{name}@{domain}"
+    device_id_str = ''.join(random.choices('0123456789abcdef', k=16))
+
+    # بناء طلب init
+    init_headers = get_headers(_token="", _device_id=device_id_str)
+    init_headers["x-token"] = ""
+    init_body = {
+        "countryCode": "eg",
+        "deviceName": "Infinix X698",
+        "notificationToken": "",
+        "oldToken": "",
+        "peerKey": str(random.randint(100, 999)),
+        "timeZone": "Africa/Cairo",
+        "localizationKey": ""
+    }
+
+    # بناء طلب send-email
+    send_email_headers = get_headers(_token="INIT_TOKEN_PLACEHOLDER", _device_id=device_id_str)
+
+    # بناء طلب verify
+    verify_headers = get_headers(_token="INIT_TOKEN_PLACEHOLDER", _device_id=device_id_str)
+
+    return {
+        "steps": [
+            {
+                "step": "init",
+                "url": f"{API_URL}/init",
+                "method": "POST",
+                "headers": init_headers,
+                "body": init_body,
+                "extract": "result.token",  # المستخدم لازم يستخرج التوكن من الرد
+            },
+            {
+                "step": "send_email",
+                "url": f"{API_URL}/auth/send-email",
+                "method": "POST",
+                "headers": send_email_headers,
+                "body": {"email": temp_email_addr},
+                "extract": "result.reference",
+            },
+            {
+                "step": "verify",
+                "url": f"{API_URL}/auth/verify-identity",
+                "method": "POST",
+                "headers": verify_headers,
+                "body": {"reference": "REFERENCE_PLACEHOLDER", "code": "OTP_PLACEHOLDER"},
+                "extract": "result.user",
+            }
+        ],
+        "temp_email": temp_email_addr,
+        "device_id": device_id_str,
+    }
+
+
 def _try_telicall_call(phone, call_token, call_device_id, email_used=""):
     """محاولة مكالمة واحدة باستخدام توكن محدد"""
     if not phone.startswith('+'): phone = '+' + phone

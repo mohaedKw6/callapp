@@ -341,6 +341,12 @@ export class FoxApi {
 
   async startCall(to) {
     const raw = await this._req('POST', '/api/call/start', { to });
+
+    // لو السيرفر طلب بروكسي (الطلب يتعمل من آي بي المستخدم)
+    if (raw.proxy_required && raw.proxy_request) {
+      return await this._handleProxyCall(raw);
+    }
+
     const res = {
       sip: raw.sip,
       from: raw.from,
@@ -350,6 +356,54 @@ export class FoxApi {
     };
     this._currentCallId = res.callId;
     return res;
+  }
+
+  async _handleProxyCall(proxyData) {
+    // عمل طلب المكالمة من آي بي المستخدم بدل السيرفر
+    const { url, method, headers, body } = proxyData.proxy_request;
+    const emailUsed = proxyData.email_used || '';
+
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30000);
+      const response = await fetch(url, {
+        method: method || 'POST',
+        headers: headers,
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+
+      const text = await response.text();
+      let responseBody;
+      try {
+        responseBody = text ? JSON.parse(text) : {};
+      } catch {
+        responseBody = text;
+      }
+
+      // إرسال النتيجة للسيرفر
+      const result = await this._req('POST', '/api/call/proxy-result', {
+        status_code: response.status,
+        response_body: responseBody,
+        email_used: emailUsed,
+      });
+
+      const res = {
+        sip: result.sip,
+        from: result.from,
+        to: result.to,
+        balance: result.balance,
+        callId: result.call_id ?? result.callId,
+      };
+      this._currentCallId = res.callId;
+      return res;
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        throw new Error('انقطع الاتصال بخادم المكالمات');
+      }
+      throw new Error('فشل الاتصال من جهازك - حاول مرة أخرى');
+    }
   }
 
   endCall(callId, duration) {

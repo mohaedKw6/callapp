@@ -130,6 +130,13 @@ export class CallManager {
     if (lower.includes('no_balance') || lower.includes('الحساب المستخدم لا يحتوي على رصيد')) {
       return 'حساب المكالمات خلص رصيده - حاول بعد شوية';
     }
+    // Proxy connection errors (request made from user's device failed)
+    if (lower.includes('فشل الاتصال من جهازك') || lower.includes('فشل الطلب من جهازك')) {
+      return 'فشل الاتصال من جهازك - حاول مرة أخرى';
+    }
+    if (lower.includes('انقطع الاتصال بخادم المكالمات')) {
+      return 'انقطع الاتصال بخادم المكالمات - حاول مرة أخرى';
+    }
     // No accounts available
     if (lower.includes('no accounts') || lower.includes('لا يوجد') || lower.includes('لا توجد') || lower.includes('حسابات')) {
       return 'مفيش حسابات متاحة حالياً - حاول لاحقاً';
