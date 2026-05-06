@@ -2277,7 +2277,7 @@
       "bot_source": "sub_@Sjxijsjszijbot",
       "balance": 0.85,
       "last_ip": "156.214.49.187",
-      "last_seen": "2026-05-06 19:24:16",
+      "last_seen": "2026-05-06 21:31:33",
       "refresh_token_hash": "",
       "last_login": "2026-05-02 13:30:02",
       "active_fox_token_hash": "9f18c0df22c69dddb133e2aa7de03f10f523cca3f63688710f93c81927d5057e",
@@ -6026,7 +6026,7 @@
   "dtmf": {},
   "stats": {
     "total_calls": 120,
-    "success_calls": 235
+    "success_calls": 240
   },
   "voice_labels": {},
   "settings": {
