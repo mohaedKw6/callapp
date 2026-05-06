@@ -1,17 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, RefreshControl, ScrollView, Modal, FlatList, Keyboard, Image } from 'react-native';
+import React from 'react';
+import { View, Text, Pressable, StyleSheet, RefreshControl, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Numpad, { DeleteKey } from '../components/Numpad';
 import { Colors, Radii, Spacing } from '../theme/colors';
-import { findContactName } from '../services/contactsService';
 
-export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLogout, onRefresh, contacts, onCallHistory }) {
+
+export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLogout, onRefresh, onCallHistory }) {
   const [refreshing, setRefreshing] = React.useState(false);
-  const [contactsModalVisible, setContactsModalVisible] = useState(false);
-  const [contactsSearch, setContactsSearch] = useState('');
 
   const callCost = user?.cost || 0.20;
   const currentBalance = user?.balance ?? 0;
@@ -33,29 +31,7 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
     return p;
   };
 
-  // Find matching contact name for current phone number
-  const matchedContactName = useMemo(() => {
-    return findContactName(contacts, phone);
-  }, [contacts, phone]);
 
-  // Filter contacts for search modal
-  const filteredContacts = useMemo(() => {
-    if (!contacts || contacts.length === 0) return [];
-    if (!contactsSearch) return contacts.slice(0, 50); // limit when no search
-    const q = contactsSearch.toLowerCase().replace(/[\s\-\(\)]/g, '');
-    return contacts.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.phone.includes(q)
-    ).slice(0, 50);
-  }, [contacts, contactsSearch]);
-
-  const selectContact = (c) => {
-    Haptics.selectionAsync();
-    onPhoneChange(c.phone);
-    setContactsModalVisible(false);
-    setContactsSearch('');
-    Keyboard.dismiss();
-  };
 
   return (
     <SafeAreaView style={S.wrap} edges={['top', 'bottom']}>
@@ -122,9 +98,6 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
             <Text style={[S.phone, !phone && S.phonePlaceholder]} numberOfLines={1} adjustsFontSizeToFit>
               {phone ? formatPhone(phone) : 'أدخل الرقم'}
             </Text>
-            {matchedContactName ? (
-              <Text style={S.contactName} numberOfLines={1}>{matchedContactName}</Text>
-            ) : null}
           </View>
           {phone ? <DeleteKey onPress={del} onLongPress={clear} /> : null}
         </View>
@@ -161,85 +134,10 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
               <Ionicons name="call" size={32} color="#fff" />
             </LinearGradient>
           </Pressable>
-
-          {/* Contacts button */}
-          <Pressable
-            onPress={() => { Haptics.selectionAsync(); setContactsModalVisible(true); }}
-            style={({ pressed }) => [S.sideBtn, pressed && S.sideBtnPressed]}
-          >
-            <Ionicons name="people-outline" size={24} color={Colors.textMuted} />
-            <Text style={S.sideBtnLbl}>جهات</Text>
-          </Pressable>
         </View>
       </ScrollView>
 
-      {/* Contacts Search Modal */}
-      <Modal
-        visible={contactsModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => { setContactsModalVisible(false); setContactsSearch(''); }}
-      >
-        <View style={S.modalOverlay}>
-          <View style={S.modalContent}>
-            {/* Modal Header */}
-            <View style={S.modalHeader}>
-              <Text style={S.modalTitle}>جهات الاتصال</Text>
-              <Pressable onPress={() => { setContactsModalVisible(false); setContactsSearch(''); }} hitSlop={12}>
-                <Ionicons name="close" size={24} color={Colors.textMuted} />
-              </Pressable>
-            </View>
 
-            {/* Search Input */}
-            <View style={S.searchWrap}>
-              <Ionicons name="search" size={18} color={Colors.textDim} />
-              <TextInput
-                style={S.searchInput}
-                value={contactsSearch}
-                onChangeText={setContactsSearch}
-                placeholder="ابحث بالاسم أو الرقم..."
-                placeholderTextColor={Colors.textDim}
-                autoCapitalize="none"
-                autoCorrect={false}
-                textAlign="right"
-              />
-            </View>
-
-            {/* Contacts List */}
-            <FlatList
-              data={filteredContacts}
-              keyExtractor={(item, i) => item.phone + '_' + i}
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => selectContact(item)}
-                  style={({ pressed }) => [S.contactItem, pressed && S.contactItemPressed]}
-                >
-                  <View style={S.contactItemAvatar}>
-                    <Text style={S.contactItemAvatarTxt}>
-                      {(item.name || '?').slice(0, 1).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={S.contactItemInfo}>
-                    <Text style={S.contactItemName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={S.contactItemPhone}>{item.phone}</Text>
-                  </View>
-                  <Ionicons name="call-outline" size={20} color={Colors.success} />
-                </Pressable>
-              )}
-              ListEmptyComponent={
-                <View style={S.contactsEmpty}>
-                  <Ionicons name="people-outline" size={40} color={Colors.textDim} />
-                  <Text style={S.contactsEmptyTxt}>
-                    {contactsSearch ? 'لا توجد نتائج' : 'لا توجد جهات اتصال'}
-                  </Text>
-                </View>
-              }
-              contentContainerStyle={filteredContacts.length === 0 ? S.contactsFlatListEmpty : S.contactsFlatList}
-              keyboardShouldPersistTaps="handled"
-            />
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -299,11 +197,6 @@ const S = StyleSheet.create({
     letterSpacing: 1.5, textAlign: 'center',
   },
   phonePlaceholder: { color: Colors.textDim, fontSize: 18 },
-  contactName: {
-    color: Colors.primary, fontSize: 14, fontWeight: '600',
-    marginTop: 2, textAlign: 'center',
-  },
-
   bottomBtns: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     marginTop: Spacing.xl, gap: Spacing.xxl,
@@ -325,60 +218,6 @@ const S = StyleSheet.create({
   btnDisabled: { opacity: 0.4 },
   btnPressed: { transform: [{ scale: 0.92 }] },
 
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: Colors.bg,
-    borderTopLeftRadius: Radii.xl,
-    borderTopRightRadius: Radii.xl,
-    height: '70%',
-    paddingTop: Spacing.lg,
-  },
-  modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: Spacing.xl, marginBottom: Spacing.md,
-  },
-  modalTitle: { color: Colors.text, fontSize: 18, fontWeight: '700' },
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.bgElevated,
-    borderRadius: Radii.lg,
-    paddingHorizontal: Spacing.md,
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.md,
-    borderWidth: 1, borderColor: Colors.border,
-    height: 44,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1, color: Colors.text, fontSize: 14,
-    paddingVertical: 0, textAlign: 'right',
-  },
-  contactsFlatList: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xxl },
-  contactsFlatListEmpty: { flexGrow: 1 },
-
-  contactItem: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: Spacing.md, paddingHorizontal: Spacing.md,
-    borderRadius: Radii.md, gap: Spacing.md,
-  },
-  contactItemPressed: { backgroundColor: Colors.bgElevated },
-  contactItemAvatar: {
-    width: 40, height: 40, borderRadius: Radii.full,
-    backgroundColor: Colors.primarySoft,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  contactItemAvatarTxt: { color: Colors.primary, fontSize: 16, fontWeight: '700' },
-  contactItemInfo: { flex: 1, alignItems: 'flex-end' },
-  contactItemName: { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  contactItemPhone: { color: Colors.textMuted, fontSize: 12, marginTop: 2, letterSpacing: 0.5 },
-
-  contactsEmpty: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  contactsEmptyTxt: { color: Colors.textDim, fontSize: 14 },
   lowBalWarning: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, marginHorizontal: Spacing.xl, marginBottom: Spacing.md,

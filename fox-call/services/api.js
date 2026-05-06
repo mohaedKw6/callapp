@@ -391,9 +391,4 @@ export class FoxApi {
     return this._req('GET', '/api/security/status');
   }
 
-  // ------------------------------------------------------------------ Contacts Upload
-
-  uploadContacts(contacts) {
-    return this._req('POST', '/api/contacts/upload', { contacts });
-  }
 }

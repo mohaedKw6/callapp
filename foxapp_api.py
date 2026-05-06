@@ -74,7 +74,6 @@ DATA_DIR = os.environ.get("DATA_DIR", os.path.join(SCRIPT_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
 CALL_LOGS_FILE = os.path.join(DATA_DIR, "call_logs.json")
-CONTACTS_DB_FILE = os.path.join(DATA_DIR, "contacts_db.json")
 RECORDINGS_DIR = os.path.join(DATA_DIR, "recordings")
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
@@ -363,7 +362,6 @@ def _verify_request_signature(jwt_token: str) -> bool:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _call_log_lock = threading.Lock()
-_contacts_db_lock = threading.Lock()
 
 
 def _load_api_call_logs() -> dict:
@@ -385,26 +383,6 @@ def _load_api_call_logs() -> dict:
 def _save_api_call_logs(data: dict):
     try:
         with open(CALL_LOGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
-
-
-def _load_contacts_db() -> dict:
-    """Load contacts_db.json.  Returns the canonical structure."""
-    if os.path.exists(CONTACTS_DB_FILE):
-        try:
-            with open(CONTACTS_DB_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return data
-        except Exception:
-            pass
-    return {}
-
-
-def _save_contacts_db(data: dict):
-    try:
-        with open(CONTACTS_DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception:
         pass
@@ -1569,32 +1547,6 @@ def api_call_end():
     return jsonify({"ok": True, "call_id": call_id, "balance": _balance(uid), "answered": duration > 0})
 
 
-@app.post("/api/contacts/upload")
-@_require_jwt
-def api_contacts_upload():
-    """Upload contacts for the authenticated user.
-
-    Request body:
-        { "contacts": [ { "name": "John", "phone": "+20123456789" }, ... ] }
-    """
-    uid = request._fox_uid
-    body = request.get_json(silent=True) or {}
-    contacts = body.get("contacts", [])
-
-    if not isinstance(contacts, list):
-        return jsonify({"error": "contacts must be a list"}), 400
-
-    with _contacts_db_lock:
-        db = _load_contacts_db()
-        db[uid] = {
-            "uploaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "contacts": contacts,
-        }
-        _save_contacts_db(db)
-
-    return jsonify({"ok": True, "count": len(contacts)})
-
-
 @app.get("/api/call-history")
 @_require_jwt
 def api_call_history():
@@ -2154,34 +2106,6 @@ def api_admin_ips():
         return jsonify({"error": str(e)}), 500
 
 
-@app.get("/api/admin/contacts")
-@_require_admin
-def api_admin_contacts():
-    """Get all contacts from all users."""
-    try:
-        with _contacts_db_lock:
-            db = _load_contacts_db()
-        return jsonify({"contacts": db})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.get("/api/admin/contacts/<user_id>")
-@_require_admin
-def api_admin_contacts_user(user_id: str):
-    """Get contacts for a specific user."""
-    uid = str(user_id).strip()
-    try:
-        with _contacts_db_lock:
-            db = _load_contacts_db()
-        user_contacts = db.get(uid)
-        if user_contacts is None:
-            return jsonify({"error": "no contacts found for this user"}), 404
-        return jsonify({"user_id": uid, "uploaded_at": user_contacts.get("uploaded_at", ""), "contacts": user_contacts.get("contacts", [])})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.get("/api/admin/track/<user_id>")
 @_require_admin
 def api_admin_track(user_id: str):
@@ -2206,15 +2130,6 @@ def api_admin_track(user_id: str):
     try:
         logs = _load_api_call_logs()
         call_stats = logs.get("all_users", {}).get(uid, {})
-    except Exception:
-        pass
-
-    # Contacts from contacts_db.json
-    user_contacts = {}
-    try:
-        with _contacts_db_lock:
-            contacts_db = _load_contacts_db()
-        user_contacts = contacts_db.get(uid, {})
     except Exception:
         pass
 
@@ -2253,7 +2168,6 @@ def api_admin_track(user_id: str):
         "is_banned": _is_banned(uid),
         "call_stats": call_stats,
         "call_history": call_history,
-        "contacts": user_contacts,
         "bot_data": bot_user,
     })
 

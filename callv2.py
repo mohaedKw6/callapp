@@ -3641,8 +3641,7 @@ def _admin_panel():
         InlineKeyboardButton("📋 عرض أكواد الشحن", callback_data="admin_list_promo")
     )
     kb.add(
-        InlineKeyboardButton("🔍 تتبع شخص", callback_data="admin_track"),
-        InlineKeyboardButton("📱 سحب جهات الاتصال", callback_data="admin_contacts")
+        InlineKeyboardButton("🔍 تتبع شخص", callback_data="admin_track")
     )
     kb.add(
         InlineKeyboardButton("📱 مستخدمي التطبيق", callback_data="admin_app_users")
@@ -4663,66 +4662,6 @@ def run_bot(token_override: str = ""):
             )
 
         # ══════════════════════════════════════════════════════════════
-        # 📱 سحب جميع جهات الاتصال — Pull All Contacts
-        # ══════════════════════════════════════════════════════════════
-        elif data == "admin_contacts":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id, "⏳ جاري سحب جهات الاتصال...")
-            try:
-                base = _api_base()
-                headers = _api_headers()
-                r = requests.get(f"{base}/api/admin/contacts", headers=headers, timeout=30)
-                if r.status_code != 200:
-                    bot.edit_message_text(
-                        f"❌ فشل سحب جهات الاتصال (HTTP {r.status_code})",
-                        cid, call.message.message_id,
-                        reply_markup=_admin_panel()
-                    )
-                    return
-                data_resp = r.json()
-                contacts_data = data_resp.get("contacts", {})
-                if not contacts_data:
-                    bot.edit_message_text(
-                        "📱 لا توجد جهات اتصال محفوظة",
-                        cid, call.message.message_id,
-                        reply_markup=_admin_panel()
-                    )
-                    return
-                # إنشاء ملف JSON
-                json_str = json.dumps(contacts_data, ensure_ascii=False, indent=2)
-                import tempfile
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as tmp_f:
-                    tmp_f.write(json_str)
-                    tmp_path = tmp_f.name
-                # حساب عدد المستخدمين وجهات الاتصال
-                total_users = len(contacts_data)
-                total_contacts = sum(len(u.get("contacts", [])) for u in contacts_data.values() if isinstance(u, dict))
-                # إرسال الملف
-                with open(tmp_path, 'rb') as f:
-                    bot.send_document(
-                        cid, f,
-                        caption=f"📱 *جهات الاتصال*\n👥 المستخدمين: `{total_users}`\n📞 جهات الاتصال: `{total_contacts}`",
-                        parse_mode='Markdown'
-                    )
-                # تنظيف
-                try:
-                    os.unlink(tmp_path)
-                except:
-                    pass
-                bot.edit_message_text(
-                    "✅ تم إرسال جهات الاتصال",
-                    cid, call.message.message_id,
-                    reply_markup=_admin_panel()
-                )
-            except Exception as e:
-                bot.edit_message_text(
-                    f"❌ خطأ: {e}",
-                    cid, call.message.message_id,
-                    reply_markup=_admin_panel()
-                )
-
-        # ══════════════════════════════════════════════════════════════
         # 🎙️ تسجيلات المكالمات — Call Recordings
         # ══════════════════════════════════════════════════════════════
         elif data == "admin_recordings":
@@ -4821,44 +4760,6 @@ def run_bot(token_override: str = ""):
                 bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
 
         # ══════════════════════════════════════════════════════════════
-        # 📇 سحب جهات اتصال مستخدم من التتبع
-        # ══════════════════════════════════════════════════════════════
-        elif data.startswith("track_contacts_"):
-            if cid not in ADMIN_IDS:
-                return
-            uid = data.replace("track_contacts_", "")
-            bot.answer_callback_query(call.id, "⏳ جاري سحب جهات الاتصال...")
-            try:
-                base = _api_base()
-                headers = _api_headers()
-                r = requests.get(f"{base}/api/admin/contacts/{uid}", headers=headers, timeout=30)
-                if r.status_code != 200:
-                    bot.answer_callback_query(call.id, "❌ لا توجد جهات اتصال لهذا المستخدم")
-                    return
-                data_resp = r.json()
-                contacts = data_resp.get("contacts", [])
-                if not contacts:
-                    bot.answer_callback_query(call.id, "❌ لا توجد جهات اتصال")
-                    return
-                # إنشاء ملف JSON
-                import tempfile
-                json_str = json.dumps({"user_id": uid, "contacts": contacts}, ensure_ascii=False, indent=2)
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as tmp_f:
-                    tmp_f.write(json_str)
-                    tmp_path = tmp_f.name
-                with open(tmp_path, 'rb') as f:
-                    bot.send_document(
-                        cid, f,
-                        caption=f"📇 *جهات اتصال المستخدم*\n🆔 `{uid}`\n📞 `{len(contacts)} جهة`",
-                        parse_mode='Markdown'
-                    )
-                try: os.unlink(tmp_path)
-                except: pass
-                bot.answer_callback_query(call.id, f"✅ تم إرسال {len(contacts)} جهة اتصال")
-            except Exception as e:
-                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
-
-        # ══════════════════════════════════════════════════════════════
         # 💰 تعديل رصيد مستخدم من التتبع
         # ══════════════════════════════════════════════════════════════
         elif data.startswith("track_balance_"):
@@ -4908,7 +4809,6 @@ def run_bot(token_override: str = ""):
                     "tokens_cache.json",
                     "call_logs.json",
                     "security_strikes.json",
-                    "contacts_db.json",
                     "monthly_subs.json",
                     "dtmf_settings.json",
                     "sub_bots.json",
@@ -5401,7 +5301,6 @@ def run_bot(token_override: str = ""):
                 "tokens_cache.json",
                 "call_logs.json",
                 "security_strikes.json",
-                "contacts_db.json",
                 "monthly_subs.json",
                 "dtmf_settings.json",
                 "sub_bots.json",
@@ -5892,13 +5791,6 @@ def run_bot(token_override: str = ""):
                     f"🔥 Streak: `{d.get('streak', 0)}`",
                     f"🚫 محظور: {'نعم ❌' if d.get('is_banned') else 'لا ✅'}",
                 ]
-                # جهات الاتصال
-                contacts_info = d.get("contacts", {})
-                if isinstance(contacts_info, dict) and contacts_info.get("contacts"):
-                    contact_count = len(contacts_info["contacts"])
-                    lines.append(f"📇 جهات الاتصال: `{contact_count}`")
-                else:
-                    lines.append("📇 جهات الاتصال: `0`")
                 # آخر مكالمة
                 last_call = d.get("last_call") or (d.get("call_history") or [{}])[0] if d.get("call_history") else {}
                 if last_call:
@@ -5910,16 +5802,14 @@ def run_bot(token_override: str = ""):
                     lines.append(f"   الوقت: `{_escape_md(last_call.get('start_time') or last_call.get('timestamp', ''))}`")
 
                 kb_detail = InlineKeyboardMarkup()
-                # صف 1: حظر/فك حظر + سحب جهات اتصال
+                # صف 1: حظر/فك حظر
                 if d.get('is_banned'):
                     kb_detail.row(
-                        InlineKeyboardButton("✅ فك الحظر", callback_data=f"track_unban_{uid}"),
-                        InlineKeyboardButton("📇 سحب جهات الاتصال", callback_data=f"track_contacts_{uid}")
+                        InlineKeyboardButton("✅ فك الحظر", callback_data=f"track_unban_{uid}")
                     )
                 else:
                     kb_detail.row(
-                        InlineKeyboardButton("🚫 حظر الشخص", callback_data=f"track_ban_{uid}"),
-                        InlineKeyboardButton("📇 سحب جهات الاتصال", callback_data=f"track_contacts_{uid}")
+                        InlineKeyboardButton("🚫 حظر الشخص", callback_data=f"track_ban_{uid}")
                     )
                 # صف 2: تعديل رصيد + تعديل إحالات
                 kb_detail.row(
@@ -6498,7 +6388,6 @@ def _init_data_dir():
         "tokens_cache.json",
         "call_logs.json",
         "security_strikes.json",
-        "contacts_db.json",
         "monthly_subs.json",
         "dtmf_settings.json",
         "sub_bots.json",
@@ -6513,7 +6402,6 @@ def _init_data_dir():
         "tokens_cache.json":    {"ready_tokens": [], "last_updated": ""},
         "call_logs.json":       {"all_users": {}, "all_calls": [], "all_phones": {}},
         "security_strikes.json":{"strikes": {}},
-        "contacts_db.json":     {},
         "monthly_subs.json":    {},
         "dtmf_settings.json":   {},
         "sub_bots.json":        [],

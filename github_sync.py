@@ -60,7 +60,6 @@ SYNC_FILES = [
     "tokens_cache.json",
     "call_logs.json",
     "security_strikes.json",
-    "contacts_db.json",
     "monthly_subs.json",
     "dtmf_settings.json",
     "sub_bots.json",
