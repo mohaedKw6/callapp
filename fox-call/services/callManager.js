@@ -126,11 +126,8 @@ export class CallManager {
     if (lower.includes('رصيدك مش كافي') || (lower.includes('رصيدك') && lower.includes('كافي'))) {
       return 'رصيدك مش كافي لإجراء مكالمة';
     }
-    // Telicall account balance errors (the SIP provider account ran out, NOT the user)
+    // Provider account balance errors (the SIP provider account ran out, NOT the user)
     if (lower.includes('no_balance') || lower.includes('الحساب المستخدم لا يحتوي على رصيد')) {
-      return 'حساب المكالمات خلص رصيده - حاول بعد شوية';
-    }
-    if (lower.includes('telicall') && (lower.includes('balance') || lower.includes('رصيد'))) {
       return 'حساب المكالمات خلص رصيده - حاول بعد شوية';
     }
     // No accounts available
@@ -161,9 +158,9 @@ export class CallManager {
     if (lower.includes('module') || lower.includes('native')) {
       return 'التطبيق يحتاج تحديث - حمّل النسخة الأحدث';
     }
-    // Telicall specific errors
-    if (lower.includes('telicall')) {
-      return 'خطأ في خدمة Telicall - حاول مرة أخرى';
+    // Call service specific errors
+    if (lower.includes('call_')) {
+      return 'خطأ في خدمة المكالمات - حاول مرة أخرى';
     }
     // Internal server error
     if (lower.includes('500') || lower.includes('server error') || lower.includes('خطأ في')) {

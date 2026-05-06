@@ -1818,13 +1818,13 @@ def _try_telicall_call(phone, call_token, call_device_id, email_used=""):
                 return 'no_balance'
             else:
                 print(f"[start_call] ❌ Telicall 400: {r.text[:200]}")
-                return {'error': f"telicall_400: {r.text[:200]}"}
+                return {'error': f"call_400"}
         elif r.status_code == 404:
-            print(f"[start_call] ❌ Telicall 404 for {email_used}")
-            return {'error': 'telicall_404'}
+            print(f"[start_call] ❌ API 404 for {email_used}")
+            return {'error': 'call_404'}
         else:
-            print(f"[start_call] ❌ Telicall {r.status_code}: {r.text[:200]}")
-            return {'error': f"telicall_{r.status_code}"}
+            print(f"[start_call] ❌ API {r.status_code}: {r.text[:200]}")
+            return {'error': f"call_{r.status_code}"}
     except Exception as e:
         print(f"[start_call] ❌ Exception for {email_used}: {e}")
         return None
@@ -1900,7 +1900,7 @@ def start_call(phone, max_retries=5):
                 mark_email_used(email_used)
                 last_failed_email = email_used
 
-            if "404" in err or "400" in err or "telicall_" in err:
+            if "404" in err or "400" in err or "call_" in err:
                 # جرب حساب تاني فوراً بدون انتظار
                 print(f"[start_call] 🔄 Switching to next account immediately (error: {err})...")
                 continue

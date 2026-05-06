@@ -1374,7 +1374,7 @@ def api_call_start():
                 {
                     "error": (
                         "\u0644\u0627 \u064a\u0648\u062c\u062f \u062d\u0633\u0627\u0628\u0627\u062a"
-                        " Telicall \u0645\u062a\u0627\u062d\u0629 \u0623\u0648"
+                        " \u0645\u062a\u0627\u062d\u0629 \u0623\u0648"
                         " \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u0641\u0634\u0644\u062a"
                     )
                 }
@@ -1386,7 +1386,7 @@ def api_call_start():
             jsonify(
                 {
                     "error": (
-                        "telicall_no_balance"
+                        "no_balance"
                     )
                 }
             ),
@@ -1400,7 +1400,7 @@ def api_call_start():
                 jsonify(
                     {
                         "error": (
-                            "خدمة Telicall غير متاحة حالياً. حاول بعد قليل."
+                            "خدمة المكالمات غير متاحة حالياً. حاول بعد قليل."
                         )
                     }
                 ),
