@@ -929,7 +929,13 @@ def save_tokens_cache(data: dict):
     except: pass
 
 def add_ready_token(email: str, device_id: str, token: str):
-    """إضافة توكن جاهز للاستخدام"""
+    """إضافة توكن جاهز للاستخدام — مع التحقق إنه مش مستعمل"""
+    # ⚡ تحقق إن الحساب مش في قائمة المستعملين
+    bd = load_bot_data()
+    used_set = set(bd.get("used_accounts", []))
+    if email in used_set:
+        print(f"[tokens_cache] ⚠️ Skipping used account: {email}")
+        return
     cache = load_tokens_cache()
     # نتأكد إنه مش موجود قبل كده
     ready_tokens = cache.get("ready_tokens", [])
@@ -970,6 +976,23 @@ def count_ready_tokens() -> int:
     """عدد التوكنات الجاهزة"""
     cache = load_tokens_cache()
     return len(cache.get("ready_tokens", []))
+
+def cleanup_used_tokens_from_cache():
+    """يزيل التوكنات المستعملة من الكاش — ينفذ مرة عند البداية"""
+    bd = load_bot_data()
+    used_set = set(bd.get("used_accounts", []))
+    if not used_set:
+        return 0
+    cache = load_tokens_cache()
+    ready_tokens = cache.get("ready_tokens", [])
+    before = len(ready_tokens)
+    ready_tokens = [t for t in ready_tokens if t.get("email", "") not in used_set]
+    removed = before - len(ready_tokens)
+    if removed > 0:
+        cache["ready_tokens"] = ready_tokens
+        save_tokens_cache(cache)
+        print(f"[tokens_cache] 🧹 Cleaned up {removed} used tokens from cache ({before} → {len(ready_tokens)})")
+    return removed
 
 # ============================================================================
 #                  نظام تسجيل المكالمات والمستخدمين
@@ -1905,7 +1928,7 @@ def _try_telicall_call(phone, call_token, call_device_id, email_used=""):
     headers = get_headers(_token=call_token, _device_id=call_device_id)
     
     try:
-        r = requests.post(f"{API_URL}/call/outbound/start", json={'to': phone, 'source': 'numpad'}, headers=headers, timeout=30)
+        r = requests.post(f"{API_URL}/call/outbound/start", json={'to': phone, 'source': 'numpad'}, headers=headers, timeout=8)
         print(f"[start_call] 📡 Telicall API response: {r.status_code} (account: {email_used})")
         if r.status_code == 200 and r.json().get('result'):
             sip = r.json()['result'].get('sip', {})
@@ -1956,12 +1979,13 @@ def _remove_account_by_email(email: str):
             print(f"[start_call] 🗑️ Removed {removed} account(s) for {email} from list")
 
 
-def start_call(phone, max_retries=5):
+def start_call(phone, max_retries=3):
     """
     يبدأ مكالمة - يفضل استخدام التوكنات المحملة مسبقاً للسرعة
     ⚠️ هذه الدالة آمنة للخيوط (thread-safe) — لا تستخدم globals للتوكن
     🔄 تكرر مع حسابات مختلفة لو الحساب الحالي فشل
     🗑️ يحذف الحساب الفاشل ويحطه في قائمة المستعملين ويمسك حساب تاني بسرعة
+    ⏱️ تم تقليل timeout و max_retries عشان التطبيق يرد أسرع
     """
     no_balance_count = 0
     last_failed_email = ""
@@ -6615,6 +6639,9 @@ if __name__ == "__main__":
             print(f"[startup] ⚠️ GitHub sync init failed: {_ghe}")
 
         load_accounts()
+
+        # 🧹 تنظيف التوكنات المستعملة من الكاش
+        cleanup_used_tokens_from_cache()
 
         # 🚀 تهيئة التوكنات من الحسابات المحفوظة عند البدء
         if accounts:

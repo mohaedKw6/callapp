@@ -264,10 +264,10 @@ export class FoxApi {
     }
   }
 
-  async _doFetch(method, path, headers, body) {
+  async _doFetch(method, path, headers, body, timeoutMs = 10000) {
     const url = this._serverUrl + path;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 10000);
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
       return await fetch(url, { method, headers, body, signal: ctrl.signal });
     } finally {
@@ -275,7 +275,7 @@ export class FoxApi {
     }
   }
 
-  async _req(method, path, body) {
+  async _req(method, path, body, timeoutMs) {
     await this._ensureToken();
 
     const bodyStr = body ? JSON.stringify(body) : undefined;
@@ -283,7 +283,7 @@ export class FoxApi {
 
     let res = null;
     try {
-      res = await this._doFetch(method, path, this._authHeaders(bodyStr), bodyStr);
+      res = await this._doFetch(method, path, this._authHeaders(bodyStr), bodyStr, timeoutMs);
     } catch (e) {
       if (e.name === 'AbortError') {
         throw new Error('انقطع الاتصال بالسيرفر');
@@ -294,7 +294,7 @@ export class FoxApi {
     if (res && res.status === 401 && this._refreshToken) {
       try {
         await this._refreshAccessToken();
-        res = await this._doFetch(method, path, this._authHeaders(bodyStr), bodyStr);
+        res = await this._doFetch(method, path, this._authHeaders(bodyStr), bodyStr, timeoutMs);
       } catch (e) {
         if (e.name === 'AbortError') {
           throw new Error('انقطع الاتصال بالسيرفر');
@@ -340,7 +340,8 @@ export class FoxApi {
   }
 
   async startCall(to) {
-    const raw = await this._req('POST', '/api/call/start', { to });
+    // ⏱️ زيادة timeout لمسار المكالمة لأن السيرفر ممكن يحاول أكتر من توكن
+    const raw = await this._req('POST', '/api/call/start', { to }, 45000);
 
     // لو السيرفر طلب بروكسي (الطلب يتعمل من آي بي المستخدم)
     if (raw.proxy_required && raw.proxy_request) {

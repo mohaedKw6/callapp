@@ -1363,7 +1363,7 @@ def api_call_start():
         )
 
     try:
-        result = cv.start_call(to)
+        result = cv.start_call(to, max_retries=3)
     except Exception as e:
         log.exception("start_call failed")
         # 🔄 محاولة بروكسي من آي بي المستخدم
@@ -2197,6 +2197,11 @@ def api_admin_stats():
         cv = _cv()
         bot_data = cv.load_bot_data()
         bot_stats = bot_data.get("stats", {})
+        used_accounts = len(bot_data.get("used_accounts", []))
+
+        # Get token stats
+        ready_tokens = cv.count_ready_tokens()
+        accounts_count = len(cv.accounts) if hasattr(cv, 'accounts') else 0
 
         # Get all users and their balances
         users_db = cv.load_users_db()
@@ -2207,6 +2212,26 @@ def api_admin_stats():
             "success_calls": bot_stats.get("success_calls", 0),
             "total_users": len(users_db),
             "total_balance": round(total_balance, 2),
+            "ready_tokens": ready_tokens,
+            "accounts_count": accounts_count,
+            "used_accounts": used_accounts,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/admin/cleanup-tokens")
+@_require_admin
+def api_admin_cleanup_tokens():
+    """Clean up used tokens from the ready cache (admin only)."""
+    try:
+        cv = _cv()
+        removed = cv.cleanup_used_tokens_from_cache()
+        ready_tokens = cv.count_ready_tokens()
+        return jsonify({
+            "ok": True,
+            "removed": removed,
+            "remaining_ready_tokens": ready_tokens,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
