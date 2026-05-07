@@ -4843,9 +4843,9 @@
       "refresh_token_hash": "",
       "last_login": "2026-05-03 20:25:31",
       "balance": 4.4,
-      "active_fox_token_hash": "9b7ce322430f23b925d984e4dd2fa8b3c8a40ba9ff083ac551a44e0346fab19c",
+      "active_fox_token_hash": "00f1849ce5f1247618dd8e88e8fa1340a7085d1fa5f5101eb5c300cf128567c1",
       "active_device_id": "",
-      "active_token_set_at": "2026-05-07 13:31:54"
+      "active_token_set_at": "2026-05-07 20:30:53"
     },
     "8699562044": {
       "usage": 0,
