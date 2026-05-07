@@ -4837,15 +4837,15 @@
       "username": "qklllll",
       "first_name": "Heba",
       "streak": 1,
-      "last_login_date": "2026-05-01",
+      "last_login_date": "2026-05-07",
       "last_ip": "150.228.105.52",
       "last_seen": "2026-05-03 20:28:12",
-      "refresh_token_hash": "ce3df7fc999c4bf4b39f05436fbf0f71b1cc1b7cca9d638e241788a4d3b2a48c",
+      "refresh_token_hash": "",
       "last_login": "2026-05-03 20:25:31",
       "balance": 4.4,
-      "active_fox_token_hash": "bf51b8a168423ca912a61354cf15a287a3491ce3d8384a09baf891413dc1bf34",
-      "active_device_id": "eefb6bf1bd3ce18b",
-      "active_token_set_at": "2026-05-03 20:25:31"
+      "active_fox_token_hash": "2d4f8b4605d1112c0923f62354f35837d435a005f92b917a2759463f5965e02c",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-07 13:00:32"
     },
     "8699562044": {
       "usage": 0,
@@ -5947,12 +5947,13 @@
       "last_login_date": "2026-05-05",
       "active_fox_token_hash": "4427772c751ec81a309d09e915cc288a7eac60ed215439705e935a84bdbe6c6b",
       "active_device_id": "40e8743a1340afea",
-      "active_token_set_at": "2026-05-05 10:43:42",
-      "refresh_token_hash": "187a41f94fcf4ca89f712f6f73fced8eea1b80d07d21df284c085d6f33db359b",
+      "active_token_set_at": "2026-05-07 12:58:46",
+      "refresh_token_hash": "976159e79c2bb04dfd75776f1c28af5f72f35aa69fc00eb0a2a0d86f0034b907",
       "last_ip": "41.42.110.134",
-      "last_seen": "2026-05-06 22:49:00",
-      "last_login": "2026-05-05 10:43:42",
-      "balance": 87.0
+      "last_seen": "2026-05-07 13:00:37",
+      "last_login": "2026-05-07 12:58:46",
+      "balance": 87.0,
+      "photo_url": "https://api.telegram.org/file/bot8652490171:AAFAIBW9V9WoeBB9kxcx_YyfMJLbwcavIro/photos/file_235.jpg"
     },
     "7863666428": {
       "usage": 0,
