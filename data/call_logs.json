@@ -205,7 +205,7 @@
       "username": "G_M_A_Q",
       "first_name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥",
       "first_seen": "2026-04-16 13:31:05",
-      "total_calls": 3,
+      "total_calls": 4,
       "phones_called": [
         "201118975909",
         "201149831911"
@@ -8126,6 +8126,32 @@
       "status": "ended",
       "ip_address": "41.42.110.134",
       "timestamp": "2026-05-06 21:22:48"
+    },
+    {
+      "call_id": "b879949ebbc97657",
+      "user_id": "962731079",
+      "to": "+201118975909",
+      "from": "+447577358363",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-07 11:40:40",
+      "end_time": "",
+      "duration": 0,
+      "status": "started",
+      "ip_address": "156.214.77.23",
+      "timestamp": "2026-05-07 11:40:40"
+    },
+    {
+      "call_id": "b879949ebbc97657",
+      "user_id": "962731079",
+      "to": "+201118975909",
+      "from": "+447577358363",
+      "sip_domain": "sip-uk-2.getcontact.com",
+      "start_time": "2026-05-07 11:40:40",
+      "end_time": "2026-05-07 11:41:07",
+      "duration": 0,
+      "status": "ended",
+      "ip_address": "156.214.77.23",
+      "timestamp": "2026-05-07 11:41:07"
     }
   ],
   "all_phones": {
@@ -8180,14 +8206,14 @@
     },
     "201118975909": {
       "first_call": "2026-04-16 17:12:23",
-      "total_calls": 10,
+      "total_calls": 11,
       "users_called": [
         "962731079",
         "6594705905",
         "7627857345",
         "6173875759"
       ],
-      "last_call": "2026-05-02 13:30:57"
+      "last_call": "2026-05-07 11:41:07"
     },
     "967771022965": {
       "first_call": "2026-04-17 13:47:48",
