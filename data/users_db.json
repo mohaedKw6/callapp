@@ -79,7 +79,7 @@
     "dan_calls": 360,
     "last_daily_bonus": "2026-05-07",
     "last_ip": "156.214.77.23",
-    "last_seen": "2026-05-07 11:41:08",
+    "last_seen": "2026-05-07 13:31:32",
     "refresh_token_hash": "f9932e8ced21027c7e416c3be45a4fe544bdb595eab32adf37f9af556a82896d",
     "last_login": "2026-05-07 11:40:29",
     "active_fox_token_hash": "0ddfb2e042bbd6a697f0adfcb672c0914c705cd7deb9c7212da37611fd4dd95b",
@@ -4842,9 +4842,9 @@
     "refresh_token_hash": "",
     "last_login": "2026-05-03 20:25:31",
     "balance": 4.4,
-    "active_fox_token_hash": "2d4f8b4605d1112c0923f62354f35837d435a005f92b917a2759463f5965e02c",
+    "active_fox_token_hash": "9b7ce322430f23b925d984e4dd2fa8b3c8a40ba9ff083ac551a44e0346fab19c",
     "active_device_id": "",
-    "active_token_set_at": "2026-05-07 13:00:32"
+    "active_token_set_at": "2026-05-07 13:31:54"
   },
   "8699562044": {
     "usage": 0,
