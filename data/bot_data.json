@@ -6079,6 +6079,19 @@
       "active_device_id": "",
       "active_token_set_at": "2026-05-08 10:34:22",
       "refresh_token_hash": ""
+    },
+    "8290196753": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-08 10:55:52",
+      "username": "U_57_1",
+      "first_name": "ناصر الدين",
+      "streak": 1,
+      "last_login_date": "2026-05-08",
+      "active_fox_token_hash": "89e92d4d3e11194cb7accab5e1835bde31d40f2d585d64da70d687ca5d5e0e82",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-08 10:58:38",
+      "refresh_token_hash": ""
     }
   },
   "premium": {
