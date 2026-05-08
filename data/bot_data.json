@@ -6075,9 +6075,9 @@
       "first_name": "aaa Bbbb",
       "streak": 1,
       "last_login_date": "2026-05-08",
-      "active_fox_token_hash": "4645bcd6be35d53462d0d83a016c0b24f8d271365141b4d7efba9bb54f5fba2c",
+      "active_fox_token_hash": "20c9b0025591ef4cc69a6716273758dc3c8d8b649356ec89b712f71cc1e69798",
       "active_device_id": "",
-      "active_token_set_at": "2026-05-08 09:50:39",
+      "active_token_set_at": "2026-05-08 10:34:22",
       "refresh_token_hash": ""
     }
   },
