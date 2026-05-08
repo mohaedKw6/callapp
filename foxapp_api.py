@@ -2538,21 +2538,20 @@ def api_farm_upload_accounts():
 
     # Batch add to tokens cache (one load + one save)
     try:
-        with cv._token_lock:
-            cache = cv.load_tokens_cache()
-            ready_tokens = cache.get("ready_tokens", [])
-            existing_emails = {t.get("email", "") for t in ready_tokens}
-            for acc in valid_accounts:
-                if acc["email"] not in existing_emails:
-                    ready_tokens.append({
-                        "email": acc["email"],
-                        "device_id": acc["device_id"],
-                        "token": acc["token"],
-                        "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    })
-                    added += 1
-            cache["ready_tokens"] = ready_tokens
-            cv.save_tokens_cache(cache)
+        cache = cv.load_tokens_cache()
+        ready_tokens = cache.get("ready_tokens", [])
+        existing_emails = {t.get("email", "") for t in ready_tokens}
+        for acc in valid_accounts:
+            if acc["email"] not in existing_emails:
+                ready_tokens.append({
+                    "email": acc["email"],
+                    "device_id": acc["device_id"],
+                    "token": acc["token"],
+                    "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                })
+                added += 1
+        cache["ready_tokens"] = ready_tokens
+        cv.save_tokens_cache(cache)
     except Exception as exc:
         log.warning("farm upload: batch token cache failed: %s", exc)
 
