@@ -2536,37 +2536,41 @@ def api_farm_upload_accounts():
     if not valid_accounts:
         return jsonify({"ok": True, "added": 0})
 
-    # Batch add to tokens cache (one load + one save)
-    try:
-        cache = cv.load_tokens_cache()
-        ready_tokens = cache.get("ready_tokens", [])
-        existing_emails = {t.get("email", "") for t in ready_tokens}
-        for acc in valid_accounts:
-            if acc["email"] not in existing_emails:
-                ready_tokens.append({
+    added = len(valid_accounts)
+
+    # Do heavy I/O in background thread to avoid blocking the request
+    def _background_save():
+        try:
+            # Add to tokens cache
+            cache = cv.load_tokens_cache()
+            ready_tokens = cache.get("ready_tokens", [])
+            existing_emails = {t.get("email", "") for t in ready_tokens}
+            for acc in valid_accounts:
+                if acc["email"] not in existing_emails:
+                    ready_tokens.append({
+                        "email": acc["email"],
+                        "device_id": acc["device_id"],
+                        "token": acc["token"],
+                        "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    })
+            cache["ready_tokens"] = ready_tokens
+            cv.save_tokens_cache(cache)
+        except Exception as exc:
+            log.warning("farm upload: token cache save failed: %s", exc)
+        try:
+            # Add to accounts file
+            for acc in valid_accounts:
+                cv.accounts.append({
                     "email": acc["email"],
-                    "device_id": acc["device_id"],
-                    "token": acc["token"],
+                    "x-client-device-id": acc["device_id"],
+                    "x-token": acc["token"],
                     "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 })
-                added += 1
-        cache["ready_tokens"] = ready_tokens
-        cv.save_tokens_cache(cache)
-    except Exception as exc:
-        log.warning("farm upload: batch token cache failed: %s", exc)
+            cv._save_accounts_encrypted()
+        except Exception as exc:
+            log.warning("farm upload: accounts file save failed: %s", exc)
 
-    # Batch add to accounts file (one save at end)
-    try:
-        for acc in valid_accounts:
-            cv.accounts.append({
-                "email": acc["email"],
-                "x-client-device-id": acc["device_id"],
-                "x-token": acc["token"],
-                "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            })
-        cv._save_accounts_encrypted()
-    except Exception as exc:
-        log.warning("farm upload: batch save_account failed: %s", exc)
+    threading.Thread(target=_background_save, daemon=True).start()
 
     # Update farm stats
     if added > 0:
@@ -2578,7 +2582,7 @@ def api_farm_upload_accounts():
             _farm_stats.update(stats)
             _save_farm_stats(stats)
 
-    return jsonify({"ok": True, "added": added})
+    return jsonify({"ok": True, "added": added, "queued": True})
 
 
 @app.get("/api/farm/stats")
