@@ -6066,6 +6066,19 @@
       "first_name": "ابو معجب",
       "streak": 1,
       "last_login_date": "2026-05-08"
+    },
+    "8728789934": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-08 09:49:21",
+      "username": "owow5262",
+      "first_name": "aaa Bbbb",
+      "streak": 1,
+      "last_login_date": "2026-05-08",
+      "active_fox_token_hash": "4645bcd6be35d53462d0d83a016c0b24f8d271365141b4d7efba9bb54f5fba2c",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-08 09:50:39",
+      "refresh_token_hash": ""
     }
   },
   "premium": {
