@@ -2538,39 +2538,43 @@ def api_farm_upload_accounts():
 
     added = len(valid_accounts)
 
-    # Do heavy I/O in background thread to avoid blocking the request
-    def _background_save():
-        try:
-            # Add to tokens cache
-            cache = cv.load_tokens_cache()
-            ready_tokens = cache.get("ready_tokens", [])
-            existing_emails = {t.get("email", "") for t in ready_tokens}
-            for acc in valid_accounts:
-                if acc["email"] not in existing_emails:
-                    ready_tokens.append({
-                        "email": acc["email"],
-                        "device_id": acc["device_id"],
-                        "token": acc["token"],
-                        "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    })
-            cache["ready_tokens"] = ready_tokens
-            cv.save_tokens_cache(cache)
-        except Exception as exc:
-            log.warning("farm upload: token cache save failed: %s", exc)
-        try:
-            # Add to accounts file
-            for acc in valid_accounts:
-                cv.accounts.append({
+    # Save to tokens cache directly (fast, no lock needed)
+    try:
+        TOKENS_CACHE_FILE = cv.TOKENS_CACHE_FILE
+        cache = {}
+        if os.path.exists(TOKENS_CACHE_FILE):
+            with open(TOKENS_CACHE_FILE, 'r', encoding='utf-8') as f:
+                cache = json.load(f)
+        ready_tokens = cache.get("ready_tokens", [])
+        existing_emails = {t.get("email", "") for t in ready_tokens}
+        new_tokens = []
+        for acc in valid_accounts:
+            if acc["email"] not in existing_emails:
+                new_tokens.append({
                     "email": acc["email"],
-                    "x-client-device-id": acc["device_id"],
-                    "x-token": acc["token"],
+                    "device_id": acc["device_id"],
+                    "token": acc["token"],
                     "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 })
-            cv._save_accounts_encrypted()
-        except Exception as exc:
-            log.warning("farm upload: accounts file save failed: %s", exc)
+        ready_tokens.extend(new_tokens)
+        cache["ready_tokens"] = ready_tokens
+        cache["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(TOKENS_CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+    except Exception as exc:
+        log.warning("farm upload: token cache save failed: %s", exc)
 
-    threading.Thread(target=_background_save, daemon=True).start()
+    # Add to accounts list in memory (will be persisted by GitHub sync)
+    try:
+        for acc in valid_accounts:
+            cv.accounts.append({
+                "email": acc["email"],
+                "x-client-device-id": acc["device_id"],
+                "x-token": acc["token"],
+                "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            })
+    except Exception as exc:
+        log.warning("farm upload: accounts list append failed: %s", exc)
 
     # Update farm stats
     if added > 0:
