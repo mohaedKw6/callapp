@@ -1834,7 +1834,9 @@
       "referrals": 0,
       "first_seen": "2026-04-16 19:47:06",
       "username": "",
-      "first_name": "الاسطور"
+      "first_name": "الاسطور",
+      "streak": 1,
+      "last_login_date": "2026-05-08"
     },
     "7283586844": {
       "usage": 0,
@@ -6044,6 +6046,15 @@
       "first_name": "تــيـتـو الــيــوتـــيـــوبــــࢪࢪ - 𝟑𝟑𝟑⋡ِ.",
       "streak": 1,
       "last_login_date": "2026-05-07"
+    },
+    "7467583250": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-08 00:42:57",
+      "username": "fryguvvikkjfiojcgi",
+      "first_name": "🌼",
+      "streak": 1,
+      "last_login_date": "2026-05-08"
     }
   },
   "premium": {
