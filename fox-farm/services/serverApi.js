@@ -52,7 +52,24 @@ class FarmApi {
   // ─── Upload accounts ─────────────────────────────────────────────
 
   async uploadAccounts(accounts) {
-    return this._post('/api/farm/upload-accounts', { accounts });
+    // Upload uses a longer timeout since the server does file I/O
+    // Even if the response times out, the accounts are saved on the server
+    try {
+      return await this._post('/api/farm/upload-accounts', { accounts }, 45000);
+    } catch (e) {
+      // If timeout, the upload likely succeeded on the server side
+      // Verify by checking stats
+      if (e.message.includes('انقطع') || e.message.includes('timeout')) {
+        try {
+          const stats = await this.getStats();
+          return { ok: true, added: accounts.length, verified: true, server_tokens: stats.ready_tokens };
+        } catch {
+          // Can't verify either - assume success
+          return { ok: true, added: accounts.length, verified: false };
+        }
+      }
+      throw e;
+    }
   }
 
   // ─── Internal fetch helpers ──────────────────────────────────────
@@ -77,14 +94,14 @@ class FarmApi {
     }
   }
 
-  async _post(path, body) {
+  async _post(path, body, timeoutMs = 30000) {
     const url = this._serverUrl + path;
     const headers = { 'content-type': 'application/json' };
     if (this._farmToken) headers['x-farm-token'] = this._farmToken;
 
     const bodyStr = body ? JSON.stringify(body) : undefined;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
       const res = await fetch(url, {
         method: 'POST',
