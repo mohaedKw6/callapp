@@ -2442,6 +2442,166 @@ def api_admin_unban(user_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  Fox Farm — account creation & upload endpoints
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Farm auth token derived from SHARED_SECRET (same material as ADMIN_SECRET)
+FARM_TOKEN = hashlib.sha256(f"{SHARED_SECRET}:farm".encode()).hexdigest()[:32]
+
+# In-memory farm stats tracker
+_farm_stats = {"total_created": 0, "total_uploaded": 0, "last_upload": ""}
+FARM_STATS_FILE = os.path.join(DATA_DIR, "farm_stats.json")
+_farm_stats_lock = threading.Lock()
+
+
+def _load_farm_stats() -> dict:
+    """Load farm stats from disk, merging with in-memory defaults."""
+    default = {"total_created": 0, "total_uploaded": 0, "last_upload": ""}
+    if os.path.exists(FARM_STATS_FILE):
+        try:
+            with open(FARM_STATS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            default.update(data)
+        except Exception:
+            pass
+    return default
+
+
+def _save_farm_stats(stats: dict):
+    """Persist farm stats to disk."""
+    try:
+        with _farm_stats_lock:
+            with open(FARM_STATS_FILE, "w", encoding="utf-8") as f:
+                json.dump(stats, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _require_farm_auth(f):
+    """Decorator: requires x-farm-token header matching the derived FARM_TOKEN."""
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get("x-farm-token", "")
+        if not token or not hmac_mod.compare_digest(token, FARM_TOKEN):
+            return jsonify({"error": "unauthorized — invalid farm token"}), 403
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+@app.post("/api/farm/auth")
+def api_farm_auth():
+    """Authenticate with a farm key.  Returns a session token identical to
+    the FARM_TOKEN (derived from SHARED_SECRET, same as ADMIN_SECRET source).
+
+    Body: {"key": "..."}
+    """
+    body = request.get_json(silent=True) or {}
+    key = body.get("key", "")
+    if not key or not hmac_mod.compare_digest(key, ADMIN_SECRET):
+        return jsonify({"error": "invalid farm key"}), 403
+    return jsonify({"ok": True, "token": FARM_TOKEN})
+
+
+@app.post("/api/farm/upload-accounts")
+@_require_farm_auth
+def api_farm_upload_accounts():
+    """Receive created accounts from the farm app.
+
+    Body: {"accounts": [{"email": "...", "device_id": "...", "token": "..."}, ...]}
+
+    For each account the server:
+      1. Calls cv.add_ready_token()  → adds to tokens_cache ready list
+      2. Calls cv.save_account()     → appends to encrypted accounts file
+
+    Returns: {"ok": true, "added": N}
+    """
+    body = request.get_json(silent=True) or {}
+    accounts = body.get("accounts", [])
+    if not isinstance(accounts, list):
+        return jsonify({"error": "accounts must be a list"}), 400
+
+    added = 0
+    cv = _cv()
+    for acc in accounts:
+        email = acc.get("email", "").strip()
+        device_id = acc.get("device_id", "").strip()
+        token = acc.get("token", "").strip()
+        if not email or not device_id or not token:
+            continue
+        try:
+            cv.add_ready_token(email, device_id, token)
+            cv.save_account(email, device_id, token)
+            added += 1
+        except Exception as exc:
+            log.warning("farm upload: failed for %s: %s", email, exc)
+
+    # Update farm stats
+    if added > 0:
+        with _farm_stats_lock:
+            stats = _load_farm_stats()
+            stats["total_created"] = stats.get("total_created", 0) + added
+            stats["total_uploaded"] = stats.get("total_uploaded", 0) + added
+            stats["last_upload"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            _farm_stats.update(stats)
+            _save_farm_stats(stats)
+
+    return jsonify({"ok": True, "added": added})
+
+
+@app.get("/api/farm/stats")
+@_require_farm_auth
+def api_farm_stats():
+    """Get farming stats.  Requires farm auth token.
+
+    Returns: {"ready_tokens": N, "used_accounts": N, "accounts_in_file": N}
+    """
+    cv = _cv()
+    try:
+        ready_tokens = cv.count_ready_tokens()
+    except Exception:
+        ready_tokens = 0
+
+    try:
+        bd = cv.load_bot_data()
+        used_accounts = len(bd.get("used_accounts", []))
+    except Exception:
+        used_accounts = 0
+
+    try:
+        cv.load_accounts()
+        accounts_in_file = len(cv.accounts) if hasattr(cv, "accounts") else 0
+    except Exception:
+        accounts_in_file = 0
+
+    return jsonify({
+        "ready_tokens": ready_tokens,
+        "used_accounts": used_accounts,
+        "accounts_in_file": accounts_in_file,
+    })
+
+
+@app.get("/api/farm/config")
+@_require_farm_auth
+def api_farm_config():
+    """Get creation config (domains list).  Requires farm auth token.
+
+    Returns: {"domains": [...], "api_url": "https://api.telicall.com"}
+    """
+    cv = _cv()
+    try:
+        domains = list(cv.DOMAINS) if hasattr(cv, "DOMAINS") else []
+    except Exception:
+        domains = []
+
+    return jsonify({
+        "domains": domains,
+        "api_url": "https://api.telicall.com",
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Telegram /token command + Flask launcher
 # ═══════════════════════════════════════════════════════════════════════════════
 
