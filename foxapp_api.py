@@ -492,14 +492,17 @@ def _set_active_fox_token(uid: str, fox_token: str, device_id: str = ""):
 
 
 def _invalidate_all_sessions(uid: str):
-    """Invalidate all active sessions for a user by clearing their refresh token hash.
-    This forces any logged-in device to re-authenticate on the next refresh attempt."""
+    """Invalidate all active sessions for a user by clearing their refresh token hash
+    and setting a session_invalidated_at timestamp.
+    This forces any logged-in device to be kicked out immediately on the next API request,
+    even if their JWT access token hasn't expired yet."""
     try:
         cv = _cv()
         db = cv.load_users_db()
         if uid in db:
             db[uid]["refresh_token_hash"] = ""
             db[uid]["active_device_id"] = ""
+            db[uid]["session_invalidated_at"] = int(time.time())
             cv.save_users_db(db)
     except Exception:
         pass
@@ -630,13 +633,31 @@ def _require_jwt(f):
         if not uid:
             return jsonify({"error": "invalid token payload"}), 401
 
-        # 1.5 Check if the user's session has been revoked (device mismatch)
+        # 1.5 Check if the user's session has been revoked
+        # This covers two scenarios:
+        #   a) New Fox Token was created (session_invalidated_at > JWT iat)
+        #   b) Different device logged in (device_id mismatch)
         try:
             cv = _cv()
             db = cv.load_users_db()
-            active_device = db.get(uid, {}).get("active_device_id", "")
+            user_rec = db.get(uid, {})
+
+            # Check if session was invalidated by a new token generation
+            invalidated_at = user_rec.get("session_invalidated_at", 0)
+            jwt_iat = payload.get("iat", 0)
+            if invalidated_at and jwt_iat < invalidated_at:
+                return jsonify({
+                    "error": "token_changed",
+                    "message": "تم تغيير التوكن برجاء ادخال التوكن الجديد"
+                }), 401
+
+            # Check if another device is now the active one
+            active_device = user_rec.get("active_device_id", "")
             if active_device and payload.get("device_id", "") != active_device:
-                return jsonify({"error": "session_revoked", "message": "تم تسجيل الدخول من جهاز آخر. أنشئ توكن جديد."}), 401
+                return jsonify({
+                    "error": "session_revoked",
+                    "message": "تم تسجيل الدخول من جهاز آخر. أنشئ توكن جديد."
+                }), 401
         except Exception:
             pass
 
@@ -708,7 +729,7 @@ def _admin_panel():
 
 @app.get("/api/health")
 def _health():
-    return {"ok": True, "service": "callapp-bot", "version": "3.0.0"}
+    return {"ok": True, "service": "callapp-bot", "version": "4.0.0"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -723,9 +744,9 @@ _version_config_lock = threading.Lock()
 def _load_version_config() -> dict:
     """Load version_config.json. Returns the canonical structure."""
     default = {
-        "latest_version": "3.3.0",
-        "latest_version_code": 10,
-        "minimum_version_code": 10,
+        "latest_version": "4.0.0",
+        "latest_version_code": 15,
+        "minimum_version_code": 15,
         "force_update": True,
         "download_url": "",
         "update_message_ar": "يتوفر تحديث جديد للتطبيق! يرجى تحميل النسخة الجديدة للمتابعة.",
@@ -806,7 +827,7 @@ def api_app_version():
     })
 
 
-GITHUB_REPO = "MohamedQM/callapp"  # GitHub repo for APK storage
+GITHUB_REPO = "mohaedkw1/callapp"  # GitHub repo for APK storage
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
 # APKs are stored as GitHub Releases (supports large files up to 2GB)
 # For private repos, we get a temporary direct download URL via the GitHub API
@@ -1100,7 +1121,8 @@ def api_auth_login():
         if active_hash and fox_token_hash != active_hash:
             # This is an OLD token — reject it
             return jsonify({
-                "error": "هذا التوكن قديم وتم إلغاؤه. أنشئ توكن جديد من البوت."
+                "error": "token_changed",
+                "message": "تم تغيير التوكن برجاء ادخال التوكن الجديد"
             }), 401
 
         # Check if another device is already logged in with this token
@@ -1233,7 +1255,7 @@ def api_auth_check_token():
         active_hash = db.get(uid, {}).get("active_fox_token_hash", "")
 
         if active_hash and fox_token_hash != active_hash:
-            return jsonify({"valid": False, "reason": "token_revoked"})
+            return jsonify({"valid": False, "reason": "token_changed", "message": "تم تغيير التوكن برجاء ادخال التوكن الجديد"})
     except Exception:
         pass
 
@@ -2637,6 +2659,107 @@ def api_farm_config():
     return jsonify({
         "domains": domains,
         "api_url": "https://api.telicall.com",
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  App Subscriptions (v4.0.0)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+APP_SUBSCRIPTIONS_FILE = os.path.join(DATA_DIR, "app_subscriptions.json")
+_app_sub_lock = threading.Lock()
+
+
+def _load_app_subscriptions() -> dict:
+    """Load app_subscriptions.json. Structure: { user_id: { calls_remaining, total_calls, expires_at, plan } }"""
+    if os.path.exists(APP_SUBSCRIPTIONS_FILE):
+        try:
+            with open(APP_SUBSCRIPTIONS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def _save_app_subscriptions(data: dict):
+    try:
+        with _app_sub_lock:
+            with open(APP_SUBSCRIPTIONS_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _get_user_subscription(uid: str) -> dict | None:
+    """Get a user's active app subscription, or None if expired/not found."""
+    subs = _load_app_subscriptions()
+    sub = subs.get(uid)
+    if not sub:
+        return None
+    # Check expiry
+    expires_at = sub.get("expires_at", 0)
+    if expires_at and time.time() > expires_at:
+        return None
+    return sub
+
+
+@app.get("/api/app-subscription")
+@_require_jwt
+def api_app_subscription():
+    """Get the user's app subscription status.
+    Returns: { active, calls_remaining, total_calls, plan, expires_at } or { active: false }
+    """
+    uid = request._fox_uid
+    sub = _get_user_subscription(uid)
+    if not sub:
+        return jsonify({
+            "active": False,
+            "calls_remaining": 0,
+            "total_calls": 0,
+            "plan": None,
+            "expires_at": None,
+        })
+    return jsonify({
+        "active": True,
+        "calls_remaining": sub.get("calls_remaining", 0),
+        "total_calls": sub.get("total_calls", 0),
+        "plan": sub.get("plan", "free"),
+        "expires_at": sub.get("expires_at", None),
+    })
+
+
+@app.post("/api/app-subscription/use-call")
+@_require_jwt
+def api_app_subscription_use_call():
+    """Use a call from the app subscription.
+    Deducts 1 call from the user's subscription if available.
+    Body: { } (no params needed)
+    Returns: { success, calls_remaining } or { success: false, error }
+    """
+    uid = request._fox_uid
+    subs = _load_app_subscriptions()
+    sub = subs.get(uid)
+    if not sub:
+        return jsonify({"success": False, "error": "No active subscription"}), 404
+
+    # Check expiry
+    expires_at = sub.get("expires_at", 0)
+    if expires_at and time.time() > expires_at:
+        return jsonify({"success": False, "error": "Subscription expired"}), 403
+
+    calls_remaining = sub.get("calls_remaining", 0)
+    if calls_remaining <= 0:
+        return jsonify({"success": False, "error": "No calls remaining"}), 403
+
+    # Deduct one call
+    sub["calls_remaining"] = calls_remaining - 1
+    sub["last_used"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    subs[uid] = sub
+    _save_app_subscriptions(subs)
+
+    return jsonify({
+        "success": True,
+        "calls_remaining": sub["calls_remaining"],
     })
 
 

@@ -15,12 +15,13 @@ import UpdateScreen from './screens/UpdateScreen';
 import { FoxApi } from './services/api';
 import { CallManager, CallState } from './services/callManager';
 import { Colors } from './theme/colors';
+import { initLang, t, toggleLang, getLang, isRTL } from './i18n';
 
 
 // ─── App Version ────────────────────────────────────────────────────────────
 const APP_VERSION_CODE = Constants.expoConfig?.android?.versionCode
   || Constants.manifest?.android?.versionCode
-  || 11;
+  || 15;
 
 // ─── AdMob Configuration ──────────────────────────────────────────────────
 const AD_UNIT_ID = __DEV__
@@ -136,6 +137,7 @@ export default function App() {
 
   const bootstrap = async () => {
     try {
+      await initLang();
       // Check native security status
       try {
         const SecurityChecker = NativeModules.SecurityChecker;
@@ -177,7 +179,11 @@ export default function App() {
 
       if (tok) {
         const ok = await connect(tok, did);
-        if (ok) return;
+        if (ok) {
+          // Pre-fetch balance/me data on open
+          prefetchUserData();
+          return;
+        }
       }
     } catch {}
     setScreen('token');
@@ -188,10 +194,10 @@ export default function App() {
     const r = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
       {
-        title: 'صلاحية الميكروفون',
-        message: 'يحتاج التطبيق الميكروفون لإجراء المكالمات الصوتية',
-        buttonPositive: 'سماح',
-        buttonNegative: 'رفض',
+        title: t('micPermission'),
+        message: t('micMsg'),
+        buttonPositive: t('allow'),
+        buttonNegative: t('deny'),
       }
     );
     return r === PermissionsAndroid.RESULTS.GRANTED;
@@ -265,10 +271,10 @@ export default function App() {
       return true;
     } catch (e) {
       const msg = e?.message || 'فشل تسجيل الدخول';
-      // If token revoked, force logout and go to token screen
-      if (msg.includes('قديم') || msg.includes('إلغاؤه') || msg.includes('token_revoked')) {
+      // If token was changed/revoked, force logout and go to token screen
+      if (e?.isTokenChanged || msg.includes('تغيير التوكن') || msg.includes('قديم') || msg.includes('إلغاؤه') || msg.includes('token_changed') || msg.includes('token_revoked')) {
         await forceLogout();
-        throw new Error('التوكن الخاص بك تم إلغاؤه. أنشئ توكن جديد من البوت.');
+        throw new Error('تم تغيير التوكن برجاء ادخال التوكن الجديد');
       }
       throw new Error(msg);
     }
@@ -281,7 +287,21 @@ export default function App() {
     try {
       const me = await apiRef.current.getMe();
       setUser(me);
-    } catch {}
+    } catch (e) {
+      if (e?.isTokenChanged || (e?.message && (e.message.includes('token_changed') || e.message.includes('تغيير التوكن')))) {
+        Alert.alert(t('alert'), e?.message || t('tokenChanged'), [
+          { text: t('allow'), onPress: forceLogout },
+        ]);
+      }
+    }
+  };
+
+  // Pre-fetch user data on app open (background, non-blocking)
+  const prefetchUserData = () => {
+    if (!apiRef.current) return;
+    apiRef.current.getMe()
+      .then(me => setUser(me))
+      .catch(() => {});
   };
 
   const handleCall = async () => {
@@ -290,20 +310,20 @@ export default function App() {
     const callCost = user?.cost || 0.20;
     const currentBalance = user?.balance ?? 0;
     if (currentBalance < callCost) {
-      Alert.alert('رصيد غير كافي', `رصيدك ${currentBalance.toFixed(2)}$ مش كافي للمكالمة. الحد الأدنى ${callCost.toFixed(2)}$`);
+      Alert.alert(t('insufficientBalance'), t('insufficientMsg', {balance: currentBalance.toFixed(2), cost: callCost.toFixed(2)}));
       return;
     }
     const ok = await requestMicPermission();
     if (!ok) {
-      Alert.alert('تنبيه', 'لازم تسمح للميكروفون عشان تعمل مكالمة');
+      Alert.alert(t('alert'), t('micRequired'));
       return;
     }
     const cm = cmRef.current;
     cm.on({
       onState: setCallState,
       onDuration: setCallDuration,
-      onError: (m) => Alert.alert('فشل', m),
-      onEnd: () => {
+      onError: (m) => Alert.alert(t('failed'), m),
+      onEnd: (callResult) => {
         setTimeout(() => {
           setScreen('dialer');
           setCallState('idle');
@@ -312,8 +332,8 @@ export default function App() {
           setMuted(false);
           setSpeaker(false);
           setRecording(false);
+          // Auto-fetch after call ends to refresh balance
           refreshMe();
-          // Show AdMob interstitial ad after call ends
           showInterstitialAd();
         }, 1500);
       },
@@ -329,10 +349,10 @@ export default function App() {
       setCallFrom(r.from || '');
       setCallLimit(r.sip.callLimit || 0);
     } catch (e) {
-      // If session revoked, force logout
-      if (e?.message && (e.message.includes('session_revoked') || e.message.includes('توكن') || e.message.includes('جهاز آخر'))) {
-        Alert.alert('تنبيه', e.message, [
-          { text: 'حسناً', onPress: handleLogout },
+      // If token was changed or session revoked, force logout immediately
+      if (e?.isTokenChanged || (e?.message && (e.message.includes('token_changed') || e.message.includes('تغيير التوكن') || e.message.includes('session_revoked') || e.message.includes('جهاز آخر')))) {
+        Alert.alert(t('alert'), e?.message || t('tokenChanged'), [
+          { text: t('allow'), onPress: forceLogout },
         ]);
       }
     }
@@ -373,10 +393,10 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    Alert.alert('تأكيد', 'تريد تسجيل الخروج؟', [
-      { text: 'إلغاء', style: 'cancel' },
+    Alert.alert(t('confirm'), t('wantLogout'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'خروج', style: 'destructive', onPress: forceLogout,
+        text: t('exit'), style: 'destructive', onPress: forceLogout,
       },
     ]);
   };
@@ -387,7 +407,7 @@ export default function App() {
       {screen === 'loading' && (
         <View style={S.loading}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={S.loadingTxt}>جاري التحميل...</Text>
+          <Text style={S.loadingTxt}>{t('loading')}</Text>
         </View>
       )}
       {screen === 'update' && (
@@ -408,6 +428,8 @@ export default function App() {
           onLogout={handleLogout}
           onRefresh={refreshMe}
           onCallHistory={handleCallHistory}
+          onToggleLang={toggleLang}
+          currentLang={getLang()}
         />
       )}
       {screen === 'call' && (

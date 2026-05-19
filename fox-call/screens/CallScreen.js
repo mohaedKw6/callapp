@@ -6,13 +6,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing } from '../theme/colors';
 import { CallState } from '../services/callManager';
+import { t } from '../i18n';
 
 const stateLabel = (s, recording) =>
-  s === 'connecting' ? 'جاري الاتصال...' :
-  s === 'ringing' ? 'جاري الرنين...' :
-  s === 'connected' ? (recording ? 'متصل ● تسجيل' : 'متصل الآن') :
-  s === 'ended' ? 'انتهت المكالمة' :
-  s === 'failed' ? 'فشلت المكالمة' : '';
+  s === 'connecting' ? t('connecting') :
+  s === 'ringing' ? t('ringing') :
+  s === 'connected' ? (recording ? t('connectedRecording') : t('connected')) :
+  s === 'ended' ? t('callEnded') :
+  s === 'failed' ? t('callFailed') : '';
 
 const stateColor = (s) =>
   s === 'connected' ? Colors.success :
@@ -94,9 +95,9 @@ export default function CallScreen({
   };
 
   const getAudioOutputLabel = () => {
-    if (currentOutput === 'bluetooth') return 'بلوتوث';
-    if (speaker || currentOutput === 'speaker') return 'سماعة';
-    return 'أذن';
+    if (currentOutput === 'bluetooth') return t('bluetooth');
+    if (speaker || currentOutput === 'speaker') return t('speaker');
+    return t('earpiece');
   };
 
   return (
@@ -126,15 +127,15 @@ export default function CallScreen({
             </Text>
           )}
           {fromNumber ? (
-            <Text style={S.from}>من: {fromNumber}</Text>
+            <Text style={S.from}>{t('from')}: {fromNumber}</Text>
           ) : null}
           {callLimit > 0 ? (
-            <Text style={S.limit}>الحد الأقصى: {Math.floor(callLimit / 60)}:{String(callLimit % 60).padStart(2, '0')}</Text>
+            <Text style={S.limit}>{t('maxDuration')}: {Math.floor(callLimit / 60)}:{String(callLimit % 60).padStart(2, '0')}</Text>
           ) : null}
           {isRecording && state === 'connected' ? (
             <View style={S.recBadge}>
               <View style={S.recBadgeDot} />
-              <Text style={S.recBadgeTxt}>تسجيل</Text>
+              <Text style={S.recBadgeTxt}>{t('recording')}</Text>
             </View>
           ) : null}
         </View>
@@ -144,11 +145,11 @@ export default function CallScreen({
           <View style={S.audioMenu}>
             <Pressable style={[S.audioOption, currentOutput === 'earpiece' && S.audioOptionActive]} onPress={() => handleAudioOutput('earpiece')}>
               <Ionicons name="ear-outline" size={22} color={currentOutput === 'earpiece' ? Colors.primary : Colors.text} />
-              <Text style={[S.audioOptionLbl, currentOutput === 'earpiece' && { color: Colors.primary }]}>أذن</Text>
+              <Text style={[S.audioOptionLbl, currentOutput === 'earpiece' && { color: Colors.primary }]}>{t('earpiece')}</Text>
             </Pressable>
             <Pressable style={[S.audioOption, currentOutput === 'speaker' && S.audioOptionActive]} onPress={() => handleAudioOutput('speaker')}>
               <Ionicons name="volume-high" size={22} color={currentOutput === 'speaker' ? Colors.primary : Colors.text} />
-              <Text style={[S.audioOptionLbl, currentOutput === 'speaker' && { color: Colors.primary }]}>سبيكر</Text>
+              <Text style={[S.audioOptionLbl, currentOutput === 'speaker' && { color: Colors.primary }]}>{t('speaker')}</Text>
             </Pressable>
             <Pressable style={[S.audioOption, currentOutput === 'bluetooth' && S.audioOptionActive]} onPress={() => handleAudioOutput('bluetooth')}
               disabled={!audioDevices.some(d => d.type === 'Bluetooth')}>
@@ -156,7 +157,7 @@ export default function CallScreen({
                 !audioDevices.some(d => d.type === 'Bluetooth') ? Colors.textDim :
                 currentOutput === 'bluetooth' ? Colors.primary : Colors.text
               } />
-              <Text style={[S.audioOptionLbl, currentOutput === 'bluetooth' && { color: Colors.primary }]}>بلوتوث</Text>
+              <Text style={[S.audioOptionLbl, currentOutput === 'bluetooth' && { color: Colors.primary }]}>{t('bluetooth')}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -179,47 +180,51 @@ export default function CallScreen({
           </View>
         ) : null}
 
-        <View style={S.actions}>
-          <Pressable
-            onPress={() => { Haptics.selectionAsync(); onMute(); }}
-            style={({ pressed }) => [S.action, muted && S.actionActive, pressed && S.actionPressed]}
-          >
-            <Ionicons name={muted ? 'mic-off' : 'mic'} size={26} color={muted ? Colors.danger : Colors.text} />
-            <Text style={[S.actionLbl, muted && { color: Colors.danger }]}>{muted ? 'مكتوم' : 'مايك'}</Text>
-          </Pressable>
+        {/* Actions Row */}
+        <View style={S.actionsContainer}>
+          {/* Row 1: Mute, Recording, Hangup, Speaker, Keypad */}
+          <View style={S.actionsRow}>
+            <Pressable
+              onPress={() => { Haptics.selectionAsync(); onMute(); }}
+              style={({ pressed }) => [S.action, muted && S.actionActive, pressed && S.actionPressed]}
+            >
+              <Ionicons name={muted ? 'mic-off' : 'mic'} size={24} color={muted ? Colors.danger : Colors.text} />
+              <Text style={[S.actionLbl, muted && { color: Colors.danger }]}>{muted ? t('muted') : t('mic')}</Text>
+            </Pressable>
 
-          <Pressable
-            onPress={() => { Haptics.selectionAsync(); handleRecord(); }}
-            style={({ pressed }) => [S.action, isRecording && S.actionRecActive, pressed && S.actionPressed]}
-          >
-            <Ionicons name={isRecording ? 'stop-circle' : 'radio-button-on-outline'} size={26} color={isRecording ? '#EF4444' : Colors.text} />
-            <Text style={[S.actionLbl, isRecording && { color: '#EF4444' }]}>{isRecording ? 'إيقاف' : 'تسجيل'}</Text>
-          </Pressable>
+            <Pressable
+              onPress={() => { Haptics.selectionAsync(); handleRecord(); }}
+              style={({ pressed }) => [S.action, isRecording && S.actionRecActive, pressed && S.actionPressed]}
+            >
+              <Ionicons name={isRecording ? 'stop-circle' : 'radio-button-on-outline'} size={24} color={isRecording ? '#EF4444' : Colors.text} />
+              <Text style={[S.actionLbl, isRecording && { color: '#EF4444' }]}>{isRecording ? t('stop') : t('recording')}</Text>
+            </Pressable>
 
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); onHangup(); }}
-            style={({ pressed }) => [S.hangupWrap, pressed && S.actionPressed]}
-          >
-            <LinearGradient colors={[Colors.danger, Colors.dangerDim]} style={S.hangup}>
-              <Ionicons name="call" size={32} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
-            </LinearGradient>
-          </Pressable>
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); onHangup(); }}
+              style={({ pressed }) => [S.hangupWrap, pressed && S.actionPressed]}
+            >
+              <LinearGradient colors={[Colors.danger, Colors.dangerDim]} style={S.hangup}>
+                <Ionicons name="call" size={30} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
+              </LinearGradient>
+            </Pressable>
 
-          <Pressable
-            onPress={() => { Haptics.selectionAsync(); setShowAudioMenu(!showAudioMenu); setShowDtmf(false); }}
-            style={({ pressed }) => [S.action, (speaker || currentOutput !== 'earpiece') && S.actionActive, pressed && S.actionPressed]}
-          >
-            <Ionicons name={getAudioOutputIcon()} size={26} color={(speaker || currentOutput !== 'earpiece') ? Colors.primary : Colors.text} />
-            <Text style={[S.actionLbl, (speaker || currentOutput !== 'earpiece') && { color: Colors.primary }]}>{getAudioOutputLabel()}</Text>
-          </Pressable>
+            <Pressable
+              onPress={() => { Haptics.selectionAsync(); setShowAudioMenu(!showAudioMenu); setShowDtmf(false); }}
+              style={({ pressed }) => [S.action, (speaker || currentOutput !== 'earpiece') && S.actionActive, pressed && S.actionPressed]}
+            >
+              <Ionicons name={getAudioOutputIcon()} size={24} color={(speaker || currentOutput !== 'earpiece') ? Colors.primary : Colors.text} />
+              <Text style={[S.actionLbl, (speaker || currentOutput !== 'earpiece') && { color: Colors.primary }]}>{getAudioOutputLabel()}</Text>
+            </Pressable>
 
-          <Pressable
-            onPress={() => { Haptics.selectionAsync(); setShowDtmf(!showDtmf); setShowAudioMenu(false); }}
-            style={({ pressed }) => [S.action, showDtmf && S.actionActive, pressed && S.actionPressed]}
-          >
-            <Ionicons name="keypad" size={26} color={showDtmf ? Colors.primary : Colors.text} />
-            <Text style={[S.actionLbl, showDtmf && { color: Colors.primary }]}>أرقام</Text>
-          </Pressable>
+            <Pressable
+              onPress={() => { Haptics.selectionAsync(); setShowDtmf(!showDtmf); setShowAudioMenu(false); }}
+              style={({ pressed }) => [S.action, showDtmf && S.actionActive, pressed && S.actionPressed]}
+            >
+              <Ionicons name="keypad" size={24} color={showDtmf ? Colors.primary : Colors.text} />
+              <Text style={[S.actionLbl, showDtmf && { color: Colors.primary }]}>{t('keypad')}</Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -307,12 +312,16 @@ const S = StyleSheet.create({
   dtmfDigit: { color: Colors.text, fontSize: 26, fontWeight: '500', lineHeight: 28 },
   dtmfSub: { color: Colors.textDim, fontSize: 8, fontWeight: '700', letterSpacing: 1.2, marginTop: 1 },
 
-  actions: {
+  // Actions - improved layout
+  actionsContainer: {
+    paddingBottom: Spacing.lg, paddingTop: Spacing.md,
+  },
+  actionsRow: {
     flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingBottom: Spacing.xl, paddingTop: Spacing.xl,
+    paddingHorizontal: Spacing.sm,
   },
   action: {
-    width: 64, height: 64, borderRadius: Radii.full,
+    width: 60, height: 60, borderRadius: Radii.full,
     backgroundColor: Colors.bgElevated,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: Colors.border,
@@ -327,7 +336,7 @@ const S = StyleSheet.create({
 
   hangupWrap: { borderRadius: Radii.full, overflow: 'hidden', elevation: 10 },
   hangup: {
-    width: 80, height: 80, borderRadius: Radii.full,
+    width: 72, height: 72, borderRadius: Radii.full,
     justifyContent: 'center', alignItems: 'center',
     shadowColor: Colors.danger, shadowOpacity: 0.6, shadowRadius: 20,
   },

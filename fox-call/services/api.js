@@ -195,7 +195,9 @@ export class FoxApi {
       try {
         await this._refreshAccessToken();
         return;
-      } catch {
+      } catch (e) {
+        // If token was changed, don't try to login with old token — propagate the error
+        if (e?.isTokenChanged) throw e;
         // Refresh failed — fall through to full login
       }
     }
@@ -251,7 +253,13 @@ export class FoxApi {
       let data = {};
       try { data = text ? JSON.parse(text) : {}; } catch { /* not json */ }
       if (!res.ok) {
-        throw new Error(data?.error || 'خطأ ' + res.status);
+        // Check for token_changed error from server
+        if (data?.error === 'token_changed') {
+          const err = new Error(data?.message || 'تم تغيير التوكن برجاء ادخال التوكن الجديد');
+          err.isTokenChanged = true;
+          throw err;
+        }
+        throw new Error(data?.message || data?.error || 'خطأ ' + res.status);
       }
       return data;
     } catch (e) {
@@ -291,16 +299,32 @@ export class FoxApi {
       lastErr = e;
     }
 
-    if (res && res.status === 401 && this._refreshToken) {
-      try {
-        await this._refreshAccessToken();
-        res = await this._doFetch(method, path, this._authHeaders(bodyStr), bodyStr, timeoutMs);
-      } catch (e) {
-        if (e.name === 'AbortError') {
-          throw new Error('انقطع الاتصال بالسيرفر');
+    if (res && res.status === 401) {
+      // First, check if it's a token_changed error (cannot be fixed by refresh)
+      const preText = await res.clone().text();
+      let preData = {};
+      try { preData = preText ? JSON.parse(preText) : {}; } catch {}
+      if (preData?.error === 'token_changed') {
+        // Token was revoked by a new token generation — must re-enter new token
+        const err = new Error(preData?.message || 'تم تغيير التوكن برجاء ادخال التوكن الجديد');
+        err.isTokenChanged = true;
+        throw err;
+      }
+
+      // Try refresh token for other 401 errors
+      if (this._refreshToken) {
+        try {
+          await this._refreshAccessToken();
+          res = await this._doFetch(method, path, this._authHeaders(bodyStr), bodyStr, timeoutMs);
+        } catch (e) {
+          if (e.name === 'AbortError') {
+            throw new Error('انقطع الاتصال بالسيرفر');
+          }
+          // If refresh also fails with token_changed, propagate it
+          if (e?.isTokenChanged) throw e;
+          lastErr = e;
+          res = null;
         }
-        lastErr = e;
-        res = null;
       }
     }
 
@@ -311,7 +335,13 @@ export class FoxApi {
     try { data = text ? JSON.parse(text) : {}; } catch { /* not json */ }
 
     if (!res.ok) {
-      throw new Error(data?.error || 'خطأ ' + res.status);
+      // Check for token_changed in the final response too
+      if (data?.error === 'token_changed') {
+        const err = new Error(data?.message || 'تم تغيير التوكن برجاء ادخال التوكن الجديد');
+        err.isTokenChanged = true;
+        throw err;
+      }
+      throw new Error(data?.error || data?.message || 'خطأ ' + res.status);
     }
 
     return data;
@@ -414,6 +444,16 @@ export class FoxApi {
       call_id: id,
       duration,
     });
+  }
+
+  markCallFailed(callId) {
+    const id = callId ?? this._currentCallId;
+    this._currentCallId = null;
+    return this._req('POST', '/api/call/end', {
+      call_id: id,
+      duration: 0,
+      failed: true,
+    }).catch(() => {});
   }
 
   getCallId() {

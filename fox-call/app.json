@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fox Call",
     "slug": "fox-call",
-    "version": "3.3.0",
+    "version": "4.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.mohamedqm.foxcall",
-      "versionCode": 10,
+      "versionCode": 15,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0F1F"

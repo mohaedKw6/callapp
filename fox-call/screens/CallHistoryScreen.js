@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Colors, Radii, Spacing } from '../theme/colors';
+import { t } from '../i18n';
 
 const STATUS_MAP = {
   completed: { label: 'مكتملة', color: Colors.success, icon: 'checkmark-circle' },
@@ -18,8 +19,8 @@ const fmtDuration = (s) => {
   if (!s || s <= 0) return '—';
   const m = Math.floor(s / 60);
   const sec = s % 60;
-  if (m > 0) return `${m} د ${sec} ث`;
-  return `${sec} ث`;
+  if (m > 0) return `${m}m ${sec}s`;
+  return `${sec}s`;
 };
 
 const fmtDate = (d) => {
@@ -32,9 +33,9 @@ const fmtDate = (d) => {
 
     const timeStr = date.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });
 
-    if (diffDays === 0) return `اليوم ${timeStr}`;
-    if (diffDays === 1) return `أمس ${timeStr}`;
-    if (diffDays < 7) return `منذ ${diffDays} أيام`;
+    if (diffDays === 0) return `${t('back') === 'Back' ? 'Today' : 'اليوم'} ${timeStr}`;
+    if (diffDays === 1) return `${t('back') === 'Back' ? 'Yesterday' : 'أمس'} ${timeStr}`;
+    if (diffDays < 7) return `${diffDays} ${t('back') === 'Back' ? 'days ago' : 'أيام'}`;
     return date.toLocaleDateString('ar', { month: 'short', day: 'numeric' }) + ' ' + timeStr;
   } catch {
     return d;
@@ -53,7 +54,7 @@ export default function CallHistoryScreen({ api, onBack }) {
       const data = await api.getCallHistory();
       setHistory(data?.calls || data || []);
     } catch (e) {
-      setError(e?.message || 'فشل تحميل السجل');
+      setError(e?.message || t('failed'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -91,8 +92,7 @@ export default function CallHistoryScreen({ api, onBack }) {
   const renderEmpty = () => (
     <View style={S.emptyWrap}>
       <Ionicons name="time-outline" size={64} color={Colors.textDim} />
-      <Text style={S.emptyTitle}>لا يوجد سجل مكالمات</Text>
-      <Text style={S.emptySub}>ستظهر مكالماتك هنا بعد إجرائها</Text>
+      <Text style={S.emptyTitle}>{t('noCalls')}</Text>
     </View>
   );
 
@@ -103,7 +103,7 @@ export default function CallHistoryScreen({ api, onBack }) {
         <Pressable onPress={() => { Haptics.selectionAsync(); onBack(); }} hitSlop={12} style={S.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </Pressable>
-        <Text style={S.headerTitle}>سجل المكالمات</Text>
+        <Text style={S.headerTitle}>{t('callHistoryTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -111,14 +111,14 @@ export default function CallHistoryScreen({ api, onBack }) {
       {loading ? (
         <View style={S.centerWrap}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={S.loadingTxt}>جاري التحميل...</Text>
+          <Text style={S.loadingTxt}>{t('loading')}</Text>
         </View>
       ) : error ? (
         <View style={S.centerWrap}>
           <Ionicons name="alert-circle-outline" size={48} color={Colors.danger} />
           <Text style={S.errorText}>{error}</Text>
           <Pressable onPress={fetchHistory} style={S.retryBtn}>
-            <Text style={S.retryTxt}>إعادة المحاولة</Text>
+            <Text style={S.retryTxt}>{t('refresh')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -174,5 +174,4 @@ const S = StyleSheet.create({
 
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
   emptyTitle: { color: Colors.textMuted, fontSize: 18, fontWeight: '600', marginTop: Spacing.lg },
-  emptySub: { color: Colors.textDim, fontSize: 13 },
 });

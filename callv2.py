@@ -47,10 +47,89 @@ _call_executor = ThreadPoolExecutor(max_workers=500, thread_name_prefix="call_wo
 
 # ─── خطط الاشتراك الشهري ─────────────────────────────────────────────────────
 MONTHLY_PLANS = {
-    "basic":     {"name": "أساسي",    "emoji": "🥉", "calls": 30,     "price": 1.00},
-    "pro":       {"name": "محترف",    "emoji": "🥇", "calls": 100,    "price": 2.50},
-    "unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 5.00},
+    "basic":     {"name": "أساسي",    "emoji": "🥉", "calls": 30,     "price": 3.00},
+    "pro":       {"name": "محترف",    "emoji": "🥇", "calls": 100,    "price": 6.00},
+    "unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
+
+APP_SUBSCRIPTION_PLANS = {
+    "app_basic":     {"name": "أساسي",    "emoji": "🥉", "calls": 30,     "price": 3.00},
+    "app_pro":       {"name": "محترف",    "emoji": "🥇", "calls": 100,    "price": 6.00},
+    "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
+}
+
+SUBSCRIPTION_SELLERS = [
+    {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
+    {"username": "@llllllIlIlIlIlIlIlIl", "name": "الوكيل"},
+]
+
+AUTHORIZED_GROUPS_FILE = os.path.join(DATA_DIR, "authorized_groups.json")
+GROUP_COOLDOWN_SECONDS = 20 * 60  # 20 minutes
+
+def load_authorized_groups() -> dict:
+    if os.path.exists(AUTHORIZED_GROUPS_FILE):
+        try:
+            with open(AUTHORIZED_GROUPS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except: pass
+    return {}
+
+def save_authorized_groups(data: dict):
+    try:
+        with open(AUTHORIZED_GROUPS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except: pass
+
+def is_group_authorized(group_id) -> bool:
+    groups = load_authorized_groups()
+    return str(group_id) in groups
+
+def get_group_cooldown(user_id, group_id) -> dict:
+    """Check if user is on cooldown in group. Returns {can_call: bool, remaining_seconds: int}"""
+    groups = load_authorized_groups()
+    gid = str(group_id)
+    if gid not in groups:
+        return {"can_call": False, "remaining_seconds": 0}
+    last_call = groups[gid].get("user_cooldowns", {}).get(str(user_id), 0)
+    elapsed = time.time() - last_call
+    if elapsed >= GROUP_COOLDOWN_SECONDS:
+        return {"can_call": True, "remaining_seconds": 0}
+    return {"can_call": False, "remaining_seconds": int(GROUP_COOLDOWN_SECONDS - elapsed)}
+
+def set_group_cooldown(user_id, group_id):
+    groups = load_authorized_groups()
+    gid = str(group_id)
+    if gid not in groups:
+        return
+    if "user_cooldowns" not in groups[gid]:
+        groups[gid]["user_cooldowns"] = {}
+    groups[gid]["user_cooldowns"][str(user_id)] = time.time()
+    save_authorized_groups(groups)
+
+LANGUAGES = {
+    "ar": {"name": "العربية", "emoji": "🇸🇦", "dir": "rtl"},
+    "en": {"name": "English", "emoji": "🇬🇧", "dir": "ltr"},
+    "ru": {"name": "Русский", "emoji": "🇷🇺", "dir": "ltr"},
+    "es": {"name": "Español", "emoji": "🇪🇸", "dir": "ltr"},
+    "pt": {"name": "Português", "emoji": "🇧🇷", "dir": "ltr"},
+    "id": {"name": "Bahasa Indonesia", "emoji": "🇮🇩", "dir": "ltr"},
+    "uk": {"name": "Українська", "emoji": "🇺🇦", "dir": "ltr"},
+    "uz": {"name": "O'zbek", "emoji": "🇺🇿", "dir": "ltr"},
+    "fa": {"name": "فارسی", "emoji": "🇮🇷", "dir": "rtl"},
+    "hi": {"name": "हिन्दी", "emoji": "🇮🇳", "dir": "ltr"},
+}
+
+def get_user_lang(user_id) -> str:
+    users_db = load_users_db()
+    return users_db.get(str(user_id), {}).get("language", "ar")
+
+def set_user_lang(user_id, lang_code: str):
+    users_db = load_users_db()
+    uid = str(user_id)
+    if uid not in users_db:
+        users_db[uid] = {"usage": 0, "first_seen": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    users_db[uid]["language"] = lang_code
+    save_users_db(users_db)
 
 # ─── درجات VIP حسب الإحالات ───────────────────────────────────────────────────
 VIP_TIERS = [
@@ -1430,17 +1509,100 @@ def add_monthly_sub(user_id, plan_key: str, granted_by=None) -> bool:
     return True
 
 def buy_monthly_sub_with_balance(user_id, plan_key: str) -> dict:
-    """يشتري اشتراكاً شهرياً من الرصيد"""
+    """يوجه المستخدم للأشخاص المحددين للاشتراك بدلاً من خصم الرصيد"""
     plan = MONTHLY_PLANS.get(plan_key)
     if not plan:
         return {"ok": False, "msg": "خطة غير موجودة"}
-    price   = plan["price"]
-    balance = get_user_balance(user_id)
-    if balance < price:
-        return {"ok": False, "msg": f"رصيدك `{balance:.2f}$` وسعر الخطة `{price:.2f}$`"}
-    deduct_balance(user_id, price)
-    add_monthly_sub(user_id, plan_key, granted_by="self")
-    return {"ok": True, "msg": f"✅ تم تفعيل خطة *{plan['emoji']} {plan['name']}* لمدة 30 يوماً!"}
+    price = plan["price"]
+    # Build seller info
+    sellers_text = "\n".join([f"• {s['username']}" for s in SUBSCRIPTION_SELLERS])
+    return {"ok": False, "msg": f"❌ يجب الاشتراك بهذه الميزة عند الأشخاص التاليين:\n\n{sellers_text}\n\n💰 سعر الخطة {plan['emoji']} {plan['name']}: `{price:.2f}$`"}
+
+# ─── نظام اشتراك التطبيق ─────────────────────────────────────────────────────
+APP_SUBS_FILE = os.path.join(DATA_DIR, "app_subs.json")
+
+def load_app_subs() -> dict:
+    if os.path.exists(APP_SUBS_FILE):
+        try:
+            with open(APP_SUBS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except: pass
+    return {}
+
+def save_app_subs(data: dict):
+    try:
+        with open(APP_SUBS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except: pass
+
+def get_app_sub(user_id) -> dict | None:
+    subs = load_app_subs()
+    rec = subs.get(str(user_id))
+    if not rec:
+        return None
+    expires = datetime.strptime(rec["expires"], "%Y-%m-%d")
+    if datetime.now() > expires:
+        subs.pop(str(user_id), None)
+        save_app_subs(subs)
+        return None
+    return rec
+
+def is_app_subscriber(user_id) -> bool:
+    return get_app_sub(user_id) is not None
+
+def get_app_calls_left(user_id) -> int:
+    rec = get_app_sub(user_id)
+    if not rec:
+        return 0
+    plan = APP_SUBSCRIPTION_PLANS.get(rec["plan"], {})
+    total = plan.get("calls", 0)
+    used = rec.get("calls_used", 0)
+    return max(0, total - used)
+
+def use_app_call(user_id) -> bool:
+    subs = load_app_subs()
+    uid = str(user_id)
+    rec = subs.get(uid)
+    if not rec:
+        return False
+    expires = datetime.strptime(rec["expires"], "%Y-%m-%d")
+    if datetime.now() > expires:
+        subs.pop(uid, None)
+        save_app_subs(subs)
+        return False
+    plan = APP_SUBSCRIPTION_PLANS.get(rec["plan"], {})
+    total = plan.get("calls", 0)
+    used = rec.get("calls_used", 0)
+    if total == 999999 or used < total:
+        subs[uid]["calls_used"] = used + 1
+        save_app_subs(subs)
+        return True
+    return False
+
+def add_app_sub(user_id, plan_key: str, granted_by=None) -> bool:
+    if plan_key not in APP_SUBSCRIPTION_PLANS:
+        return False
+    subs = load_app_subs()
+    uid = str(user_id)
+    expires = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+    subs[uid] = {
+        "plan": plan_key,
+        "granted_by": granted_by,
+        "started": datetime.now().strftime("%Y-%m-%d"),
+        "expires": expires,
+        "calls_used": 0,
+    }
+    save_app_subs(subs)
+    return True
+
+def remove_app_sub(user_id) -> bool:
+    subs = load_app_subs()
+    uid = str(user_id)
+    if uid in subs:
+        del subs[uid]
+        save_app_subs(subs)
+        return True
+    return False
 
 def increment_user_calls(user_id) -> int:
     """يزيد عداد المكالمات الناجحة ويرجع العدد الجديد"""
@@ -3717,6 +3879,7 @@ def _main_kb(is_admin=False):
         kb.row(InlineKeyboardButton("👑 لوحة الأدمن", callback_data="admin_panel"))
 
     kb.row(InlineKeyboardButton("⚙️ إعدادات DTMF", callback_data="dtmf_settings"))
+    kb.row(InlineKeyboardButton("🌐 اللغة / Language", callback_data="change_lang"))
 
     return kb
 
@@ -3818,6 +3981,18 @@ def _admin_panel():
         InlineKeyboardButton("📥 تحميل من GitHub", callback_data="admin_gh_pull")
     )
     kb.add(
+        InlineKeyboardButton("📱 منح اشتراك تطبيق", callback_data="admin_grant_app_sub"),
+        InlineKeyboardButton("📱 إلغاء اشتراك تطبيق", callback_data="admin_cancel_app_sub")
+    )
+    kb.add(
+        InlineKeyboardButton("📱 مشتركي التطبيق", callback_data="admin_app_subs_list"),
+        InlineKeyboardButton("📅 مشتركي الشهري", callback_data="admin_monthly_subs_list")
+    )
+    kb.add(
+        InlineKeyboardButton("🌐 إدارة الجروبات", callback_data="admin_groups"),
+        InlineKeyboardButton("🌐 لغة البوت", callback_data="admin_bot_lang")
+    )
+    kb.add(
         InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="go_start")
     )
 
@@ -3893,7 +4068,7 @@ def require_sub(bot_obj, user_id) -> bool:
     return True
 
 def check_force_sub(bot_obj, user_id) -> bool:
-    """يتحقق إن المستخدم مشترك في القنوات الإجبارية"""
+    """يتحقق إن المستخدم مشترك في القنوات الإجبارية — مع إعادة المحاولة عند إعادة تشغيل البوت"""
     bd = load_bot_data()
     if not bd.get("force_sub_enabled", False):
         return True
@@ -3901,20 +4076,26 @@ def check_force_sub(bot_obj, user_id) -> bool:
     if not channels:
         return True
     for ch in channels:
-        try:
-            member = bot_obj.get_chat_member(ch, user_id)
-            if member.status in ("left", "kicked"):
-                return False
-            # creator, administrator, member, restricted = مشترك
-        except Exception as e:
-            err = str(e).lower()
-            # البوت مش أدمن في القناة → نتجاوز (ما نعاقبش المستخدم)
-            if any(x in err for x in ["bot is not a member", "chat not found",
-                                       "not enough rights", "member list is inaccessible",
-                                       "forbidden", "administrators"]):
-                continue
-            # المستخدم مش موجود في القناة
-            return False
+        for attempt in range(3):
+            try:
+                member = bot_obj.get_chat_member(ch, user_id)
+                if member.status in ("left", "kicked"):
+                    return False
+                # creator, administrator, member, restricted = مشترك
+                break  # success, move to next channel
+            except Exception as e:
+                err = str(e).lower()
+                # البوت مش أدمن في القناة → نتجاوز (ما نعاقبش المستخدم)
+                if any(x in err for x in ["bot is not a member", "chat not found",
+                                           "not enough rights", "member list is inaccessible",
+                                           "forbidden", "administrators"]):
+                    break  # skip this channel
+                # مشكلة مؤقتة — نعيد المحاولة
+                if attempt < 2:
+                    time.sleep(0.5)
+                    continue
+                # بعد 3 محاولات فاشلة، نتجاوز القناة (ما نعاقبش المستخدم)
+                break
     return True
 
 def send_force_sub_msg(bot_obj, user_id):
@@ -4084,6 +4265,170 @@ def run_bot(token_override: str = ""):
         bot.send_message(user_id, welcome, parse_mode='Markdown', reply_markup=_main_kb(is_admin=user_id in ADMIN_IDS))
 
 
+    # ── Group handlers ──────────────────────────────────────────────────
+    @bot.message_handler(content_types=['new_chat_members'])
+    def on_bot_added_to_group(msg):
+        """When bot is added to a group"""
+        if msg.new_chat_members:
+            for member in msg.new_chat_members:
+                if member.id == bot.get_me().id:
+                    # Bot was added to a group
+                    group_id = msg.chat.id
+                    group_title = msg.chat.title or "غير معروف"
+                    group_type = msg.chat.type
+                    
+                    if group_type not in ("group", "supergroup"):
+                        return
+                    
+                    kb = InlineKeyboardMarkup()
+                    kb.row(
+                        InlineKeyboardButton("✅ نعم", callback_data=f"grp_auth_{group_id}"),
+                        InlineKeyboardButton("❌ لا", callback_data=f"grp_deny_{group_id}")
+                    )
+                    bot.send_message(
+                        ADMIN_IDS[0],
+                        f"🌐 *البوت أُضيف إلى جروب جديد!*\n\n"
+                        f"📋 الاسم: `{group_title}`\n"
+                        f"🆔 ID: `{group_id}`\n"
+                        f"👥 النوع: {group_type}\n\n"
+                        f"هل هذا الجروب خاص بك وتريد تفعيل البوت فيه؟",
+                        parse_mode='Markdown',
+                        reply_markup=kb
+                    )
+
+    @bot.callback_query_handler(func=lambda c: c.data.startswith("grp_auth_") or c.data.startswith("grp_deny_"))
+    def on_group_auth(call):
+        if call.from_user.id not in ADMIN_IDS:
+            bot.answer_callback_query(call.id, "⛔")
+            return
+        
+        if call.data.startswith("grp_auth_"):
+            group_id = call.data.replace("grp_auth_", "")
+            groups = load_authorized_groups()
+            try:
+                chat_info = bot.get_chat(int(group_id))
+                title = chat_info.title or "غير معروف"
+            except:
+                title = "غير معروف"
+            groups[str(group_id)] = {
+                "title": title,
+                "authorized_by": call.from_user.id,
+                "authorized_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "user_cooldowns": {}
+            }
+            save_authorized_groups(groups)
+            bot.answer_callback_query(call.id, "✅ تم تفعيل البوت في الجروب!")
+            bot.edit_message_text(f"✅ *تم تفعيل البوت في الجروب*\n📋 `{title}`\n🆔 `{group_id}`", 
+                                  call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+            # Notify group
+            try:
+                bot.send_message(int(group_id), 
+                    "✅ *تم تفعيل البوت في هذا الجروب!*\n\n📞 أي شخص يقدر يعمل مكالمة مجانية كل 20 دقيقة\nاستخدم زرار الاتصال",
+                    parse_mode='Markdown')
+            except: pass
+        else:
+            group_id = call.data.replace("grp_deny_", "")
+            bot.answer_callback_query(call.id, "❌ تم الرفض")
+            bot.edit_message_text(f"❌ تم رفض تفعيل البوت في الجروب `{group_id}`",
+                                  call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+            # Leave the group
+            try:
+                bot.leave_chat(int(group_id))
+            except: pass
+
+    # Group message handler for calls
+    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/call "))
+    def on_group_call(msg):
+        """Handle /call command in authorized groups"""
+        group_id = msg.chat.id
+        user_id = msg.from_user.id
+        
+        if not is_group_authorized(group_id):
+            bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
+            return
+        
+        if is_banned(user_id):
+            bot.reply_to(msg, "🚫 أنت محظور")
+            return
+        
+        # Check cooldown
+        cooldown = get_group_cooldown(user_id, group_id)
+        if not cooldown["can_call"]:
+            mins = cooldown["remaining_seconds"] // 60
+            secs = cooldown["remaining_seconds"] % 60
+            bot.reply_to(msg, f"⏳ استخدمت عملية الاتصال منذ قليل\nبرجاء الانتظار {mins} دقيقة و {secs} ثانية")
+            return
+        
+        # Extract phone number
+        parts = msg.text.strip().split()
+        if len(parts) < 2:
+            bot.reply_to(msg, "📞 أرسل الرقم هكذا: /call +966512345678")
+            return
+        
+        phone = parts[1]
+        if not phone.startswith("+"):
+            phone = "+" + phone
+        
+        # Set cooldown
+        set_group_cooldown(user_id, group_id)
+        
+        # Make the call
+        status_msg = bot.reply_to(msg, f"📞 جاري الاتصال بـ {phone}...")
+        
+        def _do_group_call():
+            try:
+                result = make_call(phone, dur=60, user_id=user_id, 
+                                   status_cb=lambda m: bot.edit_message_text(m, status_msg.chat.id, status_msg.message_id, parse_mode='Markdown'))
+                if result and result[0]:
+                    from_num = result[1] or ''
+                    bot.edit_message_text(f"✅ تم الاتصال بنجاح!\n📞 من: +{from_num}\n📱 إلى: {phone}", 
+                                          status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                else:
+                    bot.edit_message_text(f"❌ فشل الاتصال بـ {phone}", 
+                                          status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+            except Exception as e:
+                try:
+                    bot.edit_message_text(f"❌ خطأ: {e}", status_msg.chat.id, status_msg.message_id)
+                except: pass
+        
+        threading.Thread(target=_do_group_call, daemon=True).start()
+
+    # Group inline keyboard for call button
+    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text == "/start_call")
+    def on_group_start_call(msg):
+        group_id = msg.chat.id
+        if not is_group_authorized(group_id):
+            return
+        kb = InlineKeyboardMarkup()
+        kb.row(InlineKeyboardButton("📞 اتصال مجاني", callback_data="grp_call_btn"))
+        bot.send_message(msg.chat.id, "📞 اضغط للاتصال مجاناً (كل 20 دقيقة):", reply_markup=kb)
+
+    # Group call button callback
+    @bot.callback_query_handler(func=lambda c: c.data == "grp_call_btn")
+    def on_group_call_btn(call):
+        user_id = call.from_user.id
+        group_id = call.message.chat.id
+        
+        if not is_group_authorized(group_id):
+            bot.answer_callback_query(call.id, "❌ البوت مش مفعل هنا")
+            return
+        
+        if is_banned(user_id):
+            bot.answer_callback_query(call.id, "🚫 محظور")
+            return
+        
+        cooldown = get_group_cooldown(user_id, group_id)
+        if not cooldown["can_call"]:
+            mins = cooldown["remaining_seconds"] // 60
+            secs = cooldown["remaining_seconds"] % 60
+            bot.answer_callback_query(call.id, f"⏳ انتظر {mins} دقيقة و {secs} ثانية", show_alert=True)
+            return
+        
+        # No forced sub in groups
+        user_state[user_id] = {"action": "grp_call", "group_id": group_id}
+        bot.answer_callback_query(call.id)
+        bot.send_message(user_id, "📞 أرسل رقم الهاتف:\nمثال: `+966512345678`", parse_mode='Markdown')
+
     # ── /PMC ─────────────────────────────────────────────────────────────────
     @bot.message_handler(commands=['PMC', 'pmc'])
     def on_pmc(msg):
@@ -4135,8 +4480,8 @@ def run_bot(token_override: str = ""):
             if is_banned(cid):
                 bot.answer_callback_query(call.id, "🚫 أنت محظور")
                 return
-            # التحقق من الاشتراك (عدا الأدمن)
-            if cid not in ADMIN_IDS and not check_force_sub(bot, cid):
+            # التحقق من الاشتراك (عدا الأدمن — وفي الجروبات مش لازم)
+            if cid not in ADMIN_IDS and call.message.chat.type not in ("group", "supergroup") and not check_force_sub(bot, cid):
                 bot.answer_callback_query(call.id, "📢 يجب الاشتراك في القنوات أولاً")
                 send_force_sub_msg(bot, cid)
                 return
@@ -4147,6 +4492,98 @@ def run_bot(token_override: str = ""):
         
         bot.answer_callback_query(call.id)
         
+        # ─── أدمن: منح اشتراك تطبيق ─────────────────────────────────
+        elif data == "admin_grant_app_sub":
+            if cid not in ADMIN_IDS:
+                return
+            user_state[cid] = {"action": "admin_grant_app_sub"}
+            plans_text = "\n".join([f"• {pk}: {pv['emoji']} {pv['name']} — {pv['calls']} مكالمة — {pv['price']}$" for pk, pv in APP_SUBSCRIPTION_PLANS.items()])
+            bot.send_message(cid,
+                f"📱 *منح اشتراك تطبيق*\n\n"
+                f"أرسل معرف المستخدم والخطة:\n"
+                f"`123456789 app_basic`\n`123456789 app_pro`\n`123456789 app_unlimited`\n\n"
+                f"الخطط:\n{plans_text}",
+                parse_mode='Markdown')
+
+        # ─── أدمن: إلغاء اشتراك تطبيق ─────────────────────────────────
+        elif data == "admin_cancel_app_sub":
+            if cid not in ADMIN_IDS:
+                return
+            user_state[cid] = {"action": "admin_cancel_app_sub"}
+            bot.send_message(cid,
+                "📱 *إلغاء اشتراك تطبيق*\n\nأرسل معرف المستخدم:\n`123456789`",
+                parse_mode='Markdown')
+
+        # ─── أدمن: قائمة مشتركي التطبيق ─────────────────────────────────
+        elif data == "admin_app_subs_list":
+            if cid not in ADMIN_IDS:
+                return
+            subs = load_app_subs()
+            if not subs:
+                bot.edit_message_text("📱 لا يوجد مشتركي تطبيق", cid, call.message.message_id, reply_markup=_admin_panel())
+                return
+            lines = ["📱 *مشتركو التطبيق:*\n"]
+            for uid, info in subs.items():
+                plan_info = APP_SUBSCRIPTION_PLANS.get(info.get("plan", ""), {})
+                left = "∞" if plan_info.get("calls", 0) == 999999 else str(plan_info.get("calls", 0) - info.get("calls_used", 0))
+                lines.append(f"• `{uid}` — {plan_info.get('emoji','')} {plan_info.get('name','')} ({left} متبقية) — ينتهي: {info.get('expires','')}")
+            bot.edit_message_text("\n".join(lines), cid, call.message.message_id, parse_mode='Markdown', reply_markup=_admin_panel())
+
+        # ─── أدمن: قائمة مشتركي الشهري ─────────────────────────────────
+        elif data == "admin_monthly_subs_list":
+            if cid not in ADMIN_IDS:
+                return
+            subs = load_monthly_subs()
+            if not subs:
+                bot.edit_message_text("📅 لا يوجد مشتركي شهري", cid, call.message.message_id, reply_markup=_admin_panel())
+                return
+            lines = ["📅 *مشتركو الشهري:*\n"]
+            for uid, info in subs.items():
+                plan_info = MONTHLY_PLANS.get(info.get("plan", ""), {})
+                left = "∞" if plan_info.get("calls", 0) == 999999 else str(plan_info.get("calls", 0) - info.get("calls_used", 0))
+                lines.append(f"• `{uid}` — {plan_info.get('emoji','')} {plan_info.get('name','')} ({left} متبقية) — ينتهي: {info.get('expires','')}")
+            bot.edit_message_text("\n".join(lines), cid, call.message.message_id, parse_mode='Markdown', reply_markup=_admin_panel())
+
+        # ─── أدمن: إدارة الجروبات ─────────────────────────────────
+        elif data == "admin_groups":
+            if cid not in ADMIN_IDS:
+                return
+            groups = load_authorized_groups()
+            lines = ["🌐 *الجروبات المصرح لها:*\n"]
+            if groups:
+                for gid, ginfo in groups.items():
+                    lines.append(f"• `{gid}` — {ginfo.get('title', 'غير معروف')}")
+            else:
+                lines.append("لا يوجد جروبات مصرح لها")
+            kb2 = InlineKeyboardMarkup()
+            kb2.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
+            bot.edit_message_text("\n".join(lines), cid, call.message.message_id, parse_mode='Markdown', reply_markup=kb2)
+
+        # ─── تغيير اللغة ─────────────────────────────────
+        elif data == "change_lang":
+            kb_lang = InlineKeyboardMarkup()
+            for code, info in LANGUAGES.items():
+                kb_lang.row(InlineKeyboardButton(f"{info['emoji']} {info['name']}", callback_data=f"set_lang_{code}"))
+            kb_lang.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
+            try:
+                bot.edit_message_text("🌐 اختر لغتك / Choose your language:", cid, call.message.message_id, reply_markup=kb_lang)
+            except:
+                bot.send_message(cid, "🌐 اختر لغتك / Choose your language:", reply_markup=kb_lang)
+
+        elif data.startswith("set_lang_"):
+            lang_code = data.replace("set_lang_", "")
+            if lang_code in LANGUAGES:
+                set_user_lang(cid, lang_code)
+                lang_info = LANGUAGES[lang_code]
+                msg = f"✅ تم تغيير اللغة إلى {lang_info['emoji']} {lang_info['name']}" if lang_code == "ar" else f"✅ Language changed to {lang_info['emoji']} {lang_info['name']}"
+                bot.answer_callback_query(call.id, msg, show_alert=True)
+                # Go back to main menu
+                balance = get_user_balance(cid)
+                try:
+                    bot.edit_message_text(f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", cid, call.message.message_id, reply_markup=_main_kb(is_admin=cid in ADMIN_IDS))
+                except:
+                    bot.send_message(cid, f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", reply_markup=_main_kb(is_admin=cid in ADMIN_IDS))
+
         # القائمة الرئيسية
         if data == "go_start":
             access, msg_text = check_user_access(cid)
@@ -5917,6 +6354,55 @@ def run_bot(token_override: str = ""):
             except: bot.reply_to(msg, "❌ معرف غير صحيح")
             return
 
+        # ── أدمن: منح اشتراك تطبيق ──────────────────────────────────
+        if action == "admin_grant_app_sub":
+            user_state.pop(cid, None)
+            parts_app = text.strip().split()
+            if len(parts_app) != 2:
+                bot.reply_to(msg, "❌ الصيغة: `معرف_المستخدم اسم_الخطة`\nمثال: `123456789 app_pro`", parse_mode='Markdown')
+                return
+            try:
+                target_id = int(parts_app[0])
+                plan_key_app = parts_app[1].lower()
+            except:
+                bot.reply_to(msg, "❌ معرف غير صحيح")
+                return
+            if plan_key_app not in APP_SUBSCRIPTION_PLANS:
+                plans_list = ", ".join(APP_SUBSCRIPTION_PLANS.keys())
+                bot.reply_to(msg, f"❌ خطة غير موجودة\nالخطط المتاحة: `{plans_list}`", parse_mode='Markdown')
+                return
+            add_app_sub(target_id, plan_key_app, granted_by=cid)
+            plan_app = APP_SUBSCRIPTION_PLANS[plan_key_app]
+            calls_app = "∞" if plan_app["calls"] == 999999 else str(plan_app["calls"])
+            bot.reply_to(msg,
+                f"✅ *تم منح اشتراك تطبيق*\n\n"
+                f"المستخدم: `{target_id}`\n"
+                f"الخطة: {plan_app['emoji']} *{plan_app['name']}* ({calls_app} مكالمة)\n"
+                f"ينتهي بعد 30 يوم",
+                parse_mode='Markdown')
+            try:
+                bot.send_message(target_id,
+                    f"🎁 *تم تفعيل اشتراك التطبيق!*\n\n"
+                    f"{plan_app['emoji']} *{plan_app['name']}* — {calls_app} مكالمة\n"
+                    f"📆 صالح لمدة 30 يوم\n\n"
+                    f"استمتع بمكالماتك! 🎉",
+                    parse_mode='Markdown')
+            except: pass
+            return
+
+        # ── أدمن: إلغاء اشتراك تطبيق ──────────────────────────────────
+        if action == "admin_cancel_app_sub":
+            user_state.pop(cid, None)
+            try:
+                target_id = int(text.strip())
+                if remove_app_sub(target_id):
+                    bot.reply_to(msg, f"✅ تم إلغاء اشتراك التطبيق لـ `{target_id}`", parse_mode='Markdown')
+                else:
+                    bot.reply_to(msg, f"❌ `{target_id}` ليس مشتركاً في التطبيق", parse_mode='Markdown')
+            except:
+                bot.reply_to(msg, "❌ معرف غير صحيح")
+            return
+
         # ── تتبع شخص — استقبال user_id من الأدمن ────────────────────────
         if action == "admin_track_input":
             user_state.pop(cid)
@@ -6351,6 +6837,48 @@ def run_bot(token_override: str = ""):
             bot.send_message(cid,
                 "🎤 أرسل رسالة صوتية مش نص\n"
                 "اضغط على ميكروفون التيليجرام وسجّل")
+            return
+
+        # ── مكالمة جروب: grp_call ───────────────────────────────────
+        if action == "grp_call":
+            user_state.pop(cid, None)
+            group_id = state.get("group_id")
+            
+            # تنظيف الرقم
+            phone = re.sub(r'[^\d+]', '', text)
+            if not re.match(r'^\+?\d{7,15}$', phone):
+                bot.send_message(cid, "❌ رقم غير صحيح.\nمثال: +966512345678")
+                return
+            if not phone.startswith('+'):
+                phone = '+' + phone
+            
+            # Re-check cooldown
+            if group_id:
+                cooldown = get_group_cooldown(cid, group_id)
+                if not cooldown["can_call"]:
+                    mins = cooldown["remaining_seconds"] // 60
+                    secs = cooldown["remaining_seconds"] % 60
+                    bot.send_message(cid, f"⏳ انتظر {mins} دقيقة و {secs} ثانية")
+                    return
+                set_group_cooldown(cid, group_id)
+            
+            bot.send_message(cid, f"📱 {phone}\n📞 مكالمة جروب\n⏳ جاري الاتصال...")
+            
+            def _status_grp(msg):
+                try: bot.send_message(cid, msg)
+                except: pass
+            
+            def _run_grp_call():
+                try:
+                    result, from_num, rec_data = make_call(phone, dur=60, user_id=cid, status_cb=_status_grp)
+                    if result:
+                        bot.send_message(cid, f"✅ تم الاتصال بنجاح!\n📞 من: +{from_num or ''}\n📱 إلى: {phone}")
+                    else:
+                        bot.send_message(cid, f"❌ فشل الاتصال بـ {phone}")
+                except Exception as e:
+                    bot.send_message(cid, f"❌ خطأ: {e}")
+            
+            threading.Thread(target=_run_grp_call, daemon=True).start()
             return
 
         # ── مكالمة: call / multi ───────────────────────────────────

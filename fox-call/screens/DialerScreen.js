@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, RefreshControl, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, RefreshControl, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Numpad, { DeleteKey } from '../components/Numpad';
 import { Colors, Radii, Spacing } from '../theme/colors';
+import { t, isRTL } from '../i18n';
 
 
-export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLogout, onRefresh, onCallHistory }) {
+export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLogout, onRefresh, onCallHistory, onToggleLang, currentLang }) {
   const [refreshing, setRefreshing] = React.useState(false);
 
   const callCost = user?.cost || 0.20;
@@ -31,7 +32,10 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
     return p;
   };
 
-
+  const handleToggleLang = () => {
+    Haptics.selectionAsync();
+    if (onToggleLang) onToggleLang();
+  };
 
   return (
     <SafeAreaView style={S.wrap} edges={['top', 'bottom']}>
@@ -52,15 +56,22 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
               </View>
             )}
             <View>
-              <Text style={S.hello}>أهلاً</Text>
+              <Text style={S.hello}>{t('balance')}</Text>
               <Text style={S.name} numberOfLines={1}>
                 {user?.fullName || user?.username || `#${user?.userId}`}
               </Text>
             </View>
           </View>
-          <Pressable onPress={onLogout} hitSlop={12} style={S.logoutBtn}>
-            <Ionicons name="log-out-outline" size={22} color={Colors.textMuted} />
-          </Pressable>
+          <View style={S.headerRight}>
+            {/* Language Toggle */}
+            <Pressable onPress={handleToggleLang} hitSlop={12} style={S.langBtn}>
+              <Ionicons name="globe-outline" size={18} color={Colors.primary} />
+              <Text style={S.langLabel}>{currentLang === 'ar' ? 'EN' : 'عربي'}</Text>
+            </Pressable>
+            <Pressable onPress={onLogout} hitSlop={12} style={S.logoutBtn}>
+              <Ionicons name="log-out-outline" size={22} color={Colors.textMuted} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Balance card */}
@@ -72,7 +83,7 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
         >
           <View style={S.balRow}>
             <View>
-              <Text style={S.balLabel}>الرصيد المتاح</Text>
+              <Text style={S.balLabel}>{t('balance')}</Text>
               <Text style={S.balAmount}>${user?.balance?.toFixed(2) ?? '0.00'}</Text>
             </View>
             <View style={S.balIcon}>
@@ -83,11 +94,11 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
           <View style={S.balStats}>
             <View style={S.balStat}>
               <Ionicons name="call-outline" size={14} color="rgba(255,255,255,0.85)" />
-              <Text style={S.balStatTxt}>$0.20 للمكالمة</Text>
+              <Text style={S.balStatTxt}>${callCost.toFixed(2)} {t('callCost')}</Text>
             </View>
             <View style={S.balStat}>
               <Ionicons name="layers-outline" size={14} color="rgba(255,255,255,0.85)" />
-              <Text style={S.balStatTxt}>{user?.possibleCalls ?? 0} متاحة</Text>
+              <Text style={S.balStatTxt}>{user?.possibleCalls ?? 0} {t('calls')}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -95,9 +106,19 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
         {/* Phone display */}
         <View style={S.display}>
           <View style={S.phoneInner}>
-            <Text style={[S.phone, !phone && S.phonePlaceholder]} numberOfLines={1} adjustsFontSizeToFit>
-              {phone ? formatPhone(phone) : 'أدخل الرقم'}
-            </Text>
+            <TextInput
+              style={[S.phone, !phone && S.phonePlaceholder, { letterSpacing: phone.length > 12 ? 0.4 : phone.length > 10 ? 0.8 : phone.length > 8 ? 1.2 : 1.5 }]}
+              value={phone ? formatPhone(phone) : ''}
+              placeholder={t('enterToken')}
+              placeholderTextColor={Colors.textDim}
+              onChangeText={(text) => onPhoneChange(text.replace(/[^0-9+]/g, ''))}
+              keyboardType="phone-pad"
+              selectTextOnFocus
+              selectionColor={Colors.primary}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.4}
+            />
           </View>
           {phone ? <DeleteKey onPress={del} onLongPress={clear} /> : null}
         </View>
@@ -106,7 +127,7 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
         {phone && currentBalance < callCost && (
           <View style={S.lowBalWarning}>
             <Ionicons name="warning" size={16} color="#e74c3c" />
-            <Text style={S.lowBalText}>رصيدك غير كافي للمكالمة ({currentBalance.toFixed(2)}$)</Text>
+            <Text style={S.lowBalText}>{t('insufficientBalance')} ({currentBalance.toFixed(2)}$)</Text>
           </View>
         )}
 
@@ -121,7 +142,7 @@ export default function DialerScreen({ user, phone, onPhoneChange, onCall, onLog
             style={({ pressed }) => [S.sideBtn, pressed && S.sideBtnPressed]}
           >
             <Ionicons name="time-outline" size={24} color={Colors.textMuted} />
-            <Text style={S.sideBtnLbl}>السجل</Text>
+            <Text style={S.sideBtnLbl}>{t('callHistory')}</Text>
           </Pressable>
 
           {/* Call button */}
@@ -150,6 +171,7 @@ const S = StyleSheet.create({
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   avatar: {
     width: 44, height: 44, borderRadius: Radii.full,
     backgroundColor: Colors.primarySoft,
@@ -163,6 +185,13 @@ const S = StyleSheet.create({
   avatarTxt: { color: Colors.primary, fontSize: 18, fontWeight: '800' },
   hello: { color: Colors.textMuted, fontSize: 12 },
   name: { color: Colors.text, fontSize: 16, fontWeight: '700', maxWidth: 200 },
+  langBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radii.full, marginRight: 4,
+  },
+  langLabel: { color: Colors.primary, fontSize: 11, fontWeight: '700' },
   logoutBtn: { padding: 8 },
 
   balCard: {
@@ -187,14 +216,14 @@ const S = StyleSheet.create({
 
   display: {
     minHeight: 70,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.md,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     marginBottom: Spacing.lg,
   },
   phoneInner: { flex: 1, alignItems: 'center' },
   phone: {
     color: Colors.text, fontSize: 32, fontWeight: '300',
-    letterSpacing: 1.5, textAlign: 'center',
+    textAlign: 'center', padding: 0, margin: 0,
   },
   phonePlaceholder: { color: Colors.textDim, fontSize: 18 },
   bottomBtns: {

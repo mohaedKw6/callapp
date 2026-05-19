@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Radii, Spacing } from '../theme/colors';
 import { decodeFoxToken } from '../services/foxToken';
+import { t } from '../i18n';
 
 export default function TokenScreen({ onConnect }) {
   const [token, setToken] = useState('');
@@ -17,18 +18,18 @@ export default function TokenScreen({ onConnect }) {
 
   const submit = async () => {
     setError(null);
-    const t = token.trim();
-    if (!t) return;
-    const info = decodeFoxToken(t);
+    const tk = token.trim();
+    if (!tk) return;
+    const info = decodeFoxToken(tk);
     if (!info) {
-      setError('التوكن غير صحيح. تأكد إنك نسخته كامل من البوت.');
+      setError(t('tokenPlaceholder') + ' - ' + t('failed'));
       return;
     }
     setLoading(true);
     try {
-      await onConnect(t);
+      await onConnect(tk);
     } catch (e) {
-      setError(e?.message || 'فشل الاتصال بالسيرفر');
+      setError(e?.message || t('failed'));
     } finally {
       setLoading(false);
     }
@@ -51,19 +52,19 @@ export default function TokenScreen({ onConnect }) {
               <Ionicons name="call" size={42} color="#fff" />
             </LinearGradient>
             <Text style={S.title}>Fox Call</Text>
-            <Text style={S.subtitle}>مكالمات صوتية مباشرة وآمنة</Text>
+            <Text style={S.subtitle}>{t('tokenHint')}</Text>
           </View>
 
           <View style={S.card}>
             <View style={S.labelRow}>
               <Ionicons name="key-outline" size={16} color={Colors.textMuted} />
-              <Text style={S.label}>توكن الدخول</Text>
+              <Text style={S.label}>{t('enterToken')}</Text>
             </View>
             <TextInput
               style={[S.input, error && S.inputErr]}
               value={token}
               onChangeText={(v) => { setToken(v); setError(null); }}
-              placeholder="الصق التوكن هنا..."
+              placeholder={t('tokenPlaceholder')}
               placeholderTextColor={Colors.textDim}
               multiline
               autoCapitalize="none"
@@ -97,7 +98,7 @@ export default function TokenScreen({ onConnect }) {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Text style={S.btnTxt}>دخول</Text>
+                    <Text style={S.btnTxt}>{t('connect')}</Text>
                     <Ionicons name="arrow-back" size={18} color="#fff" />
                   </>
                 )}
@@ -108,7 +109,7 @@ export default function TokenScreen({ onConnect }) {
           <View style={S.tipBox}>
             <Ionicons name="information-circle" size={14} color={Colors.textMuted} />
             <Text style={S.tip}>
-              اطلب التوكن من البوت في تيليجرام بأمر  /token
+              {t('tokenHint')}
             </Text>
           </View>
         </ScrollView>

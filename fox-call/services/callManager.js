@@ -1,16 +1,21 @@
 import LinphoneCall from '../modules/linphone-call';
 
+const REUSE_LIMIT = 3; // Max reuse attempts for same number on no-answer
+
 export class CallManager {
   constructor(api) {
     this._api = api;
     this._listener = {};
     this._state = 'idle';
     this._startedAt = 0;
+    this._wasAnswered = false; // Track if call was actually answered
     this._timer = null;
     this._currentCall = null;
     this._muted = false;
     this._speaker = false;
     this._nativeUnsub = null;
+    this._reuseCount = 0; // How many times we've retried the same number
+    this._lastNumber = ''; // Last called number for reuse tracking
   }
 
   on(l) { this._listener = l; }
@@ -19,6 +24,8 @@ export class CallManager {
   isSpeaker() { return this._speaker; }
   getState() { return this._state; }
   getCallInfo() { return this._currentCall; }
+  getReuseCount() { return this._reuseCount; }
+  getLastNumber() { return this._lastNumber; }
 
   _setState(s) {
     this._state = s;
@@ -26,7 +33,22 @@ export class CallManager {
   }
 
   async startCall(to, retries = 2) {
+    // Track number reuse
+    if (to === this._lastNumber) {
+      this._reuseCount++;
+    } else {
+      this._reuseCount = 0;
+      this._lastNumber = to;
+    }
+
+    // If we've reused this number too many times, reset and let the app fetch a new number
+    if (this._reuseCount > REUSE_LIMIT) {
+      this._reuseCount = 0;
+      this._listener.onMaxReuse?.();
+    }
+
     this._setState('connecting');
+    this._wasAnswered = false; // Reset for new call
     let lastError = '';
 
     for (let attempt = 0; attempt <= retries; attempt++) {
@@ -50,6 +72,7 @@ export class CallManager {
           } else if (evt.state === 'outgoing_init') {
             // Still connecting, keep state
           } else if (evt.state === 'connected') {
+            this._wasAnswered = true; // Mark as answered BEFORE any reset
             this._setState('connected');
             this._startedAt = Date.now();
             this._startTimer();
@@ -118,62 +141,48 @@ export class CallManager {
     const lower = msg.toLowerCase();
 
     // Check for specific error patterns first (before generic checks)
-    // Account used before errors
     if (lower.includes('used') || lower.includes('already') || lower.includes('استعمل')) {
       return 'هذا الحساب مستعمل قبل كده - جاري تجربة حساب آخر';
     }
-    // User balance errors (from Fox Call server - user's own balance insufficient)
     if (lower.includes('رصيدك مش كافي') || (lower.includes('رصيدك') && lower.includes('كافي'))) {
       return 'رصيدك مش كافي لإجراء مكالمة';
     }
-    // Provider account balance errors (the SIP provider account ran out, NOT the user)
     if (lower.includes('no_balance') || lower.includes('الحساب المستخدم لا يحتوي على رصيد')) {
       return 'حساب المكالمات خلص رصيده - حاول بعد شوية';
     }
-    // Proxy connection errors (request made from user's device failed)
     if (lower.includes('فشل الاتصال من جهازك') || lower.includes('فشل الطلب من جهازك')) {
       return 'فشل الاتصال من جهازك - حاول مرة أخرى';
     }
     if (lower.includes('انقطع الاتصال بخادم المكالمات')) {
       return 'انقطع الاتصال بخادم المكالمات - حاول مرة أخرى';
     }
-    // No accounts available
     if (lower.includes('no accounts') || lower.includes('لا يوجد') || lower.includes('لا توجد') || lower.includes('حسابات')) {
       return 'مفيش حسابات متاحة حالياً - حاول لاحقاً';
     }
-    // Network errors
     if (lower.includes('network') || lower.includes('unreachable') || lower.includes('timeout') || lower.includes('connection')) {
       return 'تعذر الاتصال بالخادم - تحقق من اتصال الإنترنت';
     }
-    // SIP registration errors
     if (lower.includes('registration') || lower.includes('reg')) {
       return 'فشل التسجيل بخادم SIP - حاول مرة أخرى';
     }
-    // TLS/SSL errors
     if (lower.includes('tls') || lower.includes('ssl') || lower.includes('certificate')) {
       return 'مشكلة في الاتصال الآمن - حاول مرة أخرى';
     }
-    // Not found / 404
     if (lower.includes('not found') || lower.includes('404') || lower.includes('غير متاحة')) {
       return 'الخدمة غير متاحة حالياً - حاول بعد قليل';
     }
-    // Service unavailable
     if (lower.includes('unavailable') || lower.includes('غير متاح') || lower.includes('غير موجودة')) {
       return 'الخدمة غير متاحة حالياً - حاول بعد قليل';
     }
-    // Module errors
     if (lower.includes('module') || lower.includes('native')) {
       return 'التطبيق يحتاج تحديث - حمّل النسخة الأحدث';
     }
-    // Call service specific errors
     if (lower.includes('call_')) {
       return 'خطأ في خدمة المكالمات - حاول مرة أخرى';
     }
-    // Internal server error
     if (lower.includes('500') || lower.includes('server error') || lower.includes('خطأ في')) {
       return 'خطأ في السيرفر - جربي بعد شوية';
     }
-    // Default - return original with friendly message
     if (msg && msg.length > 0 && msg.length < 200) {
       return msg;
     }
@@ -228,6 +237,9 @@ export class CallManager {
   }
 
   _cleanup(finalState) {
+    // Capture wasAnswered BEFORE resetting _startedAt
+    const wasAnswered = this._wasAnswered;
+
     if (this._timer) {
       clearInterval(this._timer);
       this._timer = null;
@@ -238,12 +250,26 @@ export class CallManager {
     }
     const dur = this._startedAt ? Math.floor((Date.now() - this._startedAt) / 1000) : 0;
     const callId = this._currentCall?.callId;
-    this._api.endCall(callId, dur).catch(() => {});
+
+    // If call ended but was never answered (duration = 0), report as failed
+    if (finalState === 'ended' && !wasAnswered && dur === 0) {
+      console.log('[CallManager] Call ended without being answered - marking as failed');
+      this._api.markCallFailed?.(callId).catch(() => {});
+    } else {
+      this._api.endCall(callId, dur).catch(() => {});
+    }
+
+    // Reset state
     this._startedAt = 0;
+    this._wasAnswered = false;
     this._muted = false;
     this._speaker = false;
     this._setState(finalState);
-    this._listener.onEnd?.();
+    this._listener.onEnd?.({
+      wasAnswered,
+      duration: dur,
+      reuseCount: this._reuseCount,
+    });
   }
 
   destroy() {
