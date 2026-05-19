@@ -63,49 +63,6 @@ SUBSCRIPTION_SELLERS = [
     {"username": "@llllllIlIlIlIlIlIlIl", "name": "الوكيل"},
 ]
 
-AUTHORIZED_GROUPS_FILE = os.path.join(DATA_DIR, "authorized_groups.json")
-GROUP_COOLDOWN_SECONDS = 20 * 60  # 20 minutes
-
-def load_authorized_groups() -> dict:
-    if os.path.exists(AUTHORIZED_GROUPS_FILE):
-        try:
-            with open(AUTHORIZED_GROUPS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except: pass
-    return {}
-
-def save_authorized_groups(data: dict):
-    try:
-        with open(AUTHORIZED_GROUPS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except: pass
-
-def is_group_authorized(group_id) -> bool:
-    groups = load_authorized_groups()
-    return str(group_id) in groups
-
-def get_group_cooldown(user_id, group_id) -> dict:
-    """Check if user is on cooldown in group. Returns {can_call: bool, remaining_seconds: int}"""
-    groups = load_authorized_groups()
-    gid = str(group_id)
-    if gid not in groups:
-        return {"can_call": False, "remaining_seconds": 0}
-    last_call = groups[gid].get("user_cooldowns", {}).get(str(user_id), 0)
-    elapsed = time.time() - last_call
-    if elapsed >= GROUP_COOLDOWN_SECONDS:
-        return {"can_call": True, "remaining_seconds": 0}
-    return {"can_call": False, "remaining_seconds": int(GROUP_COOLDOWN_SECONDS - elapsed)}
-
-def set_group_cooldown(user_id, group_id):
-    groups = load_authorized_groups()
-    gid = str(group_id)
-    if gid not in groups:
-        return
-    if "user_cooldowns" not in groups[gid]:
-        groups[gid]["user_cooldowns"] = {}
-    groups[gid]["user_cooldowns"][str(user_id)] = time.time()
-    save_authorized_groups(groups)
-
 LANGUAGES = {
     "ar": {"name": "العربية", "emoji": "🇸🇦", "dir": "rtl"},
     "en": {"name": "English", "emoji": "🇬🇧", "dir": "ltr"},
@@ -175,6 +132,50 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__fil
 # This ensures data survives container restarts when a volume is attached.
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(SCRIPT_DIR, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
+
+# ─── Authorized Groups (for group bot feature) ──────────────────────────────
+AUTHORIZED_GROUPS_FILE = os.path.join(DATA_DIR, "authorized_groups.json")
+GROUP_COOLDOWN_SECONDS = 20 * 60  # 20 minutes
+
+def load_authorized_groups() -> dict:
+    if os.path.exists(AUTHORIZED_GROUPS_FILE):
+        try:
+            with open(AUTHORIZED_GROUPS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except: pass
+    return {}
+
+def save_authorized_groups(data: dict):
+    try:
+        with open(AUTHORIZED_GROUPS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except: pass
+
+def is_group_authorized(group_id) -> bool:
+    groups = load_authorized_groups()
+    return str(group_id) in groups
+
+def get_group_cooldown(user_id, group_id) -> dict:
+    """Check if user is on cooldown in group. Returns {can_call: bool, remaining_seconds: int}"""
+    groups = load_authorized_groups()
+    gid = str(group_id)
+    if gid not in groups:
+        return {"can_call": False, "remaining_seconds": 0}
+    last_call = groups[gid].get("user_cooldowns", {}).get(str(user_id), 0)
+    elapsed = time.time() - last_call
+    if elapsed >= GROUP_COOLDOWN_SECONDS:
+        return {"can_call": True, "remaining_seconds": 0}
+    return {"can_call": False, "remaining_seconds": int(GROUP_COOLDOWN_SECONDS - elapsed)}
+
+def set_group_cooldown(user_id, group_id):
+    groups = load_authorized_groups()
+    gid = str(group_id)
+    if gid not in groups:
+        return
+    if "user_cooldowns" not in groups[gid]:
+        groups[gid]["user_cooldowns"] = {}
+    groups[gid]["user_cooldowns"][str(user_id)] = time.time()
+    save_authorized_groups(groups)
 
 ACCOUNTS_FILE = os.path.join(DATA_DIR, "telicall_accounts.json")
 ACCOUNTS_PASSWORD = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"').strip("'").strip()   # كلمة سر ملف الحسابات
