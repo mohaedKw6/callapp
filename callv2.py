@@ -3447,6 +3447,11 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
             elif data == "sub_monthly":
                 monthly = get_monthly_sub(cid)
                 balance = get_user_balance(cid)
+                plans_text2 = "\n".join([
+                    f"  {pv['emoji']} {pv['name']} — {'∞' if pv['calls'] == 999999 else pv['calls']} مكالمة — {pv['price']:.2f}$"
+                    for pk, pv in MONTHLY_PLANS.items()
+                ])
+                sellers_lines2 = "\n".join([f"👤 {s['username']} — {s['name']}" for s in SUBSCRIPTION_SELLERS])
                 if monthly:
                     plan_info2 = MONTHLY_PLANS.get(monthly["plan"], {})
                     left_m2 = get_monthly_calls_left(cid)
@@ -3455,39 +3460,41 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                         f"📅 *اشتراكك الحالي*\n\n"
                         f"{plan_info2.get('emoji','')} {plan_info2.get('name','')}\n"
                         f"📞 متبقي: *{left_s2}*\n📆 ينتهي: {monthly.get('expires','')}\n\n"
-                        f"💰 رصيدك: `{balance:.2f}$`\n\n*ترقية أو تجديد:*"
+                        f"💰 رصيدك: `{balance:.2f}$`\n\n"
+                        f"─────────────────\n"
+                        f"🔄 *لترقية خطتك أو تجديدها تواصل مع:*\n\n"
+                        f"{sellers_lines2}\n\n"
+                        f"📋 *الخطط المتاحة:*\n{plans_text2}"
                     )
                 else:
                     st_txt = (
                         f"📅 *الاشتراك الشهري*\n\nمكالمات أكثر بسعر أقل!\n\n"
-                        f"💰 رصيدك: `{balance:.2f}$`\n\n*اختر خطتك:*"
+                        f"📋 *الخطط المتاحة:*\n{plans_text2}\n\n"
+                        f"💰 رصيدك: `{balance:.2f}$`\n\n"
+                        f"─────────────────\n"
+                        f"📥 *للاشتراك تواصل مع:*\n\n"
+                        f"{sellers_lines2}"
                     )
                 kb_sm = InlineKeyboardMarkup()
-                for pk, pv in MONTHLY_PLANS.items():
-                    calls_str2 = "∞" if pv["calls"] == 999999 else str(pv["calls"])
-                    can2 = "✅" if balance >= pv["price"] else "❌"
+                for s in SUBSCRIPTION_SELLERS:
                     kb_sm.row(InlineKeyboardButton(
-                        f"{can2} {pv['emoji']} {pv['name']} — {calls_str2} مكالمة — {pv['price']:.2f}$",
-                        callback_data=f"sub_buy_monthly_{pk}"
+                        f"💬 تواصل مع {s['name']}",
+                        url=f"https://t.me/{s['username'].replace('@', '')}"
                     ))
                 kb_sm.row(InlineKeyboardButton("🔙 رجوع", callback_data="sub_go_start"))
                 sub.send_message(cid, st_txt, parse_mode='Markdown', reply_markup=kb_sm)
 
             elif data.startswith("sub_buy_monthly_"):
+                # تم إلغاء الشراء المباشر — توجيه للأدمن
                 plan_key2 = data.replace("sub_buy_monthly_", "")
-                res2 = buy_monthly_sub_with_balance(cid, plan_key2)
-                sub.answer_callback_query(call.id, res2["msg"][:200], show_alert=True)
-                if res2["ok"]:
-                    plan_info2 = MONTHLY_PLANS.get(plan_key2, {})
-                    calls_str2 = "∞" if plan_info2.get("calls",0) == 999999 else str(plan_info2.get("calls",0))
-                    kb_ok2 = InlineKeyboardMarkup()
-                    kb_ok2.row(InlineKeyboardButton("📞 ابدأ مكالمة!", callback_data="sub_call"))
-                    kb_ok2.row(InlineKeyboardButton("🔙 القائمة", callback_data="sub_go_start"))
-                    sub.send_message(
-                        cid,
-                        f"🎉 {res2['msg']}\n\n📞 مكالمات متاحة: *{calls_str2}*\n📆 تنتهي بعد 30 يوم",
-                        parse_mode='Markdown', reply_markup=kb_ok2
-                    )
+                plan2 = MONTHLY_PLANS.get(plan_key2)
+                if plan2:
+                    sellers_lines2 = "\n".join([f"👤 {s['username']}" for s in SUBSCRIPTION_SELLERS])
+                    sub.answer_callback_query(call.id,
+                        f"📥 للاشتراك في خطة {plan2['emoji']} {plan2['name']} ({plan2['price']:.2f}$)\nتواصل مع:\n{sellers_lines2}",
+                        show_alert=True)
+                else:
+                    sub.answer_callback_query(call.id, "❌ خطة غير موجودة", show_alert=True)
 
             # ==================== إنشاء بوت من البوت الفرعي ====================
             elif data == "sub_create_bot":
@@ -4810,6 +4817,12 @@ def run_bot(token_override: str = ""):
         elif data == "monthly_sub":
             monthly = get_monthly_sub(cid)
             balance = get_user_balance(cid)
+            # بناء نص الخطط المتاحة
+            plans_text = "\n".join([
+                f"  {pv['emoji']} {pv['name']} — {'∞' if pv['calls'] == 999999 else pv['calls']} مكالمة — {pv['price']:.2f}$"
+                for pk, pv in MONTHLY_PLANS.items()
+            ])
+            sellers_lines = "\n".join([f"👤 {s['username']} — {s['name']}" for s in SUBSCRIPTION_SELLERS])
             if monthly:
                 plan_info = MONTHLY_PLANS.get(monthly["plan"], {})
                 left_m = get_monthly_calls_left(cid)
@@ -4820,22 +4833,26 @@ def run_bot(token_override: str = ""):
                     f"📞 مكالمات متبقية: *{left_str}*\n"
                     f"📆 ينتهي في: *{monthly.get('expires','')}*\n\n"
                     f"💰 رصيدك: `{balance:.2f}$`\n\n"
-                    f"*يمكنك ترقية خطتك أو تجديدها:*"
+                    f"─────────────────\n"
+                    f"🔄 *لترقية خطتك أو تجديدها تواصل مع:*\n\n"
+                    f"{sellers_lines}\n\n"
+                    f"📋 *الخطط المتاحة:*\n{plans_text}"
                 )
             else:
                 status_text = (
                     f"📅 *الاشتراك الشهري*\n\n"
                     f"اشترك في خطة شهرية واحصل على مكالمات بسعر أرخص!\n\n"
+                    f"📋 *الخطط المتاحة:*\n{plans_text}\n\n"
                     f"💰 رصيدك الحالي: `{balance:.2f}$`\n\n"
-                    f"*اختر خطتك:*"
+                    f"─────────────────\n"
+                    f"📥 *للاشتراك تواصل مع:*\n\n"
+                    f"{sellers_lines}"
                 )
             kb_m = InlineKeyboardMarkup()
-            for pk, pv in MONTHLY_PLANS.items():
-                calls_str = "∞" if pv["calls"] == 999999 else str(pv["calls"])
-                can = "✅" if balance >= pv["price"] else "❌"
+            for s in SUBSCRIPTION_SELLERS:
                 kb_m.row(InlineKeyboardButton(
-                    f"{can} {pv['emoji']} {pv['name']} — {calls_str} مكالمة — {pv['price']:.2f}$",
-                    callback_data=f"buy_monthly_{pk}"
+                    f"💬 تواصل مع {s['name']}",
+                    url=f"https://t.me/{s['username'].replace('@', '')}"
                 ))
             kb_m.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
             try:
@@ -4845,23 +4862,16 @@ def run_bot(token_override: str = ""):
                 bot.send_message(cid, status_text, parse_mode='Markdown', reply_markup=kb_m)
 
         elif data.startswith("buy_monthly_"):
+            # تم إلغاء الشراء المباشر — توجيه للأدمن
             plan_key = data.replace("buy_monthly_", "")
-            res = buy_monthly_sub_with_balance(cid, plan_key)
-            bot.answer_callback_query(call.id, res["msg"][:200], show_alert=True)
-            if res["ok"]:
-                plan_info = MONTHLY_PLANS.get(plan_key, {})
-                calls_str = "∞" if plan_info.get("calls",0) == 999999 else str(plan_info.get("calls",0))
-                kb_ok = InlineKeyboardMarkup()
-                kb_ok.row(InlineKeyboardButton("📞 ابدأ مكالمة الآن!", callback_data="menu_call"))
-                kb_ok.row(InlineKeyboardButton("🔙 القائمة", callback_data="go_start"))
-                bot.send_message(
-                    cid,
-                    f"🎉 {res['msg']}\n\n"
-                    f"📞 مكالمات متاحة: *{calls_str}*\n"
-                    f"📆 تنتهي بعد 30 يوم",
-                    parse_mode='Markdown',
-                    reply_markup=kb_ok
-                )
+            plan = MONTHLY_PLANS.get(plan_key)
+            if plan:
+                sellers_lines = "\n".join([f"👤 {s['username']}" for s in SUBSCRIPTION_SELLERS])
+                bot.answer_callback_query(call.id,
+                    f"📥 للاشتراك في خطة {plan['emoji']} {plan['name']} ({plan['price']:.2f}$)\nتواصل مع:\n{sellers_lines}",
+                    show_alert=True)
+            else:
+                bot.answer_callback_query(call.id, "❌ خطة غير موجودة", show_alert=True)
 
         # ─── أدمن: منح اشتراك شهري ──────────────────────────────
         elif data == "admin_grant_monthly":

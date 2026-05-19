@@ -1315,6 +1315,47 @@ def api_me():
     except Exception:
         pass
 
+    # ─── Monthly subscription status (for the app) ──────────────────
+    monthly_sub_info = {"active": False, "plan": None, "calls_remaining": 0, "total_calls": 0, "expires": None}
+    try:
+        cv = _cv()
+        monthly = cv.get_monthly_sub(uid)
+        if monthly:
+            plan_info = cv.MONTHLY_PLANS.get(monthly.get("plan", ""), {})
+            total_calls = plan_info.get("calls", 0)
+            calls_left = cv.get_monthly_calls_left(uid)
+            is_unlimited = total_calls >= 999999
+            monthly_sub_info = {
+                "active": True,
+                "plan": monthly.get("plan", ""),
+                "planName": plan_info.get("name", ""),
+                "planEmoji": plan_info.get("emoji", ""),
+                "calls_remaining": -1 if is_unlimited else calls_left,
+                "total_calls": -1 if is_unlimited else total_calls,
+                "isUnlimited": is_unlimited,
+                "expires": monthly.get("expires", ""),
+            }
+            # If user has active unlimited monthly sub, override possibleCalls
+            if is_unlimited:
+                possible = 999999
+    except Exception:
+        pass
+
+    # ─── App subscription status ──────────────────
+    app_sub_info = {"active": False, "plan": None, "calls_remaining": 0, "total_calls": 0}
+    try:
+        app_sub = _get_user_subscription(uid)
+        if app_sub:
+            app_sub_info = {
+                "active": True,
+                "plan": app_sub.get("plan", "free"),
+                "calls_remaining": app_sub.get("calls_remaining", 0),
+                "total_calls": app_sub.get("total_calls", 0),
+                "expires_at": app_sub.get("expires_at", None),
+            }
+    except Exception:
+        pass
+
     return jsonify(
         {
             "userId": uid,
@@ -1331,6 +1372,8 @@ def api_me():
             "cost": round(cost, 2),
             "possibleCalls": possible,
             "usedCalls": used_calls,
+            "monthlySubscription": monthly_sub_info,
+            "appSubscription": app_sub_info,
             "call_history": call_history,
         }
     )
