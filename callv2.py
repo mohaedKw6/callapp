@@ -4489,11 +4489,11 @@ def run_bot(token_override: str = ""):
             if is_banned(cid):
                 bot.answer_callback_query(call.id, "🚫 أنت محظور")
                 return
-        
+
         bot.answer_callback_query(call.id)
-        
+
         # ─── أدمن: منح اشتراك تطبيق ─────────────────────────────────
-        elif data == "admin_grant_app_sub":
+        if data == "admin_grant_app_sub":
             if cid not in ADMIN_IDS:
                 return
             user_state[cid] = {"action": "admin_grant_app_sub"}
@@ -4585,7 +4585,7 @@ def run_bot(token_override: str = ""):
                     bot.send_message(cid, f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", reply_markup=_main_kb(is_admin=cid in ADMIN_IDS))
 
         # القائمة الرئيسية
-        if data == "go_start":
+        elif data == "go_start":
             access, msg_text = check_user_access(cid)
             welcome = f"""
 🌟 *مرحباً بك في بوت المكالمات* 🌟
