@@ -63,6 +63,10 @@ SUBSCRIPTION_SELLERS = [
     {"username": "@llllllIlIlIlIlIlIlIl", "name": "الوكيل"},
 ]
 
+def _md(text: str) -> str:
+    """Escape special Markdown characters so text displays correctly in Telegram Markdown."""
+    return text.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("`", "\\`")
+
 LANGUAGES = {
     "ar": {"name": "العربية", "emoji": "🇸🇦", "dir": "rtl"},
     "en": {"name": "English", "emoji": "🇬🇧", "dir": "ltr"},
@@ -3451,7 +3455,7 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                     f"  {pv['emoji']} {pv['name']} — {'∞' if pv['calls'] == 999999 else pv['calls']} مكالمة — {pv['price']:.2f}$"
                     for pk, pv in MONTHLY_PLANS.items()
                 ])
-                sellers_lines2 = "\n".join([f"👤 {s['username']} — {s['name']}" for s in SUBSCRIPTION_SELLERS])
+                sellers_lines2 = "\n".join([f"👤 {_md(s['username'])} — {_md(s['name'])}" for s in SUBSCRIPTION_SELLERS])
                 if monthly:
                     plan_info2 = MONTHLY_PLANS.get(monthly["plan"], {})
                     left_m2 = get_monthly_calls_left(cid)
@@ -3489,7 +3493,7 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                 plan_key2 = data.replace("sub_buy_monthly_", "")
                 plan2 = MONTHLY_PLANS.get(plan_key2)
                 if plan2:
-                    sellers_lines2 = "\n".join([f"👤 {s['username']}" for s in SUBSCRIPTION_SELLERS])
+                    sellers_lines2 = "\n".join([f"👤 {_md(s['username'])}" for s in SUBSCRIPTION_SELLERS])
                     sub.answer_callback_query(call.id,
                         f"📥 للاشتراك في خطة {plan2['emoji']} {plan2['name']} ({plan2['price']:.2f}$)\nتواصل مع:\n{sellers_lines2}",
                         show_alert=True)
@@ -3867,27 +3871,51 @@ _sip_registry: dict = {}
 _current_sip = [None]
 _error_store: dict = {}
 
-def _main_kb(is_admin=False):
-    """أزرار شفافة للبوت"""
+def _main_kb(is_admin=False, user_id=None):
+    """أزرار شفافة للبوت — تدعم اللغة"""
+    lang = get_user_lang(user_id) if user_id else "ar"
+    # ترجمة الأزرار
+    if lang == "en":
+        labels = {
+            "call": "📞 Single Call", "multi": "🔄 Multi Call",
+            "voice": "🎤 Upload Voice", "monthly": "📅 Monthly Sub",
+            "balance": "💰 Balance", "rank": "🏅 My Rank",
+            "convert": "💱 Balance to Code", "mybot": "🤖 My Bot",
+            "create_bot": "➕ Create Bot", "leaderboard": "🏆 Leaderboard",
+            "token": "🔑 Create Token", "support": "💬 Support",
+            "admin": "👑 Admin Panel", "dtmf": "⚙️ DTMF Settings",
+            "lang": "🌐 Language",
+        }
+    else:
+        labels = {
+            "call": "📞 اتصال واحد", "multi": "🔄 اتصال متعدد",
+            "voice": "🎤 تحميل صوت", "monthly": "📅 اشتراك شهري",
+            "balance": "💰 رصيدي", "rank": "🏅 رتبتي",
+            "convert": "💱 تحويل رصيد لكود", "mybot": "🤖 بوتي الخاص",
+            "create_bot": "➕ أنشئ بوتاً", "leaderboard": "🏆 لوحة المتصدرين",
+            "token": "🔑 إنشاء توكن", "support": "💬 تواصل مع الدعم",
+            "admin": "👑 لوحة الأدمن", "dtmf": "⚙️ إعدادات DTMF",
+            "lang": "🌐 اللغة / Language",
+        }
     kb = InlineKeyboardMarkup()
-    kb.row(InlineKeyboardButton("📞 اتصال واحد", callback_data="menu_call"),
-           InlineKeyboardButton("🔄 اتصال متعدد", callback_data="menu_multi"))
-    kb.row(InlineKeyboardButton("🎤 تحميل صوت", callback_data="menu_voice"),
-           InlineKeyboardButton("📅 اشتراك شهري", callback_data="monthly_sub"))
-    kb.row(InlineKeyboardButton("💰 رصيدي", callback_data="user_balance"),
-           InlineKeyboardButton("🏅 رتبتي", callback_data="my_rank"))
-    kb.row(InlineKeyboardButton("💱 تحويل رصيد لكود", callback_data="balance_to_code"))
-    kb.row(InlineKeyboardButton("🤖 بوتي الخاص", callback_data="my_bots"),
-           InlineKeyboardButton("➕ أنشئ بوتاً", callback_data="create_sub_bot"))
-    kb.row(InlineKeyboardButton("🏆 لوحة المتصدرين", callback_data="show_leaderboard"))
-    kb.row(InlineKeyboardButton("🔑 إنشاء توكن", callback_data="create_token"))
-    kb.row(InlineKeyboardButton("💬 تواصل مع الدعم", url=f"https://t.me/{SUPPORT_USER.replace('@', '')}"))
+    kb.row(InlineKeyboardButton(labels["call"], callback_data="menu_call"),
+           InlineKeyboardButton(labels["multi"], callback_data="menu_multi"))
+    kb.row(InlineKeyboardButton(labels["voice"], callback_data="menu_voice"),
+           InlineKeyboardButton(labels["monthly"], callback_data="monthly_sub"))
+    kb.row(InlineKeyboardButton(labels["balance"], callback_data="user_balance"),
+           InlineKeyboardButton(labels["rank"], callback_data="my_rank"))
+    kb.row(InlineKeyboardButton(labels["convert"], callback_data="balance_to_code"))
+    kb.row(InlineKeyboardButton(labels["mybot"], callback_data="my_bots"),
+           InlineKeyboardButton(labels["create_bot"], callback_data="create_sub_bot"))
+    kb.row(InlineKeyboardButton(labels["leaderboard"], callback_data="show_leaderboard"))
+    kb.row(InlineKeyboardButton(labels["token"], callback_data="create_token"))
+    kb.row(InlineKeyboardButton(labels["support"], url=f"https://t.me/{SUPPORT_USER.replace('@', '')}"))
 
     if is_admin:
-        kb.row(InlineKeyboardButton("👑 لوحة الأدمن", callback_data="admin_panel"))
+        kb.row(InlineKeyboardButton(labels["admin"], callback_data="admin_panel"))
 
-    kb.row(InlineKeyboardButton("⚙️ إعدادات DTMF", callback_data="dtmf_settings"))
-    kb.row(InlineKeyboardButton("🌐 اللغة / Language", callback_data="change_lang"))
+    kb.row(InlineKeyboardButton(labels["dtmf"], callback_data="dtmf_settings"))
+    kb.row(InlineKeyboardButton(labels["lang"], callback_data="change_lang"))
 
     return kb
 
@@ -4270,7 +4298,7 @@ def run_bot(token_override: str = ""):
                          f"أرسل /refer للحصول على رابط الإحالة{bonus_note}")
 
         welcome = f"🌟 *مرحباً بك في بوت المكالمات* 🌟\n\n{extra}\n\n*اختر من القائمة أدناه:*"
-        bot.send_message(user_id, welcome, parse_mode='Markdown', reply_markup=_main_kb(is_admin=user_id in ADMIN_IDS))
+        bot.send_message(user_id, welcome, parse_mode='Markdown', reply_markup=_main_kb(is_admin=user_id in ADMIN_IDS, user_id=user_id))
 
 
     # ── Group handlers ──────────────────────────────────────────────────
@@ -4410,6 +4438,118 @@ def run_bot(token_override: str = ""):
         kb = InlineKeyboardMarkup()
         kb.row(InlineKeyboardButton("📞 اتصال مجاني", callback_data="grp_call_btn"))
         bot.send_message(msg.chat.id, "📞 اضغط للاتصال مجاناً (كل 20 دقيقة):", reply_markup=kb)
+
+    # ── /start في الجروب — يشرح الاختصارات ─────────────────────────────
+    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/start"))
+    def on_group_start(msg):
+        group_id = msg.chat.id
+        if not is_group_authorized(group_id):
+            bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
+            return
+        bot.reply_to(msg, 
+            "📞 *بوت المكالمات — أوامر الجروب*\n\n"
+            "🔹 `/fn رقم` — اتصال مباشر بالرقم\n"
+            "   مثال: `/fn +966512345678`\n\n"
+            "🔹 `/fd رقم` — اتصال بصوتك\n"
+            "   مثال: `/fd +966512345678`\n"
+            "   بعدها ابعت رسالة صوتية وهيتم الاتصال بيها\n\n"
+            "⏳ كل مستخدم يقدر يعمل مكالمة مجانية كل 20 دقيقة",
+            parse_mode='Markdown')
+
+    # ── /fn رقم — اتصال مباشر في الجروب ──────────────────────────────
+    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/fn "))
+    def on_group_fn(msg):
+        """اتصال مباشر بالرقم في الجروب — مكالمة مجانية كل 20 دقيقة"""
+        group_id = msg.chat.id
+        user_id = msg.from_user.id
+
+        if not is_group_authorized(group_id):
+            bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
+            return
+
+        if is_banned(user_id):
+            bot.reply_to(msg, "🚫 أنت محظور")
+            return
+
+        # التحقق من الانتظار 20 دقيقة
+        cooldown = get_group_cooldown(user_id, group_id)
+        if not cooldown["can_call"]:
+            mins = cooldown["remaining_seconds"] // 60
+            secs = cooldown["remaining_seconds"] % 60
+            bot.reply_to(msg, f"⏳ استني {mins} دقيقة و {secs} ثانية قبل المكالمة التالية")
+            return
+
+        # استخراج رقم الهاتف
+        parts = msg.text.strip().split()
+        if len(parts) < 2:
+            bot.reply_to(msg, "📞 استخدم: `/fn +966512345678`", parse_mode='Markdown')
+            return
+
+        phone = parts[1]
+        if not phone.startswith("+"):
+            phone = "+" + phone
+
+        # تسجيل الانتظار
+        set_group_cooldown(user_id, group_id)
+
+        # بدء الاتصال
+        status_msg = bot.reply_to(msg, f"📞 جاري الاتصال بـ `{phone}`...", parse_mode='Markdown')
+
+        def _do_fn_call():
+            try:
+                result = make_call(phone, dur=60, user_id=user_id)
+                try:
+                    if result and result[0]:
+                        bot.edit_message_text(f"✅ تم عملية الاتصال بـ `{phone}`", 
+                                              status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                    else:
+                        bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{phone}`", 
+                                              status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                except: pass
+            except Exception:
+                try:
+                    bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{phone}`", 
+                                          status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                except: pass
+
+        threading.Thread(target=_do_fn_call, daemon=True).start()
+
+    # ── /fd رقم — اتصال بصوت في الجروب ──────────────────────────────
+    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/fd "))
+    def on_group_fd(msg):
+        """اتصال بصوت في الجروب — يطلب صوت وبعدها يتصل"""
+        group_id = msg.chat.id
+        user_id = msg.from_user.id
+
+        if not is_group_authorized(group_id):
+            bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
+            return
+
+        if is_banned(user_id):
+            bot.reply_to(msg, "🚫 أنت محظور")
+            return
+
+        # التحقق من الانتظار 20 دقيقة
+        cooldown = get_group_cooldown(user_id, group_id)
+        if not cooldown["can_call"]:
+            mins = cooldown["remaining_seconds"] // 60
+            secs = cooldown["remaining_seconds"] % 60
+            bot.reply_to(msg, f"⏳ استني {mins} دقيقة و {secs} ثانية قبل المكالمة التالية")
+            return
+
+        # استخراج رقم الهاتف
+        parts = msg.text.strip().split()
+        if len(parts) < 2:
+            bot.reply_to(msg, "📞 استخدم: `/fd +966512345678`", parse_mode='Markdown')
+            return
+
+        phone = parts[1]
+        if not phone.startswith("+"):
+            phone = "+" + phone
+
+        # حفظ حالة المستخدم — ينتظر صوت
+        user_state[user_id] = {"action": "grp_voice_call", "phone": phone, "group_id": group_id}
+        bot.reply_to(msg, "🎤 أرسل رسالة صوتية الآن وسيتم الاتصال بيها")
 
     # Group call button callback
     @bot.callback_query_handler(func=lambda c: c.data == "grp_call_btn")
@@ -4588,9 +4728,9 @@ def run_bot(token_override: str = ""):
                 # Go back to main menu
                 balance = get_user_balance(cid)
                 try:
-                    bot.edit_message_text(f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", cid, call.message.message_id, reply_markup=_main_kb(is_admin=cid in ADMIN_IDS))
+                    bot.edit_message_text(f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", cid, call.message.message_id, reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
                 except:
-                    bot.send_message(cid, f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", reply_markup=_main_kb(is_admin=cid in ADMIN_IDS))
+                    bot.send_message(cid, f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
 
         # القائمة الرئيسية
         elif data == "go_start":
@@ -4602,7 +4742,7 @@ def run_bot(token_override: str = ""):
 
 📞 *اختر من القائمة أدناه:*
 """
-            bot.edit_message_text(welcome, cid, call.message.message_id, parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS))
+            bot.edit_message_text(welcome, cid, call.message.message_id, parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
         
         # مكالمة واحدة
         elif data == "menu_call":
@@ -4822,7 +4962,7 @@ def run_bot(token_override: str = ""):
                 f"  {pv['emoji']} {pv['name']} — {'∞' if pv['calls'] == 999999 else pv['calls']} مكالمة — {pv['price']:.2f}$"
                 for pk, pv in MONTHLY_PLANS.items()
             ])
-            sellers_lines = "\n".join([f"👤 {s['username']} — {s['name']}" for s in SUBSCRIPTION_SELLERS])
+            sellers_lines = "\n".join([f"👤 {_md(s['username'])} — {_md(s['name'])}" for s in SUBSCRIPTION_SELLERS])
             if monthly:
                 plan_info = MONTHLY_PLANS.get(monthly["plan"], {})
                 left_m = get_monthly_calls_left(cid)
@@ -4866,7 +5006,7 @@ def run_bot(token_override: str = ""):
             plan_key = data.replace("buy_monthly_", "")
             plan = MONTHLY_PLANS.get(plan_key)
             if plan:
-                sellers_lines = "\n".join([f"👤 {s['username']}" for s in SUBSCRIPTION_SELLERS])
+                sellers_lines = "\n".join([f"👤 {_md(s['username'])}" for s in SUBSCRIPTION_SELLERS])
                 bot.answer_callback_query(call.id,
                     f"📥 للاشتراك في خطة {plan['emoji']} {plan['name']} ({plan['price']:.2f}$)\nتواصل مع:\n{sellers_lines}",
                     show_alert=True)
@@ -5650,7 +5790,7 @@ def run_bot(token_override: str = ""):
                     extra = "❌ *انتهى رصيدك اليومي — يتجدد غداً*"
                 bot.send_message(cid,
                     f"🌟 *مرحباً بك في بوت المكالمات* 🌟\n\n{extra}\n\n*اختر من القائمة أدناه:*",
-                    parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS))
+                    parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
             else:
                 bot.answer_callback_query(call.id, "❌ لم تشترك في كل القنوات بعد")
             return
@@ -5786,6 +5926,83 @@ def run_bot(token_override: str = ""):
 
         if is_banned(cid):
             bot.reply_to(msg, "🚫 أنت محظور من استخدام البوت")
+            return
+
+        # ── حالة اتصال بصوت من الجروب (/fd) ──
+        st = user_state.get(cid, {})
+        if st.get("action") == "grp_voice_call":
+            group_id = st.get("group_id")
+            phone = st.get("phone")
+            # لا نحتاج تحقق اشتراك إجباري في الجروب
+            if msg.voice:
+                file_id  = msg.voice.file_id
+                duration = msg.voice.duration
+                fname    = "voice.ogg"
+            elif msg.audio:
+                file_id  = msg.audio.file_id
+                duration = msg.audio.duration or 0
+                fname    = "audio.mp3"
+            else:
+                return
+            if duration > 60:
+                bot.reply_to(msg, f"⚠️ الصوت طويل جداً ({duration}s)\nالحد الأقصى 60 ثانية")
+                return
+
+            m = bot.reply_to(msg, "⏳ جاري تحميل الصوت والاتصال...")
+
+            def _grp_voice_call():
+                try:
+                    import subprocess, tempfile
+                    file_info = bot.get_file(file_id)
+                    url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+                    r = requests.get(url, timeout=30)
+                    if r.status_code != 200:
+                        try: bot.edit_message_text("❌ فشل تحميل الصوت", cid, m.message_id)
+                        except: pass
+                        return
+                    with tempfile.TemporaryDirectory() as tmp:
+                        in_path  = os.path.join(tmp, fname)
+                        out_path = os.path.join(tmp, "audio.raw")
+                        with open(in_path, 'wb') as f:
+                            f.write(r.content)
+                        ret = subprocess.run([
+                            "ffmpeg", "-y", "-i", in_path,
+                            "-ar", "8000", "-ac", "1", "-sample_fmt", "s16",
+                            "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
+                            "-f", "s16le", out_path
+                        ], capture_output=True, timeout=30)
+                        if ret.returncode != 0:
+                            ret = subprocess.run([
+                                "ffmpeg", "-y", "-i", in_path,
+                                "-ar", "8000", "-ac", "1", "-sample_fmt", "s16",
+                                "-af", "volume=4.0", "-f", "s16le", out_path
+                            ], capture_output=True, timeout=30)
+                        if ret.returncode != 0:
+                            try: bot.edit_message_text("❌ فشل تحويل الصوت", cid, m.message_id)
+                            except: pass
+                            return
+                        with open(out_path, 'rb') as f:
+                            pcm_bytes = f.read()
+                        if len(pcm_bytes) == 0:
+                            try: bot.edit_message_text("❌ ملف الصوت فاضي", cid, m.message_id)
+                            except: pass
+                            return
+
+                    # حفظ الصوت وبدء الاتصال
+                    voice_store[cid] = pcm_bytes
+                    user_state.pop(cid, None)
+                    result = make_call(phone, dur=60, user_id=cid)
+                    try:
+                        if result and result[0]:
+                            bot.edit_message_text(f"✅ تم عملية الاتصال بـ `{phone}`", cid, m.message_id, parse_mode='Markdown')
+                        else:
+                            bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{phone}`", cid, m.message_id, parse_mode='Markdown')
+                    except: pass
+                except Exception:
+                    try: bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{phone}`", cid, m.message_id, parse_mode='Markdown')
+                    except: pass
+
+            threading.Thread(target=_grp_voice_call, daemon=True).start()
             return
 
         # تحقق من الاشتراك
@@ -6261,7 +6478,7 @@ def run_bot(token_override: str = ""):
                     extra2 = f"{sl2}💰 *رصيدك: `{bal2:.2f}$`*\n👥 *إحالاتك: {refs2}*{bn2}"
                 welcome2 = f"🌟 *مرحباً بك في بوت المكالمات* 🌟\n\n{extra2}\n\n*اختر من القائمة أدناه:*"
                 bot.send_message(cid, welcome2, parse_mode='Markdown',
-                                 reply_markup=_main_kb(is_admin=cid in ADMIN_IDS))
+                                 reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
             else:
                 # ❌ إجابة خاطئة
                 pending["tries"] = pending.get("tries", 0) + 1
