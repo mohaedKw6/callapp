@@ -305,13 +305,16 @@ except ImportError:
     TELEGRAM_AVAILABLE = False
 
 # ─── Config (كل حاجة من .env) ────────────────────────────────────────────────
-# Railway Variables > .env file > hardcoded fallback
-# الأسبقية: متغيرات Railway > ملف .env > القيمة الافتراضية
+# Railway Variables > .env file > لا يوجد fallback
+# ⚠️ لا تحط التوكن في الكود! التليجرام بيطلع أي توكن في repo عام وبيلغيه!
+# لازم تحط BOT_TOKEN كمتغير بيئة في Railway أو في ملف .env
 _raw_bot_token = os.environ.get("BOT_TOKEN") or os.environ.get("TELI_BOT_TOKEN", "")
 BOT_TOKEN = _raw_bot_token.strip('"').strip("'").strip()
 if not BOT_TOKEN:
-    BOT_TOKEN = "8652490171:AAFAIBW9V9WoeBB9kxcx_YyfMJLbwcavIro"  # fallback
-    print("[config] ⚠️ BOT_TOKEN not in env vars, using hardcoded fallback")
+    print("[config] ❌❌❌ BOT_TOKEN مش موجود! ❌❌❌")
+    print("[config] لازم تحط BOT_TOKEN كمتغير بيئة في Railway أو في ملف .env")
+    print("[config] روح @BotFather على التليجرام واعمل /token @F0X_CALL_BOT")
+    print("[config] ثم حط التوكن في Railway > Variables > BOT_TOKEN")
 else:
     print(f"[config] ✅ BOT_TOKEN loaded from env ({BOT_TOKEN[:10]}...)")
 
@@ -4353,8 +4356,29 @@ def run_bot(token_override: str = ""):
 
     tok = BOT_TOKEN
     if not tok:
-        print("[!] لا يوجد توكن في BOT_TOKEN")
+        print("[!] ❌ لا يوجد توكن في BOT_TOKEN!")
+        print("[!] لازم تحط BOT_TOKEN كمتغير بيئة في Railway")
+        print("[!] روح @BotFather واعمل /token @F0X_CALL_BOT")
         return
+
+    # ── تحقق من التوكن قبل ما نبدأ ──
+    try:
+        test_bot = telebot.TeleBot(tok, parse_mode=None)
+        me = test_bot.get_me()
+        print(f"[config] ✅ التوكن صحيح — البوت: @{me.username}")
+    except Exception as e:
+        if "401" in str(e) or "Unauthorized" in str(e):
+            print("[!] ❌❌❌ التوكن غلط أو ملغي! (401 Unauthorized)")
+            print("[!] التليجرام بيطلع أي توكن في repo عام وبيلغيه!")
+            print("[!] روح @BotFather على التليجرام:")
+            print("[!]   1. اعمل /mybots")
+            print("[!]   2. اختار البوت بتاعك")
+            print("[!]   3. اعمل API Token > Revoke current token")
+            print("[!]   4. خد التوكن الجديد وحطه في Railway > Variables > BOT_TOKEN")
+            return
+        else:
+            print(f"[!] ⚠️ مشكلة في التوكن: {e}")
+            # نكمل عادي ممكن تكون مشكلة مؤقتة
 
     load_accounts()
     _sync_to_main()  # نزامن البيانات للملف الموحد
