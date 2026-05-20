@@ -1,4 +1,4 @@
-# v4.0.0 — group commands fix, language system, markdown escaping
+# v4.0.2 — fix group commands (commands=), fix language (answer_callback_query), force rebuild
 FROM python:3.11-slim
 
 WORKDIR /app

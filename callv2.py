@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "4.0.1"
+BOT_VERSION = "4.0.2"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -4390,8 +4390,10 @@ def run_bot(token_override: str = ""):
         last_name  = msg.from_user.last_name  or ""
         full_name  = (first_name + " " + last_name).strip() or first_name or str(from_id)
 
-        # ── لو في جروب: اعرض أوامر الجروب فقط ──
-        if msg.chat.type in ("group", "supergroup"):
+        # ── لو في جروب: اعرض أوامر الجروب فقط — القائمة الخاصة ممنوعة نهائياً ──
+        chat_type = getattr(msg.chat, 'type', 'private')
+        print(f"[start] chat_type={chat_type} from={from_id} chat_id={user_id}")
+        if chat_type in ("group", "supergroup"):
             group_id = msg.chat.id
             if not is_group_authorized(group_id):
                 bot.reply_to(msg, t("grp_not_auth", user_id=from_id))
@@ -4592,9 +4594,15 @@ def run_bot(token_override: str = ""):
             parse_mode='Markdown')
 
     # ── /fn رقم — اتصال مباشر في الجروب ──────────────────────────────
-    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and (m.text.startswith("/fn ") or m.text.startswith("/fn@")))
+    @bot.message_handler(commands=['fn'])
     def on_group_fn(msg):
         """اتصال مباشر بالرقم في الجروب — مكالمة مجانية كل 20 دقيقة"""
+        print(f"[grp-fn] chat_type={msg.chat.type} from={msg.from_user.id} text={msg.text!r}")
+        # في الخاص: مش نرد — الأزرار كافية
+        if msg.chat.type not in ("group", "supergroup"):
+            print(f"[grp-fn] ignoring — not a group")
+            return
+
         group_id = msg.chat.id
         user_id = msg.from_user.id
 
@@ -4614,17 +4622,15 @@ def run_bot(token_override: str = ""):
             bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
             return
 
-        # استخراج رقم الهاتف — نزّل @botusername لو موجود
-        raw = msg.text.strip()
-        # Handle /fn@BotName number → strip @BotName
-        if raw.startswith("/fn@"):
-            raw = "/fn " + raw[4:].split(" ", 1)[-1] if "@" in raw[:raw.find(" ")] else raw
-        parts = raw.strip().split()
+        # استخراج رقم الهاتف — /fn رقم أو /fn@BotName رقم
+        # telebot يتعرف على الأمر تلقائياً لكن النص الأصلي يفضل كامل
+        parts = msg.text.strip().split()
+        # parts[0] = /fn أو /fn@BotName — نتجاهله
         if len(parts) < 2:
             bot.reply_to(msg, t("grp_fn_usage", user_id=user_id), parse_mode='Markdown')
             return
 
-        phone = parts[1]
+        phone = parts[-1]  # آخر جزء هو الرقم دائماً
         if not phone.startswith("+"):
             phone = "+" + phone
 
@@ -4654,9 +4660,14 @@ def run_bot(token_override: str = ""):
         threading.Thread(target=_do_fn_call, daemon=True).start()
 
     # ── /fd رقم — اتصال بصوت في الجروب ──────────────────────────────
-    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and (m.text.startswith("/fd ") or m.text.startswith("/fd@")))
+    @bot.message_handler(commands=['fd'])
     def on_group_fd(msg):
         """اتصال بصوت في الجروب — يطلب صوت وبعدها يتصل"""
+        print(f"[grp-fd] chat_type={msg.chat.type} from={msg.from_user.id} text={msg.text!r}")
+        # في الخاص: مش نرد — الأزرار كافية
+        if msg.chat.type not in ("group", "supergroup"):
+            return
+
         group_id = msg.chat.id
         user_id = msg.from_user.id
 
@@ -4676,16 +4687,14 @@ def run_bot(token_override: str = ""):
             bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
             return
 
-        # استخراج رقم الهاتف — نزّل @botusername لو موجود
-        raw = msg.text.strip()
-        if raw.startswith("/fd@"):
-            raw = "/fd " + raw[4:].split(" ", 1)[-1] if "@" in raw[:raw.find(" ")] else raw
-        parts = raw.strip().split()
+        # استخراج رقم الهاتف — /fd رقم أو /fd@BotName رقم
+        parts = msg.text.strip().split()
+        # parts[0] = /fd أو /fd@BotName — نتجاهله
         if len(parts) < 2:
             bot.reply_to(msg, t("grp_fd_usage", user_id=user_id), parse_mode='Markdown')
             return
 
-        phone = parts[1]
+        phone = parts[-1]  # آخر جزء هو الرقم دائماً
         if not phone.startswith("+"):
             phone = "+" + phone
 
@@ -4780,7 +4789,9 @@ def run_bot(token_override: str = ""):
                 bot.answer_callback_query(call.id, "🚫 أنت محظور")
                 return
 
-        bot.answer_callback_query(call.id)
+        # رد على callback — لو handler عايز يعرض alert يرد تاني بـ try/except
+        if not data.startswith("set_lang_"):
+            bot.answer_callback_query(call.id)
 
         # ─── أدمن: منح اشتراك تطبيق ─────────────────────────────────
         if data == "admin_grant_app_sub":
@@ -4862,18 +4873,35 @@ def run_bot(token_override: str = ""):
 
         elif data.startswith("set_lang_"):
             lang_code = data.replace("set_lang_", "")
+            print(f"[set_lang] cid={cid} lang_code={lang_code} in_LANGUAGES={lang_code in LANGUAGES}")
             if lang_code in LANGUAGES:
                 set_user_lang(cid, lang_code)
+                # تأكد إن اللغة اتحفظت
+                saved_lang = get_user_lang(cid)
+                print(f"[set_lang] saved={saved_lang} for user={cid}")
                 lang_info = LANGUAGES[lang_code]
-                msg = t("lang_changed", user_id=cid) + f" {lang_info['emoji']} {lang_info['name']}"
-                bot.answer_callback_query(call.id, msg, show_alert=True)
-                # Go back to main menu with translated text
-                balance = get_user_balance(cid)
-                menu_text = f"{t('main_menu', user_id=cid)}\n{t('balance_label', user_id=cid)} `{balance:.2f}$`"
+                # رد على الـ callback مع alert (مش اتحاوب قبل كده عشان الشرط فوق)
                 try:
-                    bot.edit_message_text(menu_text, cid, call.message.message_id, parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
-                except:
-                    bot.send_message(cid, menu_text, parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
+                    bot.answer_callback_query(call.id, 
+                        t("lang_changed", user_id=cid) + f" {lang_info['emoji']} {lang_info['name']}", 
+                        show_alert=True)
+                except Exception:
+                    try:
+                        bot.answer_callback_query(call.id)
+                    except Exception:
+                        pass
+
+                # رجع للقائمة الرئيسية الكاملة باللغة الجديدة
+                access, msg_text = check_user_access(cid)
+                welcome = f"{t('welcome_title', user_id=cid)}\n\n{msg_text}\n\n{t('choose_menu', user_id=cid)}"
+                try:
+                    bot.edit_message_text(welcome, cid, call.message.message_id, 
+                                          parse_mode='Markdown', 
+                                          reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
+                except Exception:
+                    bot.send_message(cid, welcome, 
+                                    parse_mode='Markdown', 
+                                    reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
 
         # القائمة الرئيسية
         elif data == "go_start":
@@ -6574,8 +6602,8 @@ def run_bot(token_override: str = ""):
         cid  = msg.chat.id
         text = msg.text.strip()
 
-        # ── لو في جروب: مفيش أي رد على رسايل عادية ──
-        if msg.chat.type in ("group", "supergroup"):
+        # ── لو في جروب: مفيش أي رد على رسايل عادية نهائياً ──
+        if getattr(msg.chat, 'type', 'private') in ("group", "supergroup"):
             return
 
         # تحقق من الحظر
