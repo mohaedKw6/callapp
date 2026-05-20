@@ -4382,22 +4382,23 @@ def run_bot(token_override: str = ""):
     @bot.message_handler(commands=['start'])
     def on_start(msg):
         user_id   = msg.chat.id
+        from_id   = msg.from_user.id
         username   = msg.from_user.username or ""
         first_name = msg.from_user.first_name or ""
         last_name  = msg.from_user.last_name  or ""
-        full_name  = (first_name + " " + last_name).strip() or first_name or str(user_id)
+        full_name  = (first_name + " " + last_name).strip() or first_name or str(from_id)
 
         # ── لو في جروب: اعرض أوامر الجروب فقط ──
         if msg.chat.type in ("group", "supergroup"):
             group_id = msg.chat.id
             if not is_group_authorized(group_id):
-                bot.reply_to(msg, t("grp_not_auth", user_id=user_id))
+                bot.reply_to(msg, t("grp_not_auth", user_id=from_id))
                 return
             bot.reply_to(msg,
-                f"{t('grp_commands_title', user_id=user_id)}\n\n"
-                f"{t('grp_fn_desc', user_id=user_id)}\n\n"
-                f"{t('grp_fd_desc', user_id=user_id)}\n\n"
-                f"{t('grp_cooldown_info', user_id=user_id)}",
+                f"{t('grp_commands_title', user_id=from_id)}\n\n"
+                f"{t('grp_fn_desc', user_id=from_id)}\n\n"
+                f"{t('grp_fd_desc', user_id=from_id)}\n\n"
+                f"{t('grp_cooldown_info', user_id=from_id)}",
                 parse_mode='Markdown')
             return
 
@@ -4567,86 +4568,40 @@ def run_bot(token_override: str = ""):
                 bot.leave_chat(int(group_id))
             except: pass
 
-    # Group message handler for calls
+    # Group message handler for calls (legacy /call)
     @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/call "))
     def on_group_call(msg):
-        """Handle /call command in authorized groups"""
-        group_id = msg.chat.id
+        """Handle /call command in authorized groups — redirect to /fn"""
         user_id = msg.from_user.id
-        
-        if not is_group_authorized(group_id):
-            bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
-            return
-        
-        if is_banned(user_id):
-            bot.reply_to(msg, "🚫 أنت محظور")
-            return
-        
-        # Check cooldown
-        cooldown = get_group_cooldown(user_id, group_id)
-        if not cooldown["can_call"]:
-            mins = cooldown["remaining_seconds"] // 60
-            secs = cooldown["remaining_seconds"] % 60
-            bot.reply_to(msg, f"⏳ استخدمت عملية الاتصال منذ قليل\nبرجاء الانتظار {mins} دقيقة و {secs} ثانية")
-            return
-        
-        # Extract phone number
-        parts = msg.text.strip().split()
-        if len(parts) < 2:
-            bot.reply_to(msg, "📞 أرسل الرقم هكذا: /call +966512345678")
-            return
-        
-        phone = parts[1]
-        if not phone.startswith("+"):
-            phone = "+" + phone
-        
-        # Set cooldown
-        set_group_cooldown(user_id, group_id)
-        
-        # Make the call
-        status_msg = bot.reply_to(msg, f"📞 جاري الاتصال بـ {phone}...")
-        
-        def _do_group_call():
-            try:
-                result = make_call(phone, dur=60, user_id=user_id, 
-                                   status_cb=lambda m: bot.edit_message_text(m, status_msg.chat.id, status_msg.message_id, parse_mode='Markdown'))
-                if result and result[0]:
-                    from_num = result[1] or ''
-                    bot.edit_message_text(f"✅ تم الاتصال بنجاح!\n📞 من: +{from_num}\n📱 إلى: {phone}", 
-                                          status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
-                else:
-                    bot.edit_message_text(f"❌ فشل الاتصال بـ {phone}", 
-                                          status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
-            except Exception as e:
-                try:
-                    bot.edit_message_text(f"❌ خطأ: {e}", status_msg.chat.id, status_msg.message_id)
-                except: pass
-        
-        threading.Thread(target=_do_group_call, daemon=True).start()
+        bot.reply_to(msg, t("grp_fn_usage", user_id=user_id), parse_mode='Markdown')
 
-    # Group inline keyboard for call button
+    # Group inline keyboard for call button (disabled — groups use /fn and /fd only)
     @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text == "/start_call")
     def on_group_start_call(msg):
         group_id = msg.chat.id
         if not is_group_authorized(group_id):
             return
-        kb = InlineKeyboardMarkup()
-        kb.row(InlineKeyboardButton("📞 اتصال مجاني", callback_data="grp_call_btn"))
-        bot.send_message(msg.chat.id, "📞 اضغط للاتصال مجاناً (كل 20 دقيقة):", reply_markup=kb)
+        user_id = msg.from_user.id
+        bot.reply_to(msg,
+            f"{t('grp_commands_title', user_id=user_id)}\n\n"
+            f"{t('grp_fn_desc', user_id=user_id)}\n\n"
+            f"{t('grp_fd_desc', user_id=user_id)}\n\n"
+            f"{t('grp_cooldown_info', user_id=user_id)}",
+            parse_mode='Markdown')
 
     # ── /fn رقم — اتصال مباشر في الجروب ──────────────────────────────
-    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/fn "))
+    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and (m.text.startswith("/fn ") or m.text.startswith("/fn@")))
     def on_group_fn(msg):
         """اتصال مباشر بالرقم في الجروب — مكالمة مجانية كل 20 دقيقة"""
         group_id = msg.chat.id
         user_id = msg.from_user.id
 
         if not is_group_authorized(group_id):
-            bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
+            bot.reply_to(msg, t("grp_not_auth", user_id=user_id))
             return
 
         if is_banned(user_id):
-            bot.reply_to(msg, "🚫 أنت محظور")
+            bot.reply_to(msg, t("banned", user_id=user_id))
             return
 
         # التحقق من الانتظار 20 دقيقة
@@ -4657,8 +4612,12 @@ def run_bot(token_override: str = ""):
             bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
             return
 
-        # استخراج رقم الهاتف
-        parts = msg.text.strip().split()
+        # استخراج رقم الهاتف — نزّل @botusername لو موجود
+        raw = msg.text.strip()
+        # Handle /fn@BotName number → strip @BotName
+        if raw.startswith("/fn@"):
+            raw = "/fn " + raw[4:].split(" ", 1)[-1] if "@" in raw[:raw.find(" ")] else raw
+        parts = raw.strip().split()
         if len(parts) < 2:
             bot.reply_to(msg, t("grp_fn_usage", user_id=user_id), parse_mode='Markdown')
             return
@@ -4693,18 +4652,18 @@ def run_bot(token_override: str = ""):
         threading.Thread(target=_do_fn_call, daemon=True).start()
 
     # ── /fd رقم — اتصال بصوت في الجروب ──────────────────────────────
-    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/fd "))
+    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and (m.text.startswith("/fd ") or m.text.startswith("/fd@")))
     def on_group_fd(msg):
         """اتصال بصوت في الجروب — يطلب صوت وبعدها يتصل"""
         group_id = msg.chat.id
         user_id = msg.from_user.id
 
         if not is_group_authorized(group_id):
-            bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
+            bot.reply_to(msg, t("grp_not_auth", user_id=user_id))
             return
 
         if is_banned(user_id):
-            bot.reply_to(msg, "🚫 أنت محظور")
+            bot.reply_to(msg, t("banned", user_id=user_id))
             return
 
         # التحقق من الانتظار 20 دقيقة
@@ -4715,8 +4674,11 @@ def run_bot(token_override: str = ""):
             bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
             return
 
-        # استخراج رقم الهاتف
-        parts = msg.text.strip().split()
+        # استخراج رقم الهاتف — نزّل @botusername لو موجود
+        raw = msg.text.strip()
+        if raw.startswith("/fd@"):
+            raw = "/fd " + raw[4:].split(" ", 1)[-1] if "@" in raw[:raw.find(" ")] else raw
+        parts = raw.strip().split()
         if len(parts) < 2:
             bot.reply_to(msg, t("grp_fd_usage", user_id=user_id), parse_mode='Markdown')
             return
@@ -6099,13 +6061,15 @@ def run_bot(token_override: str = ""):
     @bot.message_handler(content_types=['voice', 'audio'])
     def on_voice(msg):
         cid = msg.chat.id
+        from_id = msg.from_user.id
 
-        if is_banned(cid):
+        if is_banned(from_id):
             bot.reply_to(msg, "🚫 أنت محظور من استخدام البوت")
             return
 
         # ── حالة اتصال بصوت من الجروب (/fd) ──
-        st = user_state.get(cid, {})
+        # في الجروب: user_state محفوظ بـ from_id (مش cid)
+        st = user_state.get(from_id, {}) or user_state.get(cid, {})
         if st.get("action") == "grp_voice_call":
             group_id = st.get("group_id")
             phone = st.get("phone")
@@ -6165,9 +6129,9 @@ def run_bot(token_override: str = ""):
                             return
 
                     # حفظ الصوت وبدء الاتصال
-                    voice_store[cid] = pcm_bytes
-                    user_state.pop(cid, None)
-                    result = make_call(phone, dur=60, user_id=cid)
+                    voice_store[from_id] = pcm_bytes
+                    user_state.pop(from_id, None)
+                    result = make_call(phone, dur=60, user_id=from_id)
                     try:
                         if result and result[0]:
                             bot.edit_message_text(f"✅ تم عملية الاتصال بـ `{phone}`", cid, m.message_id, parse_mode='Markdown')
@@ -6607,6 +6571,10 @@ def run_bot(token_override: str = ""):
     def on_text(msg):
         cid  = msg.chat.id
         text = msg.text.strip()
+
+        # ── لو في جروب: مفيش أي رد على رسايل عادية ──
+        if msg.chat.type in ("group", "supergroup"):
+            return
 
         # تحقق من الحظر
         if is_banned(cid):
