@@ -1,3 +1,4 @@
+# v4.0.0 — group commands fix, language system, markdown escaping
 FROM python:3.11-slim
 
 WORKDIR /app
