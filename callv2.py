@@ -252,6 +252,23 @@ _TR = {
     "for_30_days": {"ar": "صالح لمدة 30 يوم", "en": "Valid for 30 days"},
     "choose": {"ar": "اختر:", "en": "Choose:"},
     "send_start": {"ar": "📞 أرسل /start للقائمة", "en": "📞 Send /start for menu"},
+
+    # ─── أزرار القائمة الرئيسية ───
+    "btn_call": {"ar": "📞 اتصال واحد", "en": "📞 Single Call"},
+    "btn_multi": {"ar": "🔄 اتصال متعدد", "en": "🔄 Multi Call"},
+    "btn_voice": {"ar": "🎤 تحميل صوت", "en": "🎤 Upload Voice"},
+    "btn_monthly": {"ar": "📅 اشتراك شهري", "en": "📅 Monthly Sub"},
+    "btn_balance": {"ar": "💰 رصيدي", "en": "💰 Balance"},
+    "btn_rank": {"ar": "🏅 رتبتي", "en": "🏅 My Rank"},
+    "btn_convert": {"ar": "💱 تحويل رصيد لكود", "en": "💱 Balance to Code"},
+    "btn_mybot": {"ar": "🤖 بوتي الخاص", "en": "🤖 My Bot"},
+    "btn_create_bot": {"ar": "➕ أنشئ بوتاً", "en": "➕ Create Bot"},
+    "btn_leaderboard": {"ar": "🏆 لوحة المتصدرين", "en": "🏆 Leaderboard"},
+    "btn_token": {"ar": "🔑 إنشاء توكن", "en": "🔑 Create Token"},
+    "btn_support": {"ar": "💬 تواصل مع الدعم", "en": "💬 Support"},
+    "btn_admin": {"ar": "👑 لوحة الأدمن", "en": "👑 Admin Panel"},
+    "btn_dtmf": {"ar": "⚙️ إعدادات DTMF", "en": "⚙️ DTMF Settings"},
+    "btn_lang": {"ar": "🌐 اللغة / Language", "en": "🌐 Language"},
 }
 
 def t(key: str, user_id=None, lang=None, **kwargs) -> str:
@@ -3407,7 +3424,7 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                 referred_by = decode_ref_id(parts[1][4:])
 
             if is_banned(cid):
-                sub.send_message(cid, f"🚫 تم حظرك\nللدعم: {SUPPORT_USER}")
+                sub.send_message(cid, f"🚫 تم حظرك\nللدعم: {_md(SUPPORT_USER)}", parse_mode='Markdown')
                 return
 
             # ── كابتشا للمستخدمين الجدد ──
@@ -3903,7 +3920,7 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                 if not phone.startswith('+'): phone = '+' + phone
                 access, access_msg = check_user_access(cid)
                 if not access:
-                    sub.send_message(cid, f"❌ {access_msg}\nللاشتراك: {SUPPORT_USER}")
+                    sub.send_message(cid, f"❌ {access_msg}\n{t('contact_premium', user_id=cid)}{_md(SUPPORT_USER)}", parse_mode='Markdown')
                     return
                 if cid not in ADMIN_IDS and not is_premium(cid):
                     use_daily_call(cid)
@@ -4048,49 +4065,25 @@ _error_store: dict = {}
 
 def _main_kb(is_admin=False, user_id=None):
     """أزرار شفافة للبوت — تدعم اللغة"""
-    lang = get_user_lang(user_id) if user_id else "ar"
-    # ترجمة الأزرار
-    if lang == "en":
-        labels = {
-            "call": "📞 Single Call", "multi": "🔄 Multi Call",
-            "voice": "🎤 Upload Voice", "monthly": "📅 Monthly Sub",
-            "balance": "💰 Balance", "rank": "🏅 My Rank",
-            "convert": "💱 Balance to Code", "mybot": "🤖 My Bot",
-            "create_bot": "➕ Create Bot", "leaderboard": "🏆 Leaderboard",
-            "token": "🔑 Create Token", "support": "💬 Support",
-            "admin": "👑 Admin Panel", "dtmf": "⚙️ DTMF Settings",
-            "lang": "🌐 Language",
-        }
-    else:
-        labels = {
-            "call": "📞 اتصال واحد", "multi": "🔄 اتصال متعدد",
-            "voice": "🎤 تحميل صوت", "monthly": "📅 اشتراك شهري",
-            "balance": "💰 رصيدي", "rank": "🏅 رتبتي",
-            "convert": "💱 تحويل رصيد لكود", "mybot": "🤖 بوتي الخاص",
-            "create_bot": "➕ أنشئ بوتاً", "leaderboard": "🏆 لوحة المتصدرين",
-            "token": "🔑 إنشاء توكن", "support": "💬 تواصل مع الدعم",
-            "admin": "👑 لوحة الأدمن", "dtmf": "⚙️ إعدادات DTMF",
-            "lang": "🌐 اللغة / Language",
-        }
     kb = InlineKeyboardMarkup()
-    kb.row(InlineKeyboardButton(labels["call"], callback_data="menu_call"),
-           InlineKeyboardButton(labels["multi"], callback_data="menu_multi"))
-    kb.row(InlineKeyboardButton(labels["voice"], callback_data="menu_voice"),
-           InlineKeyboardButton(labels["monthly"], callback_data="monthly_sub"))
-    kb.row(InlineKeyboardButton(labels["balance"], callback_data="user_balance"),
-           InlineKeyboardButton(labels["rank"], callback_data="my_rank"))
-    kb.row(InlineKeyboardButton(labels["convert"], callback_data="balance_to_code"))
-    kb.row(InlineKeyboardButton(labels["mybot"], callback_data="my_bots"),
-           InlineKeyboardButton(labels["create_bot"], callback_data="create_sub_bot"))
-    kb.row(InlineKeyboardButton(labels["leaderboard"], callback_data="show_leaderboard"))
-    kb.row(InlineKeyboardButton(labels["token"], callback_data="create_token"))
-    kb.row(InlineKeyboardButton(labels["support"], url=f"https://t.me/{SUPPORT_USER.replace('@', '')}"))
+    kb.row(InlineKeyboardButton(t("btn_call", user_id=user_id), callback_data="menu_call"),
+           InlineKeyboardButton(t("btn_multi", user_id=user_id), callback_data="menu_multi"))
+    kb.row(InlineKeyboardButton(t("btn_voice", user_id=user_id), callback_data="menu_voice"),
+           InlineKeyboardButton(t("btn_monthly", user_id=user_id), callback_data="monthly_sub"))
+    kb.row(InlineKeyboardButton(t("btn_balance", user_id=user_id), callback_data="user_balance"),
+           InlineKeyboardButton(t("btn_rank", user_id=user_id), callback_data="my_rank"))
+    kb.row(InlineKeyboardButton(t("btn_convert", user_id=user_id), callback_data="balance_to_code"))
+    kb.row(InlineKeyboardButton(t("btn_mybot", user_id=user_id), callback_data="my_bots"),
+           InlineKeyboardButton(t("btn_create_bot", user_id=user_id), callback_data="create_sub_bot"))
+    kb.row(InlineKeyboardButton(t("btn_leaderboard", user_id=user_id), callback_data="show_leaderboard"))
+    kb.row(InlineKeyboardButton(t("btn_token", user_id=user_id), callback_data="create_token"))
+    kb.row(InlineKeyboardButton(t("btn_support", user_id=user_id), url=f"https://t.me/{SUPPORT_USER.replace('@', '')}"))
 
     if is_admin:
-        kb.row(InlineKeyboardButton(labels["admin"], callback_data="admin_panel"))
+        kb.row(InlineKeyboardButton(t("btn_admin", user_id=user_id), callback_data="admin_panel"))
 
-    kb.row(InlineKeyboardButton(labels["dtmf"], callback_data="dtmf_settings"))
-    kb.row(InlineKeyboardButton(labels["lang"], callback_data="change_lang"))
+    kb.row(InlineKeyboardButton(t("btn_dtmf", user_id=user_id), callback_data="dtmf_settings"))
+    kb.row(InlineKeyboardButton(t("btn_lang", user_id=user_id), callback_data="change_lang"))
 
     return kb
 
@@ -4394,11 +4387,25 @@ def run_bot(token_override: str = ""):
         last_name  = msg.from_user.last_name  or ""
         full_name  = (first_name + " " + last_name).strip() or first_name or str(user_id)
 
+        # ── لو في جروب: اعرض أوامر الجروب فقط ──
+        if msg.chat.type in ("group", "supergroup"):
+            group_id = msg.chat.id
+            if not is_group_authorized(group_id):
+                bot.reply_to(msg, t("grp_not_auth", user_id=user_id))
+                return
+            bot.reply_to(msg,
+                f"{t('grp_commands_title', user_id=user_id)}\n\n"
+                f"{t('grp_fn_desc', user_id=user_id)}\n\n"
+                f"{t('grp_fd_desc', user_id=user_id)}\n\n"
+                f"{t('grp_cooldown_info', user_id=user_id)}",
+                parse_mode='Markdown')
+            return
+
         # التحقق من الحظر أولاً
         if is_banned(user_id):
             bot.send_message(
                 user_id,
-                f"🚫 *تم حظرك من استخدام البوت*\n\nللتواصل مع الدعم: {SUPPORT_USER}",
+                f"{t('banned_full', user_id=user_id)}{_md(SUPPORT_USER)}",
                 parse_mode='Markdown'
             )
             return
@@ -4422,9 +4429,7 @@ def run_bot(token_override: str = ""):
             user_state[user_id] = {"action": "captcha"}
             bot.send_message(
                 user_id,
-                f"👋 مرحباً! قبل أن تبدأ، حل هذا السؤال للتحقق:\n\n"
-                f"🔢 *كم يساوي:* `{q} = ?`\n\n"
-                f"أرسل الإجابة كرقم فقط",
+                t("captcha_question", lang="ar", q=q),
                 parse_mode='Markdown'
             )
             return
@@ -4440,37 +4445,52 @@ def run_bot(token_override: str = ""):
         bonus_given = try_give_daily_bonus(user_id)
 
         # بناء رسالة الترحيب
+        lang = get_user_lang(user_id)
         if user_id in ADMIN_IDS:
-            extra = "👑 *أنت أدمن*"
+            extra = t("admin_badge", user_id=user_id)
         elif is_premium(user_id):
-            extra = "⭐ *أنت مستخدم مميز — مكالمات غير محدودة*"
+            extra = t("premium_badge", user_id=user_id)
         else:
             refs    = get_referral_count(user_id)
             balance = get_user_balance(user_id)
             cost    = get_call_cost()
             streak  = get_user_streak(user_id)
-            bonus_note = f"\n🎁 *تم إضافة مكافأة يومية `{bonus_given:.2f}$` لرصيدك!*" if bonus_given else ""
+            if lang == "en":
+                bonus_note = f"\n🎁 *Daily bonus `{bonus_given:.2f}$` added!*" if bonus_given else ""
+            else:
+                bonus_note = f"\n🎁 *تم إضافة مكافأة يومية `{bonus_given:.2f}$` لرصيدك!*" if bonus_given else ""
             lvl     = get_user_level(user_id)
-            next_lvl_note = f"\n┗ أحل *{lvl['needed']}* صديق للترقية إلى المستوى التالي ⬆️" if lvl['needed'] > 0 else "\n┗ 🏆 أعلى مستوى!"
-            level_line = f"{lvl['emoji']} *مستواك: {lvl['name']}*{next_lvl_note}\n"
+            if lang == "en":
+                next_lvl_note = f"\n┗ Invite *{lvl['needed']}* friends to level up ⬆️" if lvl['needed'] > 0 else "\n┗ 🏆 Highest level!"
+                level_line = f"{lvl['emoji']} *Level: {lvl['name']}*{next_lvl_note}\n"
+            else:
+                next_lvl_note = f"\n┗ أحل *{lvl['needed']}* صديق للترقية إلى المستوى التالي ⬆️" if lvl['needed'] > 0 else "\n┗ 🏆 أعلى مستوى!"
+                level_line = f"{lvl['emoji']} *مستواك: {lvl['name']}*{next_lvl_note}\n"
             # معلومات الـ streak والمكافأة اليومية
             streak_fire = "🔥" * min(streak, 5)
-            if streak < 3:
-                streak_line = f"🔥 *حلقاتك:* {streak_fire} {streak}/3 _(تحتاج {3-streak} يوم للمكافأة اليومية)_\n"
+            if lang == "en":
+                if streak < 3:
+                    streak_line = f"🔥 *Streak:* {streak_fire} {streak}/3 _(need {3-streak} more days for daily bonus)_\n"
+                else:
+                    daily_b = get_daily_bonus_by_refs(refs)
+                    streak_line = f"🔥 *Streak:* {streak_fire} {streak} days ✅ _(daily bonus `{daily_b:.2f}$`)_\n"
             else:
-                daily_b = get_daily_bonus_by_refs(refs)
-                streak_line = f"🔥 *حلقاتك:* {streak_fire} {streak} يوم ✅ _(مكافأة يومية `{daily_b:.2f}$`)_\n"
+                if streak < 3:
+                    streak_line = f"🔥 *حلقاتك:* {streak_fire} {streak}/3 _(تحتاج {3-streak} يوم للمكافأة اليومية)_\n"
+                else:
+                    daily_b = get_daily_bonus_by_refs(refs)
+                    streak_line = f"🔥 *حلقاتك:* {streak_fire} {streak} يوم ✅ _(مكافأة يومية `{daily_b:.2f}$`)_\n"
             if balance >= cost:
                 extra = (f"{level_line}"
                          f"{streak_line}"
-                         f"💰 *رصيدك: `{balance:.2f}$`*\n"
-                         f"✅ يمكنك إجراء مكالمة{bonus_note}")
+                         f"{t('balance_label', user_id=user_id)} `{balance:.2f}$`\n"
+                         f"{t('can_call', user_id=user_id)}{bonus_note}")
             else:
                 extra = (f"{level_line}"
                          f"{streak_line}"
-                         f"💰 *رصيدك: `{balance:.2f}$`*\n"
-                         f"👥 *إحالاتك: {refs}*\n"
-                         f"أرسل /refer للحصول على رابط الإحالة{bonus_note}")
+                         f"{t('balance_label', user_id=user_id)} `{balance:.2f}$`\n"
+                         f"{t('referrals_label', user_id=user_id)} {refs}\n"
+                         f"{t('send_refer', user_id=user_id)}{bonus_note}")
 
         welcome = f"{t('welcome_title', user_id=user_id)}\n\n{extra}\n\n{t('choose_menu', user_id=user_id)}"
         bot.send_message(user_id, welcome, parse_mode='Markdown', reply_markup=_main_kb(is_admin=user_id in ADMIN_IDS, user_id=user_id))
@@ -4613,21 +4633,6 @@ def run_bot(token_override: str = ""):
         kb = InlineKeyboardMarkup()
         kb.row(InlineKeyboardButton("📞 اتصال مجاني", callback_data="grp_call_btn"))
         bot.send_message(msg.chat.id, "📞 اضغط للاتصال مجاناً (كل 20 دقيقة):", reply_markup=kb)
-
-    # ── /start في الجروب — يشرح الاختصارات ─────────────────────────────
-    @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/start"))
-    def on_group_start(msg):
-        group_id = msg.chat.id
-        user_id = msg.from_user.id
-        if not is_group_authorized(group_id):
-            bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
-            return
-        bot.reply_to(msg, 
-            f"{t('grp_commands_title', user_id=user_id)}\n\n"
-            f"{t('grp_fn_desc', user_id=user_id)}\n\n"
-            f"{t('grp_fd_desc', user_id=user_id)}\n\n"
-            f"{t('grp_cooldown_info', user_id=user_id)}",
-            parse_mode='Markdown')
 
     # ── /fn رقم — اتصال مباشر في الجروب ──────────────────────────────
     @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/fn "))
@@ -4885,36 +4890,31 @@ def run_bot(token_override: str = ""):
             kb_lang = InlineKeyboardMarkup()
             for code, info in LANGUAGES.items():
                 kb_lang.row(InlineKeyboardButton(f"{info['emoji']} {info['name']}", callback_data=f"set_lang_{code}"))
-            kb_lang.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
+            kb_lang.row(InlineKeyboardButton(t("back_btn", user_id=cid), callback_data="go_start"))
             try:
-                bot.edit_message_text("🌐 اختر لغتك / Choose your language:", cid, call.message.message_id, reply_markup=kb_lang)
+                bot.edit_message_text(t("lang_choose", user_id=cid), cid, call.message.message_id, reply_markup=kb_lang)
             except:
-                bot.send_message(cid, "🌐 اختر لغتك / Choose your language:", reply_markup=kb_lang)
+                bot.send_message(cid, t("lang_choose", user_id=cid), reply_markup=kb_lang)
 
         elif data.startswith("set_lang_"):
             lang_code = data.replace("set_lang_", "")
             if lang_code in LANGUAGES:
                 set_user_lang(cid, lang_code)
                 lang_info = LANGUAGES[lang_code]
-                msg = f"✅ تم تغيير اللغة إلى {lang_info['emoji']} {lang_info['name']}" if lang_code == "ar" else f"✅ Language changed to {lang_info['emoji']} {lang_info['name']}"
+                msg = t("lang_changed", user_id=cid) + f" {lang_info['emoji']} {lang_info['name']}"
                 bot.answer_callback_query(call.id, msg, show_alert=True)
-                # Go back to main menu
+                # Go back to main menu with translated text
                 balance = get_user_balance(cid)
+                menu_text = f"{t('main_menu', user_id=cid)}\n{t('balance_label', user_id=cid)} `{balance:.2f}$`"
                 try:
-                    bot.edit_message_text(f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", cid, call.message.message_id, reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
+                    bot.edit_message_text(menu_text, cid, call.message.message_id, parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
                 except:
-                    bot.send_message(cid, f"🌟 القائمة الرئيسية\n💰 رصيدك: {balance:.2f}$", reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
+                    bot.send_message(cid, menu_text, parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
 
         # القائمة الرئيسية
         elif data == "go_start":
             access, msg_text = check_user_access(cid)
-            welcome = f"""
-🌟 *مرحباً بك في بوت المكالمات* 🌟
-
-{msg_text}
-
-📞 *اختر من القائمة أدناه:*
-"""
+            welcome = f"{t('welcome_title', user_id=cid)}\n\n{msg_text}\n\n{t('choose_menu', user_id=cid)}"
             bot.edit_message_text(welcome, cid, call.message.message_id, parse_mode='Markdown', reply_markup=_main_kb(is_admin=cid in ADMIN_IDS, user_id=cid))
         
         # مكالمة واحدة
@@ -4954,10 +4954,10 @@ def run_bot(token_override: str = ""):
             ref_link = f"https://t.me/{bot_info.username}?start=ref_{encode_ref_id(cid)}"
             bot.send_message(
                 cid,
-                f"💰 *رصيدك:* `{balance:.2f}$`\n"
-                f"👥 *إحالاتك:* {refs}/{req}\n"
-                f"📞 *سعر المكالمة:* `{cost:.2f}$`\n\n"
-                f"🔗 رابط الإحالة الخاص بك:\n`{ref_link}`",
+                f"{t('your_balance', user_id=cid)} `{balance:.2f}$`\n"
+                f"{t('referrals_label', user_id=cid)} {refs}/{req}\n"
+                f"{t('call_cost', user_id=cid)} `{cost:.2f}$`\n\n"
+                f"{t('ref_link', user_id=cid)}\n`{ref_link}`",
                 parse_mode='Markdown'
             )
 
@@ -4965,16 +4965,14 @@ def run_bot(token_override: str = ""):
         elif data == "balance_to_code":
             balance = get_user_balance(cid)
             if balance <= 0:
-                bot.answer_callback_query(call.id, "❌ رصيدك صفر!")
+                bot.answer_callback_query(call.id, t("balance_zero", user_id=cid))
                 return
             user_state[cid] = {"action": "balance_to_code_count"}
             bot.send_message(
                 cid,
-                f"💱 *تحويل الرصيد لكود*\n\n"
-                f"💰 رصيدك الحالي: `{balance:.2f}$`\n\n"
-                f"كم شخص تريد أن يستخدم الكود؟\n"
-                f"مثال: أرسل `5` إذا أردت تقسيمه على 5 أشخاص\n\n"
-                f"سيُنشأ كود واحد بحد `{int(balance/0.01) if balance else 0}` استخدام أقصى حسب ما تختار",
+                f"{t('balance_to_code', user_id=cid)}\n\n"
+                f"{t('balance_current', user_id=cid)} `{balance:.2f}$`\n\n"
+                f"{t('how_many_people', user_id=cid)}",
                 parse_mode='Markdown'
             )
 
@@ -4984,17 +4982,17 @@ def run_bot(token_override: str = ""):
             streak = get_user_streak(cid)
             refs = get_referral_count(cid)
             bonus = get_daily_bonus_by_refs(refs)
-            streak_bar = "🔥" * min(streak, 7) + f" ({streak} يوم متتالي)"
+            streak_bar = "🔥" * min(streak, 7) + f" ({t('consecutive', user_id=cid, n=streak)})"
             text += f"\n\n─────────────────\n"
-            text += f"📊 *حالتك:*\n"
-            text += f"🔥 حلقاتك: {streak_bar}\n"
-            text += f"👥 إحالاتك: {refs}\n"
+            text += f"{t('your_status', user_id=cid)}\n"
+            text += f"{t('streak_label', user_id=cid)} {streak_bar}\n"
+            text += f"{t('refs_your', user_id=cid)} {refs}\n"
             if streak >= 3:
-                text += f"✅ مؤهل للمكافأة اليومية: `{bonus:.2f}$`"
+                text += f"{t('eligible_bonus', user_id=cid)} `{bonus:.2f}$`"
             else:
-                text += f"⏳ تحتاج {3 - streak} يوم إضافي للمكافأة اليومية"
+                text += t("need_more_days", user_id=cid, n=3 - streak)
             kb_back = InlineKeyboardMarkup()
-            kb_back.row(InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="go_start"))
+            kb_back.row(InlineKeyboardButton(t("back_menu_btn", user_id=cid), callback_data="go_start"))
             bot.send_message(cid, text, parse_mode='Markdown', reply_markup=kb_back)
 
         # ==================== بوتي الخاص ====================
@@ -5009,7 +5007,7 @@ def run_bot(token_override: str = ""):
                 )
             else:
                 kb.row(InlineKeyboardButton(f"🚫 وصلت الحد ({MAX_SUB_BOTS_PER_USER}/{MAX_SUB_BOTS_PER_USER})", callback_data="noop"))
-            kb.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
+            kb.row(InlineKeyboardButton(t("back_btn", user_id=cid), callback_data="go_start"))
             if my:
                 # حساب عدد أعضاء كل بوت من users_db
                 all_users = load_users_db()
@@ -5041,7 +5039,7 @@ def run_bot(token_override: str = ""):
             if user_reached_sub_bot_limit(cid):
                 kb_lim = InlineKeyboardMarkup()
                 kb_lim.row(InlineKeyboardButton("🤖 إدارة بوتاتي", callback_data="my_bots"))
-                kb_lim.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
+                kb_lim.row(InlineKeyboardButton(t("back_btn", user_id=cid), callback_data="go_start"))
                 bot.answer_callback_query(call.id,
                     f"❌ وصلت للحد الأقصى ({MAX_SUB_BOTS_PER_USER} بوتات)", show_alert=True)
                 bot.send_message(
@@ -5100,26 +5098,30 @@ def run_bot(token_override: str = ""):
                 plan_info = MONTHLY_PLANS.get(monthly["plan"], {})
                 left_m = get_monthly_calls_left(cid)
                 left_str = "∞" if plan_info.get("calls",0) == 999999 else str(left_m)
-                monthly_line = f"\n📅 *اشتراك شهري:* {plan_info.get('emoji','')} {plan_info.get('name','')} ({left_str} مكالمة متبقية)\nينتهي: {monthly.get('expires','')}"
-            next_line = f"\n📈 أحل *{lvl['needed']}* صديق للوصول إلى المستوى التالي!" if lvl["needed"] > 0 else "\n🏆 أنت في أعلى مستوى!"
+                calls_word = t("calls_word", user_id=cid)
+                monthly_line = f"\n📅 {t('monthly_plan', user_id=cid)} {plan_info.get('emoji','')} {plan_info.get('name','')} ({left_str} {calls_word} {t('remaining', user_id=cid)})\n{t('monthly_expires', user_id=cid)} {monthly.get('expires','')}"
+            if lvl["needed"] > 0:
+                next_line = f"\n{t('rank_next', user_id=cid, n=lvl['needed'])}"
+            else:
+                next_line = f"\n{t('rank_top', user_id=cid)}"
             rank_txt = (
-                f"🏅 *رتبتك الحالية*\n\n"
+                f"{t('rank_title', user_id=cid)}\n\n"
                 f"{'─'*20}\n"
                 f"{badge}\n"
-                f"الاسم: *{lvl['name']}*\n"
-                f"الإحالات: *{refs}*\n"
-                f"مكالمات يومية: *{lvl['daily_calls']}* مكالمة\n"
+                f"{t('rank_name', user_id=cid)} *{lvl['name']}*\n"
+                f"{t('rank_refs', user_id=cid)} *{refs}*\n"
+                f"{t('rank_daily_calls', user_id=cid)} *{lvl['daily_calls']}* {t('call_per_day', user_id=cid)}\n"
                 f"{'─'*20}"
                 f"{next_line}"
                 f"{monthly_line}\n\n"
-                f"*🥇 الرتب المتاحة:*\n"
+                f"{t('rank_available', user_id=cid)}\n"
             )
-            for t in VIP_TIERS:
-                mark = "◉" if t["min"] == [tt["min"] for tt in VIP_TIERS if refs >= tt["min"]][-1] else "○"
-                rank_txt += f"{mark} {t['emoji']} {t['name']} — {t['min']}+ إحالة — {t['daily_calls']} مكالمة/يوم\n"
+            for tier in VIP_TIERS:
+                mark = "◉" if tier["min"] == [tt["min"] for tt in VIP_TIERS if refs >= tt["min"]][-1] else "○"
+                rank_txt += f"{mark} {tier['emoji']} {tier['name']} — {tier['min']}+ {t('ref_word', user_id=cid)} — {tier['daily_calls']} {t('call_per_day', user_id=cid)}\n"
             kb_r = InlineKeyboardMarkup()
-            kb_r.row(InlineKeyboardButton("📅 اشتراك شهري", callback_data="monthly_sub"))
-            kb_r.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
+            kb_r.row(InlineKeyboardButton(f"📅 {t('monthly_sub', user_id=cid) if get_user_lang(cid) == 'en' else 'اشتراك شهري'}", callback_data="monthly_sub"))
+            kb_r.row(InlineKeyboardButton(t("back_btn", user_id=cid), callback_data="go_start"))
             try:
                 bot.edit_message_text(rank_txt, cid, call.message.message_id,
                                       parse_mode='Markdown', reply_markup=kb_r)
@@ -5131,8 +5133,9 @@ def run_bot(token_override: str = ""):
             monthly = get_monthly_sub(cid)
             balance = get_user_balance(cid)
             # بناء نص الخطط المتاحة
+            calls_word = t("calls_word", user_id=cid)
             plans_text = "\n".join([
-                f"  {pv['emoji']} {pv['name']} — {'∞' if pv['calls'] == 999999 else pv['calls']} مكالمة — {pv['price']:.2f}$"
+                f"  {pv['emoji']} {pv['name']} — {'∞' if pv['calls'] == 999999 else pv['calls']} {calls_word} — {pv['price']:.2f}$"
                 for pk, pv in MONTHLY_PLANS.items()
             ])
             sellers_lines = "\n".join([f"👤 {_md(s['username'])} — {_md(s['name'])}" for s in SUBSCRIPTION_SELLERS])
@@ -5141,33 +5144,33 @@ def run_bot(token_override: str = ""):
                 left_m = get_monthly_calls_left(cid)
                 left_str = "∞" if plan_info.get("calls",0) == 999999 else str(left_m)
                 status_text = (
-                    f"📅 *اشتراكك الشهري الحالي*\n\n"
-                    f"{plan_info.get('emoji','')} خطة: *{plan_info.get('name','')}*\n"
-                    f"📞 مكالمات متبقية: *{left_str}*\n"
-                    f"📆 ينتهي في: *{monthly.get('expires','')}*\n\n"
-                    f"💰 رصيدك: `{balance:.2f}$`\n\n"
+                    f"{t('monthly_current', user_id=cid)}\n\n"
+                    f"{plan_info.get('emoji','')} {t('monthly_plan', user_id=cid)} *{plan_info.get('name','')}*\n"
+                    f"📞 {t('monthly_calls_left', user_id=cid)} *{left_str}*\n"
+                    f"📆 {t('monthly_expires', user_id=cid)} *{monthly.get('expires','')}*\n\n"
+                    f"💰 {t('balance_current', user_id=cid)} `{balance:.2f}$`\n\n"
                     f"─────────────────\n"
-                    f"🔄 *لترقية خطتك أو تجديدها تواصل مع:*\n\n"
+                    f"🔄 *{t('monthly_upgrade', user_id=cid)}*\n\n"
                     f"{sellers_lines}\n\n"
-                    f"📋 *الخطط المتاحة:*\n{plans_text}"
+                    f"{t('monthly_available', user_id=cid)}\n{plans_text}"
                 )
             else:
                 status_text = (
-                    f"📅 *الاشتراك الشهري*\n\n"
-                    f"اشترك في خطة شهرية واحصل على مكالمات بسعر أرخص!\n\n"
-                    f"📋 *الخطط المتاحة:*\n{plans_text}\n\n"
-                    f"💰 رصيدك الحالي: `{balance:.2f}$`\n\n"
+                    f"{t('monthly_title', user_id=cid)}\n\n"
+                    f"{t('monthly_desc', user_id=cid)}\n\n"
+                    f"{t('monthly_available', user_id=cid)}\n{plans_text}\n\n"
+                    f"💰 {t('balance_current', user_id=cid)} `{balance:.2f}$`\n\n"
                     f"─────────────────\n"
-                    f"📥 *للاشتراك تواصل مع:*\n\n"
+                    f"📥 *{t('monthly_subscribe', user_id=cid)}*\n\n"
                     f"{sellers_lines}"
                 )
             kb_m = InlineKeyboardMarkup()
             for s in SUBSCRIPTION_SELLERS:
                 kb_m.row(InlineKeyboardButton(
-                    f"💬 تواصل مع {s['name']}",
+                    f"{t('contact_btn', user_id=cid)} {s['name']}",
                     url=f"https://t.me/{s['username'].replace('@', '')}"
                 ))
-            kb_m.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
+            kb_m.row(InlineKeyboardButton(t("back_btn", user_id=cid), callback_data="go_start"))
             try:
                 bot.edit_message_text(status_text, cid, call.message.message_id,
                                       parse_mode='Markdown', reply_markup=kb_m)
@@ -5866,7 +5869,7 @@ def run_bot(token_override: str = ""):
                 except Exception:
                     pass
                 kb_tk = InlineKeyboardMarkup()
-                kb_tk.row(InlineKeyboardButton("🔙 رجوع", callback_data="go_start"))
+                kb_tk.row(InlineKeyboardButton(t("back_btn", user_id=cid), callback_data="go_start"))
                 bot.send_message(
                     cid,
                     f"🔑 *توكن Fox Call الخاص بك:*\n\n`{fox_token}`\n\n"
@@ -7301,7 +7304,8 @@ def run_bot(token_override: str = ""):
             if not access:
                 bot.send_message(cid,
                     f"❌ {access_msg}\n\n"
-                    f"للاشتراك المميز تواصل: {SUPPORT_USER}")
+                    f"{t('contact_premium', user_id=cid)}{_md(SUPPORT_USER)}",
+                    parse_mode='Markdown')
                 return
 
             # زيادة العداد قبل المكالمة
@@ -7440,7 +7444,7 @@ def run_bot(token_override: str = ""):
                         )
 
                 kb = InlineKeyboardMarkup()
-                kb.row(InlineKeyboardButton("🔙 القائمة", callback_data="go_start"))
+                kb.row(InlineKeyboardButton(t("back_menu_btn", user_id=cid), callback_data="go_start"))
                 bot.send_message(cid, "اختر:", reply_markup=kb)
 
             threading.Thread(target=_run_call, daemon=True).start()
