@@ -92,6 +92,181 @@ def set_user_lang(user_id, lang_code: str):
     users_db[uid]["language"] = lang_code
     save_users_db(users_db)
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  i18n — نظام الترجمة الشامل
+# ═══════════════════════════════════════════════════════════════════════════════
+_TR = {
+    # ─── الرئيسية ───
+    "welcome_title": {"ar": "🌟 *مرحباً بك في بوت المكالمات* 🌟", "en": "🌟 *Welcome to Call Bot* 🌟"},
+    "choose_menu": {"ar": "*اختر من القائمة أدناه:*", "en": "*Choose from the menu below:*"},
+    "main_menu": {"ar": "🌟 القائمة الرئيسية", "en": "🌟 Main Menu"},
+    "banned": {"ar": "🚫 أنت محظور", "en": "🚫 You are banned"},
+    "banned_full": {"ar": "🚫 *تم حظرك من استخدام البوت*\n\nللتواصل مع الدعم: ", "en": "🚫 *You have been banned from using this bot*\n\nContact support: "},
+    "must_sub": {"ar": "📢 يجب الاشتراك في القنوات أولاً", "en": "📢 You must subscribe to the channels first"},
+    "admin_badge": {"ar": "👑 *أنت أدمن*", "en": "👑 *You are an admin*"},
+    "premium_badge": {"ar": "⭐ *أنت مستخدم مميز — مكالمات غير محدودة*", "en": "⭐ *You are a premium user — unlimited calls*"},
+    "balance_label": {"ar": "💰 *رصيدك:*", "en": "💰 *Your balance:*"},
+    "can_call": {"ar": "✅ يمكنك إجراء مكالمة", "en": "✅ You can make a call"},
+    "referrals_label": {"ar": "👥 *إحالاتك:*", "en": "👥 *Your referrals:*"},
+    "send_refer": {"ar": "أرسل /refer للحصول على رابط الإحالة", "en": "Send /refer to get your referral link"},
+    "daily_bonus_added": {"ar": "🎁 *تم إضافة مكافأة يومية*", "en": "🎁 *Daily bonus added*"},
+
+    # ─── الاتصال ───
+    "send_phone": {"ar": "📞 أرسل رقم الهاتف:\nمثال: `+966512345678`", "en": "📞 Send the phone number:\nExample: `+966512345678`"},
+    "multi_call": {"ar": "🔄 مكالمات متعددة (5 محاولات)\n\n📞 أرسل الرقم:\nمثال: `+966512345678`", "en": "🔄 Multi call (5 attempts)\n\n📞 Send the number:\nExample: `+966512345678`"},
+    "invalid_number": {"ar": "❌ رقم غير صحيح.\nمثال: +966512345678", "en": "❌ Invalid number.\nExample: +966512345678"},
+    "calling": {"ar": "⏳ جاري الاتصال...", "en": "⏳ Calling..."},
+    "call_single": {"ar": "📞 مكالمة واحدة", "en": "📞 Single call"},
+    "call_attempts": {"ar": "🔄 {n} محاولة", "en": "🔄 {n} attempts"},
+    "call_success": {"ar": "✅ انتهت المكالمة بنجاح!", "en": "✅ Call ended successfully!"},
+    "call_failed": {"ar": "❌ فشلت المكالمة", "en": "❌ Call failed"},
+    "no_access": {"ar": "❌", "en": "❌"},
+    "contact_premium": {"ar": "\n\nللاشتراك المميز تواصل: ", "en": "\n\nFor premium subscription contact: "},
+
+    # ─── الصوت ───
+    "voice_exists": {"ar": "🎤 يوجد صوت محمّل ({sec} ثانية)\n\nأرسل صوت جديد لتغييره", "en": "🎤 Voice already loaded ({sec} seconds)\n\nSend a new voice to replace it"},
+    "voice_send": {"ar": "🎤 أرسل صوت (حد أقصى 60 ثانية)\nسيتم تشغيله عند الرد على المكالمة", "en": "🎤 Send a voice note (max 60 seconds)\nIt will play when the call is answered"},
+    "voice_too_long": {"ar": "⚠️ الصوت طويل جداً ({dur}s)\nالحد الأقصى 60 ثانية", "en": "⚠️ Voice too long ({dur}s)\nMaximum is 60 seconds"},
+    "voice_loading": {"ar": "⏳ جاري تحميل الصوت...", "en": "⏳ Loading voice..."},
+    "voice_loaded": {"ar": "✅ تم تحميل الصوت!\n⏱️ المدة: {dur} ثانية\n\n📞 أرسل رقم الهاتف:", "en": "✅ Voice loaded!\n⏱️ Duration: {dur} seconds\n\n📞 Send the phone number:"},
+    "voice_fail": {"ar": "❌ فشل تحميل الصوت", "en": "❌ Failed to load voice"},
+    "voice_empty": {"ar": "❌ ملف الصوت فاضي", "en": "❌ Voice file is empty"},
+    "voice_convert_fail": {"ar": "❌ فشل تحويل الصوت", "en": "❌ Failed to convert voice"},
+    "voice_not_text": {"ar": "🎤 أرسل رسالة صوتية مش نص\nاضغط على ميكروفون التيليجرام وسجّل", "en": "🎤 Send a voice note, not text\nPress the microphone in Telegram and record"},
+
+    # ─── الرصيد ───
+    "your_balance": {"ar": "💰 *رصيدك:*", "en": "💰 *Your balance:*"},
+    "call_cost": {"ar": "📞 *سعر المكالمة:*", "en": "📞 *Call cost:*"},
+    "ref_link": {"ar": "🔗 رابط الإحالة الخاص بك:", "en": "🔗 Your referral link:"},
+    "balance_zero": {"ar": "❌ رصيدك صفر!", "en": "❌ Your balance is zero!"},
+    "balance_to_code": {"ar": "💱 *تحويل الرصيد لكود*", "en": "💱 *Convert balance to code*"},
+    "how_many_people": {"ar": "كم شخص تريد أن يستخدم الكود؟", "en": "How many people should use the code?"},
+    "balance_current": {"ar": "💰 رصيدك الحالي:", "en": "💰 Your current balance:"},
+
+    # ─── الاشتراك الشهري ───
+    "monthly_title": {"ar": "📅 *الاشتراك الشهري*", "en": "📅 *Monthly Subscription*"},
+    "monthly_current": {"ar": "📅 *اشتراكك الشهري الحالي*", "en": "📅 *Your Current Monthly Subscription*"},
+    "monthly_plan": {"ar": "خطة:", "en": "Plan:"},
+    "monthly_calls_left": {"ar": "📞 مكالمات متبقية:", "en": "📞 Calls remaining:"},
+    "monthly_expires": {"ar": "📆 ينتهي في:", "en": "📆 Expires:"},
+    "monthly_upgrade": {"ar": "لترقية خطتك أو تجديدها تواصل مع:", "en": "To upgrade or renew your plan contact:"},
+    "monthly_subscribe": {"ar": "للاشتراك تواصل مع:", "en": "To subscribe contact:"},
+    "monthly_desc": {"ar": "اشترك في خطة شهرية واحصل على مكالمات بسعر أرخص!", "en": "Subscribe to a monthly plan and get calls at a cheaper price!"},
+    "monthly_available": {"ar": "📋 *الخطط المتاحة:*", "en": "📋 *Available Plans:*"},
+    "calls_word": {"ar": "مكالمة", "en": "calls"},
+    "contact_btn": {"ar": "💬 تواصل مع", "en": "💬 Contact"},
+
+    # ─── الرتبة ───
+    "rank_title": {"ar": "🏅 *رتبتك الحالية*", "en": "🏅 *Your Current Rank*"},
+    "rank_name": {"ar": "الاسم:", "en": "Name:"},
+    "rank_refs": {"ar": "الإحالات:", "en": "Referrals:"},
+    "rank_daily_calls": {"ar": "مكالمات يومية:", "en": "Daily calls:"},
+    "rank_available": {"ar": "*🥇 الرتب المتاحة:*", "en": "*🥇 Available Ranks:*"},
+    "rank_next": {"ar": "📈 أحل *{n}* صديق للوصول إلى المستوى التالي!", "en": "📈 Invite *{n}* friends to reach the next level!"},
+    "rank_top": {"ar": "🏆 أنت في أعلى مستوى!", "en": "🏆 You're at the highest level!"},
+    "rank_day": {"ar": "يوم", "en": "days"},
+    "ref_word": {"ar": "إحالة", "en": "referrals"},
+    "call_per_day": {"ar": "مكالمة/يوم", "en": "calls/day"},
+
+    # ─── المتصدرين ───
+    "leaderboard_title": {"ar": "🏆 لوحة المتصدرين", "en": "🏆 Leaderboard"},
+    "your_status": {"ar": "📊 *حالتك:*", "en": "📊 *Your status:*"},
+    "streak_label": {"ar": "🔥 حلقاتك:", "en": "🔥 Streak:"},
+    "refs_your": {"ar": "👥 إحالاتك:", "en": "👥 Your referrals:"},
+    "eligible_bonus": {"ar": "✅ مؤهل للمكافأة اليومية:", "en": "✅ Eligible for daily bonus:"},
+    "need_more_days": {"ar": "⏳ تحتاج {n} يوم إضافي للمكافأة اليومية", "en": "⏳ Need {n} more days for daily bonus"},
+    "consecutive": {"ar": "({n} يوم متتالي)", "en": "({n} consecutive days)"},
+
+    # ─── اللغة ───
+    "lang_changed": {"ar": "✅ تم تغيير اللغة إلى", "en": "✅ Language changed to"},
+    "lang_choose": {"ar": "🌐 اختر لغتك / Choose your language:", "en": "🌐 اختر لغتك / Choose your language:"},
+
+    # ─── الكابتشا ───
+    "captcha_question": {"ar": "👋 مرحباً! قبل أن تبدأ، حل هذا السؤال للتحقق:\n\n🔢 *كم يساوي:* `{q} = ?`\n\nأرسل الإجابة كرقم فقط", "en": "👋 Hello! Before you start, solve this to verify:\n\n🔢 *What is:* `{q} = ?`\n\nSend the answer as a number only"},
+    "captcha_wrong": {"ar": "❌ إجابة خاطئة! تبقى لك {n} محاولة", "en": "❌ Wrong answer! {n} attempts remaining"},
+    "captcha_wrong_num": {"ar": "❌ أرسل رقماً صحيحاً فقط\nمثال: 8", "en": "❌ Send a valid number only\nExample: 8"},
+    "captcha_fail": {"ar": "❌ إجابات خاطئة متكررة. أرسل /start للمحاولة مجدداً", "en": "❌ Too many wrong answers. Send /start to try again"},
+    "captcha_ok": {"ar": "✅ تم التحقق بنجاح! مرحباً 🎉", "en": "✅ Verification successful! Welcome 🎉"},
+    "captcha_error": {"ar": "⚠️ حدث خطأ، أرسل /start مرة أخرى", "en": "⚠️ An error occurred, send /start again"},
+
+    # ─── الاشتراك الإجباري ───
+    "force_sub_title": {"ar": "📢 *يجب الاشتراك في القنوات التالية أولاً:*", "en": "📢 *You must subscribe to the following channels first:*"},
+    "force_sub_btn": {"ar": "✅ اشتركت — تحقق الآن", "en": "✅ I subscribed — Verify now"},
+    "force_sub_verified": {"ar": "✅ تم التحقق! يمكنك الاستخدام الآن", "en": "✅ Verified! You can use the bot now"},
+    "force_sub_not_yet": {"ar": "❌ لم تشترك في كل القنوات بعد", "en": "❌ You haven't subscribed to all channels yet"},
+
+    # ─── الجروب ───
+    "grp_not_auth": {"ar": "❌ البوت مش مفعل في هذا الجروب", "en": "❌ Bot is not activated in this group"},
+    "grp_cooldown": {"ar": "⏳ استني {min} دقيقة و {sec} ثانية قبل المكالمة التالية", "en": "⏳ Wait {min} minutes and {sec} seconds before the next call"},
+    "grp_calling": {"ar": "📞 جاري الاتصال بـ", "en": "📞 Calling"},
+    "grp_call_ok": {"ar": "✅ تم عملية الاتصال بـ", "en": "✅ Call connected to"},
+    "grp_call_fail": {"ar": "❌ رفض عملية الاتصال بـ", "en": "❌ Call rejected to"},
+    "grp_send_voice": {"ar": "🎤 أرسل رسالة صوتية الآن وسيتم الاتصال بيها", "en": "🎤 Send a voice note now and it will be used for the call"},
+    "grp_fn_usage": {"ar": "📞 استخدم: `/fn +966512345678`", "en": "📞 Usage: `/fn +966512345678`"},
+    "grp_fd_usage": {"ar": "📞 استخدم: `/fd +966512345678`", "en": "📞 Usage: `/fd +966512345678`"},
+    "grp_commands_title": {"ar": "📞 *بوت المكالمات — أوامر الجروب*", "en": "📞 *Call Bot — Group Commands*"},
+    "grp_fn_desc": {"ar": "🔹 `/fn رقم` — اتصال مباشر بالرقم", "en": "🔹 `/fn number` — Direct call to number"},
+    "grp_fd_desc": {"ar": "🔹 `/fd رقم` — اتصال بصوتك\n   بعدها ابعت رسالة صوتية وهيتم الاتصال بيها", "en": "🔹 `/fd number` — Call with your voice\n   Then send a voice note and the call will be made"},
+    "grp_cooldown_info": {"ar": "⏳ كل مستخدم يقدر يعمل مكالمة مجانية كل 20 دقيقة", "en": "⏳ Each user can make one free call every 20 minutes"},
+    "grp_voice_loading": {"ar": "⏳ جاري تحميل الصوت والاتصال...", "en": "⏳ Loading voice and calling..."},
+
+    # ─── البوتات الفرعية ───
+    "my_bots_title": {"ar": "🤖 *بوتاتك الفرعية:*", "en": "🤖 *Your sub-bots:*"},
+    "my_bots_empty": {"ar": "🤖 *بوتاتك الفرعية*\n\nلا يوجد بوتات فرعية بعد.\nاضغط ➕ لإنشاء بوت خاص بك!", "en": "🤖 *Your sub-bots*\n\nNo sub-bots yet.\nPress ➕ to create your own bot!"},
+    "bot_running": {"ar": "🟢 شغّال", "en": "🟢 Running"},
+    "bot_stopped": {"ar": "🔴 متوقف", "en": "🔴 Stopped"},
+    "bot_members": {"ar": "👥 الأعضاء:", "en": "👥 Members:"},
+    "user_word": {"ar": "مستخدم", "en": "users"},
+    "create_bot_title": {"ar": "🤖 *إنشاء بوت خاص بك*", "en": "🤖 *Create Your Own Bot*"},
+    "bot_limit_reached": {"ar": "❌ وصلت للحد الأقصى من البوتات!", "en": "❌ You've reached the bot limit!"},
+    "bot_limit_info": {"ar": "لديك", "en": "You have"},
+    "bot_limit_delete": {"ar": "يجب حذف بوت موجود قبل إنشاء بوت جديد.", "en": "You must delete an existing bot before creating a new one."},
+
+    # ─── DTMF ───
+    "dtmf_title": {"ar": "⚙️ *إعدادات DTMF الخاصة بك*\n\nاضغط على أي رقم لتعديله:", "en": "⚙️ *Your DTMF Settings*\n\nPress any digit to edit:"},
+    "dtmf_btn": {"ar": "زرار", "en": "Button"},
+    "dtmf_reset": {"ar": "🔄 إعادة تعيين الافتراضي", "en": "🔄 Reset to default"},
+    "dtmf_reset_done": {"ar": "✅ تم إعادة الإعدادات للافتراضي", "en": "✅ Settings reset to default"},
+    "dtmf_rename": {"ar": "✏️ أرسل الاسم الجديد للزرار", "en": "✏️ Send the new name for button"},
+
+    # ─── PMC ───
+    "pmc_usage": {"ar": "❌ أرسل الكود هكذا:\n`/PMC الكود`", "en": "❌ Send the code like this:\n`/PMC code`"},
+
+    # ─── إحالة ───
+    "ref_title": {"ar": "👥 *رابط الإحالة الخاص بك:*", "en": "👥 *Your Referral Link:*"},
+    "ref_current": {"ar": "📊 إحالاتك الحالية:", "en": "📊 Your current referrals:"},
+    "ref_each_bonus": {"ar": "🎁 *مكافأة كل إحالة:", "en": "🎁 *Bonus per referral:"},
+    "ref_add_balance": {"ar": "تُضاف فوراً لرصيدك!*", "en": "instantly added to your balance!*"},
+    "ref_share": {"ar": "أرسل هذا الرابط لأصدقائك — كل شخص يفتح البوت عبره يُحسب إحالة ويُضاف رصيد", "en": "Share this link with friends — each person who opens the bot through it counts as a referral and earns you credit"},
+
+    # ─── تسجيل ───
+    "recording_label": {"ar": "🎧 تسجيل المكالمة", "en": "🎧 Call recording"},
+
+    # ─── كلمات عامة ───
+    "back_btn": {"ar": "🔙 رجوع", "en": "🔙 Back"},
+    "back_menu_btn": {"ar": "🔙 القائمة", "en": "🔙 Menu"},
+    "remaining": {"ar": "متبقية", "en": "remaining"},
+    "unlimited": {"ar": "غير محدود", "en": "Unlimited"},
+    "month": {"ar": "شهر", "en": "month"},
+    "day_word": {"ar": "يوم", "en": "days"},
+    "for_30_days": {"ar": "صالح لمدة 30 يوم", "en": "Valid for 30 days"},
+    "choose": {"ar": "اختر:", "en": "Choose:"},
+    "send_start": {"ar": "📞 أرسل /start للقائمة", "en": "📞 Send /start for menu"},
+}
+
+def t(key: str, user_id=None, lang=None, **kwargs) -> str:
+    """ترجمة مفتاح للغة المستخدم. لو مش لاقي الترجمة يرجع العربي."""
+    if lang is None:
+        lang = get_user_lang(user_id) if user_id else "ar"
+    entry = _TR.get(key, {})
+    text = entry.get(lang) or entry.get("ar") or key
+    if kwargs:
+        try:
+            text = text.format(**kwargs)
+        except (KeyError, IndexError):
+            pass
+    return text
+
 # ─── درجات VIP حسب الإحالات ───────────────────────────────────────────────────
 VIP_TIERS = [
     {"min": 0,  "name": "مبتدئ",   "emoji": "⭐", "daily_calls": 1,  "badge": ""},
@@ -4297,7 +4472,7 @@ def run_bot(token_override: str = ""):
                          f"👥 *إحالاتك: {refs}*\n"
                          f"أرسل /refer للحصول على رابط الإحالة{bonus_note}")
 
-        welcome = f"🌟 *مرحباً بك في بوت المكالمات* 🌟\n\n{extra}\n\n*اختر من القائمة أدناه:*"
+        welcome = f"{t('welcome_title', user_id=user_id)}\n\n{extra}\n\n{t('choose_menu', user_id=user_id)}"
         bot.send_message(user_id, welcome, parse_mode='Markdown', reply_markup=_main_kb(is_admin=user_id in ADMIN_IDS, user_id=user_id))
 
 
@@ -4443,17 +4618,15 @@ def run_bot(token_override: str = ""):
     @bot.message_handler(func=lambda m: m.chat.type in ("group", "supergroup") and m.text and m.text.startswith("/start"))
     def on_group_start(msg):
         group_id = msg.chat.id
+        user_id = msg.from_user.id
         if not is_group_authorized(group_id):
             bot.reply_to(msg, "❌ البوت مش مفعل في هذا الجروب")
             return
         bot.reply_to(msg, 
-            "📞 *بوت المكالمات — أوامر الجروب*\n\n"
-            "🔹 `/fn رقم` — اتصال مباشر بالرقم\n"
-            "   مثال: `/fn +966512345678`\n\n"
-            "🔹 `/fd رقم` — اتصال بصوتك\n"
-            "   مثال: `/fd +966512345678`\n"
-            "   بعدها ابعت رسالة صوتية وهيتم الاتصال بيها\n\n"
-            "⏳ كل مستخدم يقدر يعمل مكالمة مجانية كل 20 دقيقة",
+            f"{t('grp_commands_title', user_id=user_id)}\n\n"
+            f"{t('grp_fn_desc', user_id=user_id)}\n\n"
+            f"{t('grp_fd_desc', user_id=user_id)}\n\n"
+            f"{t('grp_cooldown_info', user_id=user_id)}",
             parse_mode='Markdown')
 
     # ── /fn رقم — اتصال مباشر في الجروب ──────────────────────────────
@@ -4476,13 +4649,13 @@ def run_bot(token_override: str = ""):
         if not cooldown["can_call"]:
             mins = cooldown["remaining_seconds"] // 60
             secs = cooldown["remaining_seconds"] % 60
-            bot.reply_to(msg, f"⏳ استني {mins} دقيقة و {secs} ثانية قبل المكالمة التالية")
+            bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
             return
 
         # استخراج رقم الهاتف
         parts = msg.text.strip().split()
         if len(parts) < 2:
-            bot.reply_to(msg, "📞 استخدم: `/fn +966512345678`", parse_mode='Markdown')
+            bot.reply_to(msg, t("grp_fn_usage", user_id=user_id), parse_mode='Markdown')
             return
 
         phone = parts[1]
@@ -4493,22 +4666,22 @@ def run_bot(token_override: str = ""):
         set_group_cooldown(user_id, group_id)
 
         # بدء الاتصال
-        status_msg = bot.reply_to(msg, f"📞 جاري الاتصال بـ `{phone}`...", parse_mode='Markdown')
+        status_msg = bot.reply_to(msg, f"{t('grp_calling', user_id=user_id)} `{phone}`...", parse_mode='Markdown')
 
         def _do_fn_call():
             try:
                 result = make_call(phone, dur=60, user_id=user_id)
                 try:
                     if result and result[0]:
-                        bot.edit_message_text(f"✅ تم عملية الاتصال بـ `{phone}`", 
+                        bot.edit_message_text(f"{t('grp_call_ok', user_id=user_id)} `{phone}`", 
                                               status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                     else:
-                        bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{phone}`", 
+                        bot.edit_message_text(f"{t('grp_call_fail', user_id=user_id)} `{phone}`", 
                                               status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                 except: pass
             except Exception:
                 try:
-                    bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{phone}`", 
+                    bot.edit_message_text(f"{t('grp_call_fail', user_id=user_id)} `{phone}`", 
                                           status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                 except: pass
 
@@ -4534,13 +4707,13 @@ def run_bot(token_override: str = ""):
         if not cooldown["can_call"]:
             mins = cooldown["remaining_seconds"] // 60
             secs = cooldown["remaining_seconds"] % 60
-            bot.reply_to(msg, f"⏳ استني {mins} دقيقة و {secs} ثانية قبل المكالمة التالية")
+            bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
             return
 
         # استخراج رقم الهاتف
         parts = msg.text.strip().split()
         if len(parts) < 2:
-            bot.reply_to(msg, "📞 استخدم: `/fd +966512345678`", parse_mode='Markdown')
+            bot.reply_to(msg, t("grp_fd_usage", user_id=user_id), parse_mode='Markdown')
             return
 
         phone = parts[1]
@@ -4549,7 +4722,7 @@ def run_bot(token_override: str = ""):
 
         # حفظ حالة المستخدم — ينتظر صوت
         user_state[user_id] = {"action": "grp_voice_call", "phone": phone, "group_id": group_id}
-        bot.reply_to(msg, "🎤 أرسل رسالة صوتية الآن وسيتم الاتصال بيها")
+        bot.reply_to(msg, t("grp_send_voice", user_id=user_id))
 
     # Group call button callback
     @bot.callback_query_handler(func=lambda c: c.data == "grp_call_btn")
@@ -4751,7 +4924,7 @@ def run_bot(token_override: str = ""):
                 bot.send_message(cid, f"❌ {msg_text}")
                 return
             user_state[cid] = {"action": "call", "dur": 60}
-            bot.send_message(cid, "📞 أرسل رقم الهاتف:\nمثال: `+966512345678`", parse_mode='Markdown')
+            bot.send_message(cid, t("send_phone", user_id=cid), parse_mode='Markdown')
         
         # مكالمات متعددة
         elif data == "menu_multi":
@@ -4760,16 +4933,16 @@ def run_bot(token_override: str = ""):
                 bot.send_message(cid, f"❌ {msg_text}")
                 return
             user_state[cid] = {"action": "multi", "attempts": 5, "dur": 60}
-            bot.send_message(cid, "🔄 مكالمات متعددة (5 محاولات)\n\n📞 أرسل الرقم:\nمثال: `+966512345678`", parse_mode='Markdown')
+            bot.send_message(cid, t("multi_call", user_id=cid), parse_mode='Markdown')
         
         # تحميل صوت
         elif data == "menu_voice":
             user_state[cid] = {"action": "voice_upload"}
             v = voice_store.get(cid)
             if v:
-                bot.send_message(cid, f"🎤 يوجد صوت محمّل ({len(v)//16000} ثانية)\n\nأرسل صوت جديد لتغييره")
+                bot.send_message(cid, t("voice_exists", user_id=cid, sec=len(v)//16000))
             else:
-                bot.send_message(cid, "🎤 أرسل صوت (حد أقصى 60 ثانية)\nسيتم تشغيله عند الرد على المكالمة")
+                bot.send_message(cid, t("voice_send", user_id=cid))
         
         # ==================== رصيدي ====================
         elif data == "user_balance":
