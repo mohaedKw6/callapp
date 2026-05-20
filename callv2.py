@@ -58,6 +58,8 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
+BOT_VERSION = "4.0.1"
+
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
     {"username": "@llllllIlIlIlIlIlIlIl", "name": "الوكيل"},
@@ -7423,7 +7425,7 @@ def run_bot(token_override: str = ""):
 
 
     # ── Start polling ──────────────────────────────────────────────────────────
-    print("🤖 البوت شغال...")
+    print(f"🤖 Fox Call Bot v{BOT_VERSION} شغال...")
     bot.infinity_polling(skip_pending=True)
 
 # ============================================================================
