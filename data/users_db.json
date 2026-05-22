@@ -2141,8 +2141,8 @@
     "last_login": "2026-04-26 22:02:15",
     "streak": 1,
     "last_login_date": "2026-05-01",
-    "balance": 0.35,
-    "last_use": "2026-05-22 02:50:28"
+    "balance": 0.3,
+    "last_use": "2026-05-22 03:45:06"
   },
   "8206623999": {
     "usage": 0,
@@ -5492,12 +5492,17 @@
     "username": "vsf911",
     "first_name": "\ud835\uddd4\ud835\uddef\ud835\uddf1\ud835\ude02\ud835\uddff\ud835\uddee\ud835\ude07\ud835\uddfc\ud835\uddf8\ud835\uddf5\ud835\uddfc\ud835\ude03",
     "streak": 1,
-    "last_login_date": "2026-05-01",
+    "last_login_date": "2026-05-22",
     "last_ip": "213.230.93.72",
     "last_seen": "2026-05-04 13:39:33",
-    "refresh_token_hash": "99ea2debe30fc0b673fc9f3c5df36d2cb69f3bd4e7d6ba2d333b110f85d99ef3",
+    "refresh_token_hash": "",
     "last_login": "2026-05-02 05:39:11",
-    "balance": 0.1
+    "balance": 0.1,
+    "active_fox_token_hash": "e72ccb70e3a2366bb65c9a31c3b29d7f97e1c4357c6b82d5f967a90273646293",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-22 03:39:28",
+    "session_invalidated_at": 1779421168,
+    "language": "uz"
   },
   "8211042534": {
     "usage": 0,
