@@ -6113,7 +6113,8 @@
       "first_name": "Black x",
       "streak": 1,
       "last_login_date": "2026-05-22",
-      "balance": 1.0
+      "balance": 0.8,
+      "last_use": "2026-05-22 02:10:57"
     },
     "5418422904": {
       "usage": 0,
