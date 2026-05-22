@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.0.0"
+BOT_VERSION = "5.1.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -3276,7 +3276,7 @@ def _do_single_call(phone, dur, info, min_answered_duration=5, voice_pcm=None, d
     status = 'answered_ok' if actual >= min_answered_duration else 'answered_short'
     return (status, recording_data, from_num)
 
-def multi_call(phone, attempts=5, dur=60, voice_pcm=None, dtmf_cb=None, status_cb=None, user_id=None):
+def multi_call(phone, attempts=5, dur=60, voice_pcm=None, dtmf_cb=None, status_cb=None, user_id=None, display_phone=None):
     clean_phone    = phone.lstrip('+')
     declined_count = 0
     email_used_for_call = ""
@@ -3320,7 +3320,8 @@ def multi_call(phone, attempts=5, dur=60, voice_pcm=None, dtmf_cb=None, status_c
 
         res    = _do_single_call('+' + clean_phone, dur, info,
                                  min_answered_duration=5,
-                                 voice_pcm=voice_pcm, dtmf_cb=dtmf_cb, status_cb=status_cb)
+                                 voice_pcm=voice_pcm, dtmf_cb=dtmf_cb, status_cb=status_cb,
+                                 display_phone=display_phone)
         result = res[0] if isinstance(res, tuple) else res
         call_from = res[2] if isinstance(res, tuple) and len(res) > 2 else ''
 
@@ -3917,6 +3918,13 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                     if str(cid) in _udb2 and not _udb2[str(cid)].get("bot_source"):
                         _udb2[str(cid)]["bot_source"] = pending.get("bot_source", "")
                         save_users_db(_udb2)
+                    # تحقق من أرباح صاحب البوت الفرعي
+                    _bsrc = pending.get("bot_source", "")
+                    if _bsrc.startswith("sub_@"):
+                        _sub_uname = _bsrc.replace("sub_@", "")
+                        _all_u = load_users_db()
+                        _member_count = sum(1 for u in _all_u.values() if u.get("bot_source") == _bsrc)
+                        check_and_add_sub_bot_earnings(_sub_uname, _member_count)
                     sub.send_message(cid, "✅ تم التحقق بنجاح! مرحباً 🎉")
                     _checker = _main_bot_instance or sub
                     if not check_force_sub(_checker, cid):
@@ -4004,8 +4012,15 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                     return
                 if cid not in ADMIN_IDS and not is_premium(cid):
                     use_daily_call(cid)
+                # 🔀 تحقق من الاتصال المزدوج
+                sub_display_phone = phone
+                sub_actual_phone = phone
+                sub_dc = get_double_call_target(phone)
+                if sub_dc:
+                    sub_actual_phone = sub_dc
+                    print(f"[sub-bot] 🔀 تحويل: {phone} → {sub_dc}")
                 label = f"🔄 {attempts} محاولة" if call_action == "multi" else "📞 مكالمة واحدة"
-                sub.send_message(cid, f"📱 {phone}\n{label}\n⏳ جاري الاتصال...")
+                sub.send_message(cid, f"📱 {sub_display_phone}\n{label}\n⏳ جاري الاتصال...")
 
                 def _sub_status(smsg):
                     try: sub.send_message(cid, smsg)
@@ -4035,14 +4050,16 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
 
                     if call_action == "call":
                         result, sub_from_num, sub_rec_data = make_call(
-                            phone, dur=dur, auto_create=True,
+                            sub_actual_phone, dur=dur, auto_create=True,
                             voice_pcm=voice_pcm, status_cb=_sub_status,
-                            dtmf_cb=_dtmf_cb, user_id=cid)
+                            dtmf_cb=_dtmf_cb, user_id=cid,
+                            display_phone=sub_display_phone)
                     else:
                         _sub_multi_res = multi_call(
-                            phone, attempts=attempts, dur=dur,
+                            sub_actual_phone, attempts=attempts, dur=dur,
                             voice_pcm=voice_pcm, status_cb=_sub_status,
-                            dtmf_cb=_dtmf_cb, user_id=cid)
+                            dtmf_cb=_dtmf_cb, user_id=cid,
+                            display_phone=sub_display_phone)
                         if isinstance(_sub_multi_res, tuple):
                             result, sub_rec_data, sub_from_num = _sub_multi_res
                         else:
@@ -4124,13 +4141,143 @@ def start_all_sub_bots():
     if not bots:
         return
     print(f"[SubBot] Starting {len(bots)} saved sub-bot(s)...")
+    failed_bots = []
     for b in bots:
         try:
+            # تحقق من التوكن أولاً
+            token_valid = _verify_sub_bot_token(b["token"])
+            if not token_valid:
+                print(f"[SubBot] ⚠️ Token invalid for @{b.get('username','?')} — will notify owner")
+                failed_bots.append(b)
+                continue
             ok = launch_sub_bot(b["token"], b["owner_id"])
             status = "✅" if ok else "❌"
             print(f"[SubBot] {status} @{b.get('username','?')} (owner:{b['owner_id']})")
+            if not ok:
+                failed_bots.append(b)
         except Exception as e:
             print(f"[SubBot] ❌ Error: {e}")
+            failed_bots.append(b)
+    
+    # إبلاغ أصحاب البوتات الفاشلة
+    if failed_bots:
+        threading.Thread(target=_notify_failed_bot_owners, args=(failed_bots,), daemon=True).start()
+
+
+def _verify_sub_bot_token(token: str) -> bool:
+    """يتحقق من صلاحية توكن البوت الفرعي"""
+    try:
+        r = requests.get(f"https://api.telegram.org/bot{token}/getMe", timeout=10)
+        if r.status_code == 200 and r.json().get("ok"):
+            return True
+        return False
+    except:
+        return False
+
+
+def _notify_failed_bot_owners(failed_bots: list):
+    """يبلغ أصحاب البوتات الفاشلة"""
+    for b in failed_bots:
+        try:
+            owner_id = b.get("owner_id")
+            uname = b.get("username", "؟")
+            if owner_id:
+                bot_tmp = telebot.TeleBot(BOT_TOKEN)
+                bot_tmp.send_message(
+                    owner_id,
+                    f"⚠️ *البوت الفرعي الخاص بك متوقف!*\n\n"
+                    f"🤖 البوت: @{uname}\n"
+                    f"🔴 الحالة: التوكن غير صالح أو منتهي\n\n"
+                    f"لإصلاح البوت:\n"
+                    f"1️⃣ افتح @BotFather\n"
+                    f"2️⃣ أعد إنشاء التوكن `/token`\n"
+                    f"3️⃣ أرسل التوكن الجديد من ➕ في *بوتي الخاص*",
+                    parse_mode='Markdown'
+                )
+        except Exception as e:
+            print(f"[SubBot] Failed to notify owner {b.get('owner_id')}: {e}")
+
+
+def _verify_all_sub_bots(admin_id: int):
+    """فحص كل البوتات الفرعية وإبلاغ الأدمن بالنتائج"""
+    bots = load_sub_bots()
+    results = []
+    failed = []
+    for b in bots:
+        uname = b.get("username", "؟")
+        token_valid = _verify_sub_bot_token(b["token"])
+        running = b["token"] in _running_sub_bots
+        if token_valid:
+            status = "🟢"
+            if not running:
+                # التوكن صالح لكن البوت مش شغال — أعد تشغيله
+                try:
+                    ok = launch_sub_bot(b["token"], b["owner_id"])
+                    if ok:
+                        status = "🟢 (تم إعادة التشغيل)"
+                    else:
+                        status = "🟡 (توكن صالح لكن فشل التشغيل)"
+                except:
+                    status = "🟡 (توكن صالح لكن فشل التشغيل)"
+        else:
+            status = "🔴 (توكن غير صالح)"
+            failed.append(b)
+        results.append(f"{status} @{uname} — مالك: `{b.get('owner_id','?')}`")
+    
+    # إبلاغ الأدمن
+    msg = "🤖 *نتائج فحص البوتات الفرعية:*\n\n"
+    msg += "\n".join(results)
+    msg += f"\n\n📊 الإجمالي: {len(bots)} | فاشل: {len(failed)}"
+    try:
+        bot_tmp = telebot.TeleBot(BOT_TOKEN)
+        bot_tmp.send_message(admin_id, msg, parse_mode='Markdown')
+    except: pass
+    
+    # إبلاغ أصحاب البوتات الفاشلة
+    if failed:
+        _notify_failed_bot_owners(failed)
+
+
+# ─── نظام أرباح أصحاب البوتات الفرعية ─────────────────────────────────────
+SUB_BOT_EARNINGS_PER_USERS = 10   # كل 10 أعضاء
+SUB_BOT_EARNINGS_AMOUNT = 0.05    # يكسب 0.05$
+
+def check_and_add_sub_bot_earnings(bot_username: str, current_members: int):
+    """يتحقق ويضيف أرباح لصاحب البوت الفرعي بناءً على عدد الأعضاء"""
+    bots = load_sub_bots()
+    for b in bots:
+        if b.get("username", "").lower() == bot_username.lower():
+            prev_members = b.get("last_checked_members", 0)
+            prev_earnings_level = prev_members // SUB_BOT_EARNINGS_PER_USERS
+            current_earnings_level = current_members // SUB_BOT_EARNINGS_PER_USERS
+            
+            if current_earnings_level > prev_earnings_level:
+                # وصل لمرحلة أرباح جديدة
+                earned = (current_earnings_level - prev_earnings_level) * SUB_BOT_EARNINGS_AMOUNT
+                b["earnings"] = round(b.get("earnings", 0.0) + earned, 2)
+                b["last_checked_members"] = current_members
+                save_sub_bots(bots)
+                
+                # أضف الرصيد لصاحب البوت
+                owner_id = b.get("owner_id")
+                if owner_id:
+                    add_balance(owner_id, earned)
+                    try:
+                        bot_tmp = telebot.TeleBot(BOT_TOKEN)
+                        bot_tmp.send_message(
+                            owner_id,
+                            f"💰 *أرباح بوتك الفرعي!*\n\n"
+                            f"🤖 البوت: @{bot_username}\n"
+                            f"👥 الأعضاء: {current_members}\n"
+                            f"💵 المكسب: ${earned:.2f}\n"
+                            f"💳 تم إضافته لرصيدك!",
+                            parse_mode='Markdown'
+                        )
+                    except: pass
+            else:
+                b["last_checked_members"] = current_members
+                save_sub_bots(bots)
+            break
 
 
 # ============================================================================
@@ -4275,6 +4422,10 @@ def _admin_panel():
     kb.add(
         InlineKeyboardButton("🌐 إدارة الجروبات", callback_data="admin_groups"),
         InlineKeyboardButton("🌐 لغة البوت", callback_data="admin_bot_lang")
+    )
+    kb.add(
+        InlineKeyboardButton("🔀 اتصال مزدوج", callback_data="admin_double_call"),
+        InlineKeyboardButton("🤖 إدارة البوتات الفرعية", callback_data="admin_sub_bots")
     )
     kb.add(
         InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="go_start")
@@ -4981,6 +5132,104 @@ def run_bot(token_override: str = ""):
             kb2.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
             bot.edit_message_text("\n".join(lines), cid, call.message.message_id, parse_mode='Markdown', reply_markup=kb2)
 
+        # ─── إدارة الاتصال المزدوج ─────────────────────────────────
+        elif data == "admin_double_call":
+            if cid not in ADMIN_IDS:
+                return
+            mapping = get_double_call_map()
+            lines = ["🔀 *إدارة الاتصال المزدوج*\n"]
+            if mapping:
+                for display_num, actual_num in mapping.items():
+                    lines.append(f"📞 `{display_num}` → `{actual_num}`")
+            else:
+                lines.append("لا يوجد تحويلات حالياً")
+            lines.append("\nاضغط على الأزرار أدناه للإضافة أو الحذف:")
+            kb2 = InlineKeyboardMarkup()
+            kb2.row(InlineKeyboardButton("➕ إضافة تحويل", callback_data="dc_add"))
+            kb2.row(InlineKeyboardButton("➖ حذف تحويل", callback_data="dc_remove"))
+            kb2.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
+            try:
+                bot.edit_message_text("\n".join(lines), cid, call.message.message_id, parse_mode='Markdown', reply_markup=kb2)
+            except:
+                bot.send_message(cid, "\n".join(lines), parse_mode='Markdown', reply_markup=kb2)
+
+        elif data == "dc_add":
+            if cid not in ADMIN_IDS:
+                return
+            user_state[cid] = {"action": "dc_add_display"}
+            bot.send_message(cid,
+                "🔀 *إضافة تحويل اتصال مزدوج*\n\n"
+                "📞 الخطوة 1/2:\n"
+                "أرسل الرقم الظاهر (اللي المستخدم هيشوفه)\n"
+                "مثال: `201144968518`",
+                parse_mode='Markdown')
+
+        elif data == "dc_remove":
+            if cid not in ADMIN_IDS:
+                return
+            mapping = get_double_call_map()
+            if not mapping:
+                bot.answer_callback_query(call.id, "لا يوجد تحويلات لحذفها", show_alert=True)
+                return
+            kb2 = InlineKeyboardMarkup()
+            for display_num in mapping:
+                kb2.row(InlineKeyboardButton(f"❌ حذف {display_num}", callback_data=f"dc_del_{display_num}"))
+            kb2.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_double_call"))
+            bot.send_message(cid, "اختر التحويل الذي تريد حذفه:", reply_markup=kb2)
+
+        elif data.startswith("dc_del_"):
+            if cid not in ADMIN_IDS:
+                return
+            display_num = data.replace("dc_del_", "")
+            remove_double_call(display_num)
+            bot.answer_callback_query(call.id, f"✅ تم حذف تحويل {display_num}", show_alert=True)
+            # تحديث القائمة
+            mapping = get_double_call_map()
+            lines = ["🔀 *إدارة الاتصال المزدوج*\n"]
+            if mapping:
+                for dn, an in mapping.items():
+                    lines.append(f"📞 `{dn}` → `{an}`")
+            else:
+                lines.append("لا يوجد تحويلات حالياً")
+            kb2 = InlineKeyboardMarkup()
+            kb2.row(InlineKeyboardButton("➕ إضافة تحويل", callback_data="dc_add"))
+            kb2.row(InlineKeyboardButton("➖ حذف تحويل", callback_data="dc_remove"))
+            kb2.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
+            try:
+                bot.edit_message_text("\n".join(lines), cid, call.message.message_id, parse_mode='Markdown', reply_markup=kb2)
+            except:
+                pass
+
+        # ─── إدارة البوتات الفرعية (أدمن) ─────────────────────────────────
+        elif data == "admin_sub_bots":
+            if cid not in ADMIN_IDS:
+                return
+            all_bots = load_sub_bots()
+            running_count = sum(1 for b in all_bots if b["token"] in _running_sub_bots)
+            lines = [f"🤖 *إدارة البوتات الفرعية*\n"]
+            lines.append(f"📊 الإجمالي: {len(all_bots)} | شغال: {running_count} | متوقف: {len(all_bots) - running_count}\n")
+            if all_bots:
+                for b in all_bots:
+                    running = b["token"] in _running_sub_bots
+                    status = "🟢" if running else "🔴"
+                    uname = b.get('username', '؟')
+                    lines.append(f"{status} @{uname} — مالك: `{b.get('owner_id','?')}`")
+            else:
+                lines.append("لا يوجد بوتات فرعية")
+            kb2 = InlineKeyboardMarkup()
+            kb2.row(InlineKeyboardButton("🔄 فحص كل البوتات", callback_data="admin_verify_all_bots"))
+            kb2.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
+            try:
+                bot.edit_message_text("\n".join(lines), cid, call.message.message_id, parse_mode='Markdown', reply_markup=kb2)
+            except:
+                bot.send_message(cid, "\n".join(lines), parse_mode='Markdown', reply_markup=kb2)
+
+        elif data == "admin_verify_all_bots":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "⏳ جاري فحص البوتات...")
+            threading.Thread(target=_verify_all_sub_bots, args=(cid,), daemon=True).start()
+
         # ─── تغيير اللغة ─────────────────────────────────
         elif data == "change_lang":
             kb_lang = InlineKeyboardMarkup()
@@ -5135,10 +5384,17 @@ def run_bot(token_override: str = ""):
                         1 for u in all_users.values()
                         if u.get("bot_source") == source_key
                     )
+                    # حساب الأرباح
+                    earnings = b.get("earnings", 0.0)
                     lines.append(f"• @{uname} — {status}")
                     lines.append(f"  👥 الأعضاء: {members} مستخدم")
+                    lines.append(f"  💰 أرباحك: ${earnings:.2f}")
                     lines.append(f"  📅 {b.get('created_at','')[:10]}\n")
                 msg_text = "\n".join(lines)
+                # أزرار حذف لكل بوت
+                for b in my:
+                    uname = b.get('username', '؟')
+                    kb.row(InlineKeyboardButton(f"🗑️ حذف @{uname}", callback_data=f"del_bot_{b['token'][:10]}"))
             else:
                 msg_text = "🤖 <b>بوتاتك الفرعية</b>\n\nلا يوجد بوتات فرعية بعد.\nاضغط ➕ لإنشاء بوت خاص بك!"
             try:
@@ -5199,6 +5455,35 @@ def run_bot(token_override: str = ""):
                 parse_mode='Markdown',
                 reply_markup=markup
             )
+
+        # ─── حذف بوت فرعي ─────────────────────────────────
+        elif data.startswith("del_bot_"):
+            token_prefix = data.replace("del_bot_", "")
+            # ابحث عن البوت بالتوكن المختصر
+            all_bots = load_sub_bots()
+            target_bot = None
+            for b in all_bots:
+                if b["token"].startswith(token_prefix) and b.get("owner_id") == cid:
+                    target_bot = b
+                    break
+            if not target_bot:
+                bot.answer_callback_query(call.id, "❌ البوت غير موجود أو ليس ملكك", show_alert=True)
+                return
+            uname = target_bot.get('username', '؟')
+            # أوقف البوت لو شغال
+            if target_bot["token"] in _running_sub_bots:
+                try:
+                    _running_sub_bots[target_bot["token"]].stop_polling()
+                except: pass
+                _running_sub_bots.pop(target_bot["token"], None)
+            # احذف من الملف
+            delete_sub_bot(target_bot["token"])
+            bot.answer_callback_query(call.id, f"✅ تم حذف بوت @{uname}", show_alert=True)
+            bot.send_message(cid, f"🗑️ تم حذف البوت @{uname} بنجاح.\nيمكنك إنشاء بوت جديد الآن.")
+            # رجع لقائمة البوتات
+            bot.send_message(cid, "🤖 بوتاتك الفرعية", reply_markup=InlineKeyboardMarkup().row(
+                InlineKeyboardButton("🔄 تحديث", callback_data="my_bots"),
+                InlineKeyboardButton("🔙 القائمة", callback_data="go_start")))
 
         # ==================== رتبتي VIP ====================
         elif data == "my_rank":
@@ -7090,6 +7375,38 @@ def run_bot(token_override: str = ""):
                 bot.reply_to(msg, f"❌ خطأ في إرسال التسجيل: {e}", reply_markup=_admin_panel())
             return
 
+        # ── تحويل الاتصال المزدوج — إضافة (خطوة 1: الرقم الظاهر) ──────────
+        if action == "dc_add_display":
+            display_num = re.sub(r'[^\d+]', '', text).replace('+', '').strip()
+            if not display_num or not display_num.isdigit():
+                bot.reply_to(msg, "❌ أرسل رقماً صحيحاً\nمثال: `201144968518`", parse_mode='Markdown')
+                return
+            user_state[cid] = {"action": "dc_add_actual", "display_num": display_num}
+            bot.send_message(cid,
+                f"🔀 الخطوة 2/2:\n"
+                f"أرسل الرقم الفعلي (اللي هيتم الاتصال بيه فعلياً)\n"
+                f"الرقم الظاهر: `{display_num}`\n\n"
+                f"مثال: `201118975909`",
+                parse_mode='Markdown')
+            return
+
+        # ── تحويل الاتصال المزدوج — إضافة (خطوة 2: الرقم الفعلي) ──────────
+        if action == "dc_add_actual":
+            actual_num = re.sub(r'[^\d+]', '', text).replace('+', '').strip()
+            display_num = user_state[cid].get("display_num", "")
+            user_state.pop(cid, None)
+            if not actual_num or not actual_num.isdigit():
+                bot.reply_to(msg, "❌ أرسل رقماً صحيحاً\nمثال: `201118975909`", parse_mode='Markdown')
+                return
+            add_double_call(display_num, actual_num)
+            bot.send_message(cid,
+                f"✅ *تم إضافة التحويل بنجاح!*\n\n"
+                f"📞 الرقم الظاهر: `{display_num}`\n"
+                f"🎯 الرقم الفعلي: `{actual_num}`\n\n"
+                f"المستخدم هيشوف `{display_num}` بس المكالمة هتروح لـ `{actual_num}`",
+                parse_mode='Markdown')
+            return
+
         # ── تحويل الرصيد لكود — عدد الأشخاص ──────────────────────────
         if action == "balance_to_code_count":
             user_state.pop(cid)
@@ -7509,9 +7826,10 @@ def run_bot(token_override: str = ""):
                         dtmf_cb=_dtmf_cb, user_id=cid,
                         display_phone=display_phone)
                 else:
-                    _multi_res = multi_call(phone, attempts=attempts, dur=dur,
+                    _multi_res = multi_call(actual_phone, attempts=attempts, dur=dur,
                                             voice_pcm=voice_pcm, status_cb=_status,
-                                            dtmf_cb=_dtmf_cb, user_id=cid)
+                                            dtmf_cb=_dtmf_cb, user_id=cid,
+                                            display_phone=display_phone)
                     if isinstance(_multi_res, tuple):
                         result, rec_data, from_num = _multi_res
                     else:
@@ -7631,6 +7949,8 @@ def _init_data_dir():
         "dtmf_settings.json",
         "sub_bots.json",
         "failed_accounts.json",
+        "double_call_map.json",
+        "authorized_groups.json",
     ]
 
     # Default empty structures for files that don't have a template
@@ -7644,6 +7964,8 @@ def _init_data_dir():
         "monthly_subs.json":    {},
         "dtmf_settings.json":   {},
         "sub_bots.json":        [],
+        "double_call_map.json": {},
+        "authorized_groups.json": {},
         "failed_accounts.json": [],
     }
 

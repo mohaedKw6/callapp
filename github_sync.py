@@ -64,6 +64,7 @@ SYNC_FILES = [
     "dtmf_settings.json",
     "sub_bots.json",
     "failed_accounts.json",
+    "double_call_map.json",
 ]
 
 # Track SHA for each file (needed for GitHub update API)
