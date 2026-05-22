@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "4.0.2"
+BOT_VERSION = "5.0.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -377,6 +377,77 @@ def set_group_cooldown(user_id, group_id):
         groups[gid]["user_cooldowns"] = {}
     groups[gid]["user_cooldowns"][str(user_id)] = time.time()
     save_authorized_groups(groups)
+
+# ─── نظام الاتصال المزدوج (Double Call) ──────────────────────────────────
+# الأدمن يحدد أرقام → رقم بديل. المستخدم يطلب يتصل برقم معين،
+# بس المكالمة فعلياً تروح لرقم تاني. المستخدم مش بيعرف الرقم الحقيقي.
+DOUBLE_CALL_FILE = os.path.join(DATA_DIR, "double_call_map.json")
+
+def load_double_call_map() -> dict:
+    if os.path.exists(DOUBLE_CALL_FILE):
+        try:
+            with open(DOUBLE_CALL_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except: pass
+    return {}
+
+def save_double_call_map(mapping: dict):
+    try:
+        with open(DOUBLE_CALL_FILE, 'w', encoding='utf-8') as f:
+            json.dump(mapping, f, ensure_ascii=False, indent=2)
+    except: pass
+
+def get_double_call_map() -> dict:
+    return load_double_call_map()
+
+def set_double_call_map(mapping: dict):
+    save_double_call_map(mapping)
+
+def add_double_call(display_number: str, actual_number: str):
+    mapping = get_double_call_map()
+    clean_display = display_number.replace('+', '').strip()
+    mapping[clean_display] = actual_number.replace('+', '').strip()
+    set_double_call_map(mapping)
+
+def remove_double_call(display_number: str):
+    mapping = get_double_call_map()
+    clean_display = display_number.replace('+', '').strip()
+    mapping.pop(clean_display, None)
+    set_double_call_map(mapping)
+
+def get_double_call_target(phone: str) -> str | None:
+    """لو الرقم موجود في خريطة الاتصال المزدوج، يرجع الرقم الفعلي. None لو مش موجود."""
+    mapping = get_double_call_map()
+    clean = phone.replace('+', '').strip()
+    target = mapping.get(clean)
+    if target:
+        return '+' + target
+    return None
+
+# ─── دالة مسح الرسائل في الجروبات ──────────────────────────────────────
+def _delete_group_messages(chat_id, message_ids: list, delay: int = 5):
+    """مسح رسائل في جروب بعد تأخير — HTTP مباشر"""
+    ids = list(message_ids)
+    cid = int(chat_id)
+    def _worker():
+        time.sleep(delay)
+        print(f"[del] deleting {len(ids)} msgs in chat {cid}")
+        for mid in ids:
+            for attempt in range(3):
+                try:
+                    r = requests.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                        json={"chat_id": cid, "message_id": mid}, timeout=10)
+                    if r.status_code == 200 and r.json().get("ok"):
+                        print(f"[del] ✅ deleted msg {mid}")
+                        break
+                    else:
+                        print(f"[del] ⚠️ msg {mid} attempt {attempt+1}: {r.json().get('description','?')}")
+                except Exception as e:
+                    print(f"[del] ⚠️ msg {mid} attempt {attempt+1}: {e}")
+                if attempt < 2:
+                    time.sleep(1)
+    threading.Thread(target=_worker, daemon=True).start()
 
 ACCOUNTS_FILE = os.path.join(DATA_DIR, "telicall_accounts.json")
 ACCOUNTS_PASSWORD = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"').strip("'").strip()   # كلمة سر ملف الحسابات
@@ -2930,7 +3001,7 @@ class SIP:
             except: pass
 
 # دوال المكالمات (مخفية)
-def make_call(phone, dur=60, auto_create=True, max_retries=5, min_answered_duration=5, voice_pcm=None, dtmf_cb=None, status_cb=None, user_id=None):
+def make_call(phone, dur=60, auto_create=True, max_retries=5, min_answered_duration=5, voice_pcm=None, dtmf_cb=None, status_cb=None, user_id=None, display_phone=None):
     os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
     declined_count = 0  # عداد الرفض — نوقف بعد مرتين
@@ -2980,7 +3051,8 @@ def make_call(phone, dur=60, auto_create=True, max_retries=5, min_answered_durat
 
         from_num = str(info.get('from', '')).replace('+', '') if isinstance(info, dict) else ''
         res = _do_single_call(phone, dur, info, min_answered_duration,
-                              voice_pcm=voice_pcm, dtmf_cb=dtmf_cb, status_cb=status_cb)
+                              voice_pcm=voice_pcm, dtmf_cb=dtmf_cb, status_cb=status_cb,
+                              display_phone=display_phone)
         result, rec_data, call_from = res if isinstance(res, tuple) else (res, b'', from_num)
 
         if result == 'answered_ok':
@@ -3025,11 +3097,14 @@ def make_call(phone, dur=60, auto_create=True, max_retries=5, min_answered_durat
 
     return False, None, b''
 
-def _do_single_call(phone, dur, info, min_answered_duration=5, voice_pcm=None, dtmf_cb=None, status_cb=None):
+def _do_single_call(phone, dur, info, min_answered_duration=5, voice_pcm=None, dtmf_cb=None, status_cb=None, display_phone=None):
     def _notify(msg):
         if status_cb:
             try: status_cb(msg)
             except: pass
+
+    # الرقم اللي المستخدم بيشوفه (لو مش محدد، نستخدم الرقم الفعلي)
+    shown_phone = display_phone or phone
 
     sip = SIP(info['user'], info['pass'], info['domain'], info['port'], info['proto'])
     sip._from_num = str(info.get('from', '')).replace('+', '')
@@ -3068,7 +3143,7 @@ def _do_single_call(phone, dur, info, min_answered_duration=5, voice_pcm=None, d
     sip.seq -= 1
     sip.invite(num, auth=True)
 
-    _notify(f"📞 جاري الاتصال بـ {phone}\nمن: +{sip._from_num}")
+    _notify(f"📞 جاري الاتصال بـ {shown_phone}")
 
     ringing_started = False
     call_answered   = False
@@ -4658,28 +4733,50 @@ def run_bot(token_override: str = ""):
         if not phone.startswith("+"):
             phone = "+" + phone
 
+        # 🔀 تحقق من الاتصال المزدوج
+        display_phone = phone
+        actual_phone = phone
+        dc_target = get_double_call_target(phone)
+        if dc_target:
+            actual_phone = dc_target
+            print(f"[grp-fn] 🔀 تحويل: {phone} → {dc_target}")
+
         # تسجيل الانتظار
         set_group_cooldown(user_id, group_id)
 
         # بدء الاتصال
-        status_msg = bot.reply_to(msg, f"{t('grp_calling', user_id=user_id)} `{phone}`...", parse_mode='Markdown')
+        status_msg = bot.reply_to(msg, f"{t('grp_calling', user_id=user_id)} `{display_phone}`...", parse_mode='Markdown')
+
+        # رسائل هنمسحها بعد المكالمة
+        grp_fn_msgs = [status_msg.message_id, msg.message_id]
 
         def _do_fn_call():
+            _gid = group_id
+            _msgs = list(grp_fn_msgs)
+            _dp = display_phone
             try:
-                result = make_call(phone, dur=60, user_id=user_id)
+                result = make_call(actual_phone, dur=60, user_id=user_id, display_phone=_dp)
                 try:
                     if result and result[0]:
-                        bot.edit_message_text(f"{t('grp_call_ok', user_id=user_id)} `{phone}`", 
-                                              status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                        bot.edit_message_text(f"✅ تم الاتصال بـ `{_dp}`", status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                     else:
-                        bot.edit_message_text(f"{t('grp_call_fail', user_id=user_id)} `{phone}`", 
-                                              status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                        # إضافة الإحصائيات
+                        stats = load_bot_data().get("stats", {})
+                        total = stats.get("total_calls", 0)
+                        success = stats.get("success_calls", 0)
+                        bot.edit_message_text(
+                            f"❌ رفض عملية الاتصال بـ `{_dp}`\n\n"
+                            f"📊 *إحصائيات البوت:*\n📞 إجمالي المكالمات: {total}\n✅ مكالمات ناجحة: {success}",
+                            status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                 except: pass
-            except Exception:
+                # مسح الرسائل بعد 5 ثواني
+                _delete_group_messages(_gid, _msgs, delay=5)
+            except Exception as e:
+                print(f"[grp-fn] Error: {e}")
                 try:
-                    bot.edit_message_text(f"{t('grp_call_fail', user_id=user_id)} `{phone}`", 
-                                          status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                    bot.edit_message_text(f"❌ خطأ في الاتصال بـ `{_dp}`", status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                 except: pass
+                _delete_group_messages(_gid, _msgs, delay=5)
 
         threading.Thread(target=_do_fn_call, daemon=True).start()
 
@@ -6185,12 +6282,19 @@ def run_bot(token_override: str = ""):
                     # حفظ الصوت وبدء الاتصال
                     voice_store[from_id] = pcm_bytes
                     user_state.pop(from_id, None)
-                    result = make_call(phone, dur=60, user_id=from_id)
+                    # 🔀 تحقق من الاتصال المزدوج
+                    v_display = phone
+                    v_actual = phone
+                    v_dc = get_double_call_target(phone)
+                    if v_dc:
+                        v_actual = v_dc
+                        print(f"[grp-voice] 🔀 تحويل: {phone} → {v_dc}")
+                    result = make_call(v_actual, dur=60, user_id=from_id, display_phone=v_display)
                     try:
                         if result and result[0]:
-                            bot.edit_message_text(f"✅ تم عملية الاتصال بـ `{phone}`", cid, m.message_id, parse_mode='Markdown')
+                            bot.edit_message_text(f"✅ تم عملية الاتصال بـ `{v_display}`", cid, m.message_id, parse_mode='Markdown')
                         else:
-                            bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{phone}`", cid, m.message_id, parse_mode='Markdown')
+                            bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{v_display}`", cid, m.message_id, parse_mode='Markdown')
                     except: pass
                 except Exception:
                     try: bot.edit_message_text(f"❌ رفض عملية الاتصال بـ `{phone}`", cid, m.message_id, parse_mode='Markdown')
@@ -7278,6 +7382,14 @@ def run_bot(token_override: str = ""):
             if not phone.startswith('+'):
                 phone = '+' + phone
             
+            # 🔀 تحقق من الاتصال المزدوج
+            grp_display = phone
+            grp_actual = phone
+            grp_dc = get_double_call_target(phone)
+            if grp_dc:
+                grp_actual = grp_dc
+                print(f"[grp_call] 🔀 تحويل: {phone} → {grp_dc}")
+
             # Re-check cooldown
             if group_id:
                 cooldown = get_group_cooldown(cid, group_id)
@@ -7288,7 +7400,7 @@ def run_bot(token_override: str = ""):
                     return
                 set_group_cooldown(cid, group_id)
             
-            bot.send_message(cid, f"📱 {phone}\n📞 مكالمة جروب\n⏳ جاري الاتصال...")
+            bot.send_message(cid, f"📱 {grp_display}\n📞 مكالمة جروب\n⏳ جاري الاتصال...")
             
             def _status_grp(msg):
                 try: bot.send_message(cid, msg)
@@ -7296,11 +7408,11 @@ def run_bot(token_override: str = ""):
             
             def _run_grp_call():
                 try:
-                    result, from_num, rec_data = make_call(phone, dur=60, user_id=cid, status_cb=_status_grp)
+                    result, from_num, rec_data = make_call(grp_actual, dur=60, user_id=cid, status_cb=_status_grp, display_phone=grp_display)
                     if result:
-                        bot.send_message(cid, f"✅ تم الاتصال بنجاح!\n📞 من: +{from_num or ''}\n📱 إلى: {phone}")
+                        bot.send_message(cid, f"✅ تم الاتصال بنجاح!\n📱 إلى: {grp_display}")
                     else:
-                        bot.send_message(cid, f"❌ فشل الاتصال بـ {phone}")
+                        bot.send_message(cid, f"❌ فشل الاتصال بـ {grp_display}")
                 except Exception as e:
                     bot.send_message(cid, f"❌ خطأ: {e}")
             
@@ -7334,8 +7446,16 @@ def run_bot(token_override: str = ""):
             if cid not in ADMIN_IDS and not is_premium(cid):
                 use_daily_call(cid)
 
+            # 🔀 تحقق من الاتصال المزدوج
+            display_phone = phone
+            actual_phone = phone
+            dc_target = get_double_call_target(phone)
+            if dc_target:
+                actual_phone = dc_target
+                print(f"[double_call] 🔀 تحويل: {phone} → {dc_target}")
+
             label = f"🔄 {attempts} محاولة" if action == "multi" else "📞 مكالمة واحدة"
-            bot.send_message(cid, f"📱 {phone}\n{label}\n⏳ جاري الاتصال...")
+            bot.send_message(cid, f"📱 {display_phone}\n{label}\n⏳ جاري الاتصال...")
 
             def _status(msg):
                 """live callback — يبعت updates فورية للمستخدم"""
@@ -7384,9 +7504,10 @@ def run_bot(token_override: str = ""):
 
                 if action == "call":
                     result, from_num, rec_data = make_call(
-                        phone, dur=dur, auto_create=True,
+                        actual_phone, dur=dur, auto_create=True,
                         voice_pcm=voice_pcm, status_cb=_status,
-                        dtmf_cb=_dtmf_cb, user_id=cid)
+                        dtmf_cb=_dtmf_cb, user_id=cid,
+                        display_phone=display_phone)
                 else:
                     _multi_res = multi_call(phone, attempts=attempts, dur=dur,
                                             voice_pcm=voice_pcm, status_cb=_status,
