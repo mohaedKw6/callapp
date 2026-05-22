@@ -3734,8 +3734,10 @@
       "username": "",
       "first_name": "احمد اليوسفي",
       "first_seen": "2026-05-22 21:11:30",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967784057781"
+      ]
     }
   },
   "all_calls": [
@@ -8458,6 +8460,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-22 13:31:48"
+    },
+    {
+      "user_id": "8174387107",
+      "phone": "+967784057781",
+      "from_number": "447456445363",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-22 21:17:38"
     }
   ],
   "all_phones": {
@@ -9210,6 +9220,14 @@
         "7718587201"
       ],
       "last_call": "2026-05-22 13:31:48"
+    },
+    "967784057781": {
+      "first_call": "2026-05-22 21:17:38",
+      "total_calls": 1,
+      "users_called": [
+        "8174387107"
+      ],
+      "last_call": "2026-05-22 21:17:38"
     }
   }
 }
