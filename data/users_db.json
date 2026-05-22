@@ -3509,7 +3509,7 @@
   },
   "6926059919": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 1,
     "first_seen": "2026-04-26 20:21:46",
     "username": "qahir782599",
     "first_name": "\u0642\u0627\u0647\u0631 \u0627\u0644\u0639\u062f\u0648\u0627\u0646 \u1855\u1835\u180a\u1843\u085a\u0822\u0818\u0ec8\u2e1d\u0ec8\u0821\u180a\u07ef\u1841\u0823\u0818\u180a\u180a\u0822\u0818\u6c14\u4ea0",
@@ -3518,7 +3518,8 @@
     "last_ip": "175.110.57.1",
     "last_seen": "2026-04-27 21:41:46",
     "refresh_token_hash": "ccf9071ad214a24c30e2b8545eb68e61ffe9f6a1294dfd32e1d418c275ce5db5",
-    "last_login": "2026-04-27 21:17:39"
+    "last_login": "2026-04-27 21:17:39",
+    "balance": 0.1
   },
   "8227915827": {
     "usage": 0,
@@ -6309,5 +6310,13 @@
     "streak": 1,
     "last_login_date": "2026-05-22",
     "last_use": "2026-05-22 18:07:40"
+  },
+  "8723383793": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-22 19:38:24",
+    "username": "",
+    "first_name": "\u0631\u064a\u0640\ufbaf\u0645\u0640\u0648\u0622 \u0622\u0644\u0622\u0645\u0640\u064a\u0640\ufbaf\u0631",
+    "balance": 0.5
   }
 }
