@@ -1105,7 +1105,7 @@
       "username": "lIlIlIIIlIlll",
       "first_name": "11:11",
       "streak": 1,
-      "last_login_date": "2026-04-20"
+      "last_login_date": "2026-05-22"
     },
     "8344515670": {
       "usage": 0,
@@ -2142,7 +2142,8 @@
       "last_login": "2026-04-26 22:02:15",
       "streak": 1,
       "last_login_date": "2026-05-01",
-      "balance": 0.4
+      "balance": 0.35,
+      "last_use": "2026-05-22 02:50:28"
     },
     "8206623999": {
       "usage": 0,
@@ -4293,22 +4294,26 @@
     "7176942849": {
       "usage": 0,
       "first_seen": "2026-04-27 09:01:41",
-      "balance": 0.4,
+      "balance": 0.2,
       "last_ip": "31.31.186.50",
       "last_seen": "2026-04-27 12:12:42",
       "refresh_token_hash": "072bda1ff8f80ddd5f0077d4c1e5df0ca47fd3596172b33f23c3c3045537587b",
       "last_login": "2026-04-27 12:11:33",
-      "last_call": "2026-05-22 02:49:43",
-      "last_phone": "+967771548963"
+      "streak": 1,
+      "last_login_date": "2026-05-22",
+      "username": "",
+      "first_name": ".. ..",
+      "last_use": "2026-05-22 02:48:13",
+      "successful_calls": 1
     },
     "7462995114": {
       "usage": 0,
       "first_seen": "2026-04-27 09:02:16",
       "balance": 0.0,
       "streak": 1,
-      "last_login_date": "2026-04-29",
+      "last_login_date": "2026-05-22",
       "username": "",
-      "first_name": ".. ..",
+      "first_name": "ارقام وهميه ..",
       "last_use": "2026-04-29 14:59:20",
       "last_ip": "31.31.182.64",
       "last_seen": "2026-04-29 17:28:09",
@@ -6155,6 +6160,44 @@
       "streak": 1,
       "last_login_date": "2026-05-22",
       "balance": 1.0
+    },
+    "1219775387": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-22 02:31:41",
+      "username": "r_9he",
+      "first_name": "جہنہرال •",
+      "streak": 1,
+      "last_login_date": "2026-05-22",
+      "bot_source": "sub_@H_Sp_bot"
+    },
+    "5529873179": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-22 02:34:17",
+      "username": "Saltooa12",
+      "first_name": "سلـتـو",
+      "streak": 1,
+      "last_login_date": "2026-05-22"
+    },
+    "8378725858": {
+      "usage": 0,
+      "referrals": 1,
+      "first_seen": "2026-05-22 02:45:18",
+      "username": "",
+      "first_name": "gbjd",
+      "streak": 1,
+      "last_login_date": "2026-05-22",
+      "balance": 0.1
+    },
+    "8491729975": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-22 02:47:55",
+      "username": "",
+      "first_name": "ابو محمد القوح",
+      "streak": 1,
+      "last_login_date": "2026-05-22"
     }
   },
   "premium": {
