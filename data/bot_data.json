@@ -3844,13 +3844,13 @@
       "streak": 1,
       "last_login_date": "2026-05-22",
       "active_fox_token_hash": "f96619925ac9f90eb90680b5fa4c79cef538afab94a4455bba9f1e2c3ba91410",
-      "active_device_id": "da433a3d16270d41",
-      "active_token_set_at": "2026-05-22 00:38:15",
-      "refresh_token_hash": "d6ca2bd5707c415c02b5059c9d61b8b31e02c0fdb987b5d42a8d9f4880d6d3d7",
+      "active_device_id": "f0222481d1462c0b",
+      "active_token_set_at": "2026-05-22 06:31:06",
+      "refresh_token_hash": "ead3d1ee68c31adfde0813bc2c6eb7088b467daf7daeb7b9b2d2ae67a89fd4db",
       "session_invalidated_at": 1779410283,
       "last_ip": "169.224.64.55",
-      "last_seen": "2026-05-22 00:38:15",
-      "last_login": "2026-05-22 00:38:15",
+      "last_seen": "2026-05-22 06:31:06",
+      "last_login": "2026-05-22 06:31:06",
       "photo_url": "https://api.telegram.org/file/bot8652490171:AAG8KjaZZwmgoLyY1niG8LGVWCckbmPLvko/photos/file_5.jpg"
     },
     "6802618214": {
