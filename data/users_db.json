@@ -6295,6 +6295,8 @@
     "first_seen": "2026-05-22 14:17:53",
     "username": "",
     "first_name": "AL EXANDAR",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-22"
   }
 }
