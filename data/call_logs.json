@@ -3593,8 +3593,10 @@
       "username": "r_9he",
       "first_name": "جہنہرال •",
       "first_seen": "2026-05-22 02:31:41",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "9647763511071"
+      ]
     },
     "5529873179": {
       "username": "Saltooa12",
@@ -3625,6 +3627,20 @@
       "phones_called": [
         "967771548963"
       ]
+    },
+    "5579038953": {
+      "username": "wj8ox",
+      "first_name": ". *گٍلُآم مگسورٍ* ...",
+      "first_seen": "2026-05-22 04:51:35",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "8249186770": {
+      "username": "CHH_100K",
+      "first_name": "THE SOUTH",
+      "first_seen": "2026-05-22 04:52:09",
+      "total_calls": 0,
+      "phones_called": []
     }
   },
   "all_calls": [
@@ -8307,6 +8323,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-22 02:49:43"
+    },
+    {
+      "user_id": "1219775387",
+      "phone": "+9647763511071",
+      "from_number": "447577354450",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-22 04:54:40"
     }
   ],
   "all_phones": {
@@ -9027,6 +9051,14 @@
         "7176942849"
       ],
       "last_call": "2026-05-22 02:49:43"
+    },
+    "9647763511071": {
+      "first_call": "2026-05-22 04:54:40",
+      "total_calls": 1,
+      "users_called": [
+        "1219775387"
+      ],
+      "last_call": "2026-05-22 04:54:40"
     }
   }
 }
