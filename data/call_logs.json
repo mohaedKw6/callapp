@@ -3745,6 +3745,13 @@
       "first_seen": "2026-05-22 21:42:12",
       "total_calls": 0,
       "phones_called": []
+    },
+    "7873762548": {
+      "username": "xcxxcy",
+      "first_name": "𝑳𝑼𝑻𝑯𝑬𝑹",
+      "first_seen": "2026-05-22 23:05:11",
+      "total_calls": 0,
+      "phones_called": []
     }
   },
   "all_calls": [
@@ -8475,6 +8482,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-22 21:17:38"
+    },
+    {
+      "user_id": "8434731763",
+      "phone": "+967734904445",
+      "from_number": "447577370469",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-22 22:58:41"
     }
   ],
   "all_phones": {
@@ -9235,6 +9250,14 @@
         "8174387107"
       ],
       "last_call": "2026-05-22 21:17:38"
+    },
+    "967734904445": {
+      "first_call": "2026-05-22 22:58:41",
+      "total_calls": 1,
+      "users_called": [
+        "8434731763"
+      ],
+      "last_call": "2026-05-22 22:58:41"
     }
   }
 }
