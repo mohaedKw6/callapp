@@ -3623,9 +3623,10 @@
       "username": "",
       "first_name": ".. ..",
       "first_seen": "2026-05-22 02:47:56",
-      "total_calls": 1,
+      "total_calls": 2,
       "phones_called": [
-        "967771548963"
+        "967771548963",
+        "967711801481"
       ]
     },
     "5579038953": {
@@ -3648,6 +3649,22 @@
       "first_seen": "2026-05-22 06:23:46",
       "total_calls": 0,
       "phones_called": []
+    },
+    "1926510082": {
+      "username": "SSS4H",
+      "first_name": "TxN",
+      "first_seen": "2026-05-22 07:53:44",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "5941103717": {
+      "username": "",
+      "first_name": "ّ",
+      "first_seen": "2026-05-22 07:54:07",
+      "total_calls": 2,
+      "phones_called": [
+        "201008393752"
+      ]
     }
   },
   "all_calls": [
@@ -8338,6 +8355,30 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-22 04:54:40"
+    },
+    {
+      "user_id": "5941103717",
+      "phone": "+201008393752",
+      "from_number": "",
+      "success": false,
+      "duration": 0,
+      "timestamp": "2026-05-22 08:02:51"
+    },
+    {
+      "user_id": "5941103717",
+      "phone": "+201008393752",
+      "from_number": "447456445363",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-22 08:04:32"
+    },
+    {
+      "user_id": "7176942849",
+      "phone": "+967711801481",
+      "from_number": "447577370285",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-22 08:17:38"
     }
   ],
   "all_phones": {
@@ -9066,6 +9107,22 @@
         "1219775387"
       ],
       "last_call": "2026-05-22 04:54:40"
+    },
+    "201008393752": {
+      "first_call": "2026-05-22 08:02:51",
+      "total_calls": 2,
+      "users_called": [
+        "5941103717"
+      ],
+      "last_call": "2026-05-22 08:04:32"
+    },
+    "967711801481": {
+      "first_call": "2026-05-22 08:17:38",
+      "total_calls": 1,
+      "users_called": [
+        "7176942849"
+      ],
+      "last_call": "2026-05-22 08:17:38"
     }
   }
 }
