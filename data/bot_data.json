@@ -4306,7 +4306,9 @@
       "username": "",
       "first_name": ".. ..",
       "last_use": "2026-05-22 02:48:13",
-      "successful_calls": 1
+      "successful_calls": 1,
+      "last_call": "2026-05-22 08:17:38",
+      "last_phone": "+967711801481"
     },
     "7462995114": {
       "usage": 0,
@@ -6237,8 +6239,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 130,
-    "success_calls": 260
+    "total_calls": 134,
+    "success_calls": 262
   },
   "voice_labels": {},
   "settings": {
@@ -8947,7 +8949,11 @@
     "witimef551@virawolf.com",
     "hewojo6667@toondot.com",
     "maner26861@splindor.com",
-    "xexifen500@tivogo.com"
+    "xexifen500@tivogo.com",
+    "carilad243@tivogo.com",
+    "gaxan67479@virawolf.com",
+    "gorixib726@toondot.com",
+    "sokogow730@splindor.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
