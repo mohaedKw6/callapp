@@ -4297,7 +4297,9 @@
       "last_ip": "31.31.186.50",
       "last_seen": "2026-04-27 12:12:42",
       "refresh_token_hash": "072bda1ff8f80ddd5f0077d4c1e5df0ca47fd3596172b33f23c3c3045537587b",
-      "last_login": "2026-04-27 12:11:33"
+      "last_login": "2026-04-27 12:11:33",
+      "last_call": "2026-05-22 02:49:43",
+      "last_phone": "+967771548963"
     },
     "7462995114": {
       "usage": 0,
@@ -6151,7 +6153,8 @@
       "username": "A1R5E",
       "first_name": "َ.",
       "streak": 1,
-      "last_login_date": "2026-05-22"
+      "last_login_date": "2026-05-22",
+      "balance": 1.0
     }
   },
   "premium": {
@@ -6166,8 +6169,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 126,
-    "success_calls": 259
+    "total_calls": 128,
+    "success_calls": 260
   },
   "voice_labels": {},
   "settings": {
@@ -8874,7 +8877,8 @@
     "xonok51179@viasuma.com",
     "gatado9723@wudmis.com",
     "witimef551@virawolf.com",
-    "hewojo6667@toondot.com"
+    "hewojo6667@toondot.com",
+    "maner26861@splindor.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
