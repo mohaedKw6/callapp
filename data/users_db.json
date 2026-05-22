@@ -94,8 +94,8 @@
     "username": "llllllIlIlIlIlIlIlIl",
     "first_name": "\ud80c\udda9\ud80c\udd0a\u00b2\u00b2\ud80c\udd54 \u0633\u0640\u0627\u0645\u0640\u064a \ud80c\udd0a\ud80c\uddaa",
     "dan_calls": 28,
-    "streak": 3,
-    "last_login_date": "2026-05-06",
+    "streak": 1,
+    "last_login_date": "2026-05-22",
     "last_daily_bonus": "2026-05-06",
     "balance": 99.6,
     "last_ip": "31.31.184.6",
@@ -1374,7 +1374,9 @@
     "referrals": 0,
     "first_seen": "2026-04-16 13:00:00",
     "username": "wj8ox",
-    "first_name": "\u0622\u0644\u0642\u0640\u2763\u0640\u06c1\u064a\u0622\u062f\u0629\u0651 \u062e\u0640\u2763\u0640\u06c1\u0622\u0644\u062f ..."
+    "first_name": ". *\u06af\u064d\u0644\u064f\u0622\u0645 \u0645\u06af\u0633\u0648\u0631\u064d* ...",
+    "streak": 1,
+    "last_login_date": "2026-05-22"
   },
   "5719350707": {
     "usage": 0,
@@ -2141,8 +2143,8 @@
     "last_login": "2026-04-26 22:02:15",
     "streak": 1,
     "last_login_date": "2026-05-01",
-    "balance": 0.3,
-    "last_use": "2026-05-22 03:45:06"
+    "balance": 0.25,
+    "last_use": "2026-05-22 04:57:00"
   },
   "8206623999": {
     "usage": 0,
@@ -6200,6 +6202,15 @@
     "first_seen": "2026-05-22 02:47:55",
     "username": "",
     "first_name": "\u0627\u0628\u0648 \u0645\u062d\u0645\u062f \u0627\u0644\u0642\u0648\u062d",
+    "streak": 1,
+    "last_login_date": "2026-05-22"
+  },
+  "8249186770": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-22 04:52:09",
+    "username": "CHH_100K",
+    "first_name": "THE SOUTH",
     "streak": 1,
     "last_login_date": "2026-05-22"
   }
