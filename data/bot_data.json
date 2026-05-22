@@ -2144,8 +2144,8 @@
       "last_login": "2026-04-26 22:02:15",
       "streak": 1,
       "last_login_date": "2026-05-01",
-      "balance": 0.25,
-      "last_use": "2026-05-22 04:57:00"
+      "balance": 0.15,
+      "last_use": "2026-05-22 08:21:39"
     },
     "8206623999": {
       "usage": 0,
@@ -4296,7 +4296,7 @@
     "7176942849": {
       "usage": 0,
       "first_seen": "2026-04-27 09:01:41",
-      "balance": 0.2,
+      "balance": 0.0,
       "last_ip": "31.31.186.50",
       "last_seen": "2026-04-27 12:12:42",
       "refresh_token_hash": "072bda1ff8f80ddd5f0077d4c1e5df0ca47fd3596172b33f23c3c3045537587b",
@@ -4305,10 +4305,8 @@
       "last_login_date": "2026-05-22",
       "username": "",
       "first_name": ".. ..",
-      "last_use": "2026-05-22 02:48:13",
-      "successful_calls": 1,
-      "last_call": "2026-05-22 08:17:38",
-      "last_phone": "+967711801481"
+      "last_use": "2026-05-22 08:16:09",
+      "successful_calls": 2
     },
     "7462995114": {
       "usage": 0,
@@ -6225,6 +6223,29 @@
       "first_name": "Марко Янсис",
       "streak": 1,
       "last_login_date": "2026-05-22"
+    },
+    "1926510082": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-22 07:53:44",
+      "username": "SSS4H",
+      "first_name": "TxN",
+      "balance": 0.5,
+      "streak": 1,
+      "last_login_date": "2026-05-22",
+      "bot_source": "sub_@TO_LS5BOT"
+    },
+    "5941103717": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-22 07:54:07",
+      "username": "",
+      "first_name": "ّ",
+      "balance": 0.3,
+      "streak": 1,
+      "last_login_date": "2026-05-22",
+      "last_use": "2026-05-22 08:02:50",
+      "successful_calls": 1
     }
   },
   "premium": {
