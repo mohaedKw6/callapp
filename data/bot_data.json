@@ -1430,8 +1430,19 @@
       "usage": 0,
       "referrals": 0,
       "first_seen": "2026-04-16 13:01:18",
-      "username": "ddark67",
-      "first_name": "dArK"
+      "username": "ip_kx",
+      "first_name": "𓏺 َِ𝗛َِ𝗮َِ𝗠َِ𝗼🕷.",
+      "streak": 1,
+      "last_login_date": "2026-05-22",
+      "active_fox_token_hash": "a701e2534f702e88998ccf9a51232ae6099b5e5ea40f852550d0784fb4b9c528",
+      "active_device_id": "c83ea26bae8702c5",
+      "active_token_set_at": "2026-05-22 08:58:39",
+      "refresh_token_hash": "e83012c585af0098a11d7bea6417ddeb38dc51c6349b27ea6518ff1151d0f087",
+      "session_invalidated_at": 1779440311,
+      "last_ip": "197.35.87.38",
+      "last_seen": "2026-05-22 08:58:39",
+      "last_login": "2026-05-22 08:58:39",
+      "photo_url": "https://api.telegram.org/file/bot8652490171:AAG8KjaZZwmgoLyY1niG8LGVWCckbmPLvko/photos/file_7.jpg"
     },
     "8383692235": {
       "usage": 0,
