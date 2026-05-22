@@ -6220,7 +6220,9 @@
       "referrals": 0,
       "first_seen": "2026-05-22 06:23:46",
       "username": "nssnkdk",
-      "first_name": "Марко Янсис"
+      "first_name": "Марко Янсис",
+      "streak": 1,
+      "last_login_date": "2026-05-22"
     }
   },
   "premium": {
