@@ -3,6 +3,8 @@
     "title": "Python tools(Script)",
     "authorized_by": 962731079,
     "authorized_at": "2026-05-22 02:06:22",
-    "user_cooldowns": {}
+    "user_cooldowns": {
+      "962731079": 1779415743.0096266
+    }
   }
 }
