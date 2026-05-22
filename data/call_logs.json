@@ -803,9 +803,10 @@
       "username": "ZIA_C",
       "first_name": "ZIAAD ALHTAMY 𓊈𝑽꯭𝑰꯭𝑷ࠡࠡࠡࠡࠢ𓊉",
       "first_seen": "2026-04-19 11:47:35",
-      "total_calls": 1,
+      "total_calls": 2,
       "phones_called": [
-        "967777880750"
+        "967777880750",
+        "967773059038"
       ]
     },
     "7717726732": {
@@ -8407,6 +8408,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-22 08:17:38"
+    },
+    {
+      "user_id": "7718587201",
+      "phone": "+967773059038",
+      "from_number": "447577368845",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-22 13:31:48"
     }
   ],
   "all_phones": {
@@ -9151,6 +9160,14 @@
         "7176942849"
       ],
       "last_call": "2026-05-22 08:17:38"
+    },
+    "967773059038": {
+      "first_call": "2026-05-22 13:31:48",
+      "total_calls": 1,
+      "users_called": [
+        "7718587201"
+      ],
+      "last_call": "2026-05-22 13:31:48"
     }
   }
 }
