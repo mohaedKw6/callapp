@@ -2630,7 +2630,7 @@
     },
     "7462995114": {
       "username": "",
-      "first_name": ".. ..",
+      "first_name": "ارقام وهميه ..",
       "first_seen": "2026-04-27 15:48:34",
       "total_calls": 1,
       "phones_called": [
@@ -3588,6 +3588,43 @@
       "first_seen": "2026-05-22 02:16:14",
       "total_calls": 0,
       "phones_called": []
+    },
+    "1219775387": {
+      "username": "r_9he",
+      "first_name": "جہنہرال •",
+      "first_seen": "2026-05-22 02:31:41",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "5529873179": {
+      "username": "Saltooa12",
+      "first_name": "سلـتـو",
+      "first_seen": "2026-05-22 02:34:17",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "8378725858": {
+      "username": "",
+      "first_name": "gbjd",
+      "first_seen": "2026-05-22 02:45:18",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "8491729975": {
+      "username": "",
+      "first_name": "ابو محمد القوح",
+      "first_seen": "2026-05-22 02:47:55",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "7176942849": {
+      "username": "",
+      "first_name": ".. ..",
+      "first_seen": "2026-05-22 02:47:56",
+      "total_calls": 1,
+      "phones_called": [
+        "967771548963"
+      ]
     }
   },
   "all_calls": [
@@ -8262,6 +8299,14 @@
       "status": "ended",
       "ip_address": "156.214.77.23",
       "timestamp": "2026-05-07 17:14:10"
+    },
+    {
+      "user_id": "7176942849",
+      "phone": "+967771548963",
+      "from_number": "447456451123",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-22 02:49:43"
     }
   ],
   "all_phones": {
@@ -8974,6 +9019,14 @@
         "5364314699"
       ],
       "last_call": "2026-05-06 21:22:48"
+    },
+    "967771548963": {
+      "first_call": "2026-05-22 02:49:43",
+      "total_calls": 1,
+      "users_called": [
+        "7176942849"
+      ],
+      "last_call": "2026-05-22 02:49:43"
     }
   }
 }
