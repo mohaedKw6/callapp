@@ -74,8 +74,8 @@
       "first_seen": "2026-04-09 08:11:14",
       "username": "G_M_A_Q",
       "first_name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥",
-      "streak": 18,
-      "last_login_date": "2026-05-07",
+      "streak": 1,
+      "last_login_date": "2026-05-22",
       "balance": 11.6,
       "dan_calls": 360,
       "last_daily_bonus": "2026-05-07",
@@ -2280,10 +2280,10 @@
       "first_seen": "2026-04-20 20:16:33",
       "username": "G_iMi_Q",
       "first_name": "⛥ـ𝔾_𝕚𝕄𝕚_ℚ-⛥",
-      "streak": 2,
-      "last_login_date": "2026-05-07",
+      "streak": 1,
+      "last_login_date": "2026-05-22",
       "bot_source": "sub_@Sjxijsjszijbot",
-      "balance": 5.85,
+      "balance": 5.8,
       "last_ip": "156.214.77.23",
       "last_seen": "2026-05-07 10:53:54",
       "refresh_token_hash": "315b4b17efdc74f2d1a5a8dc3736d44e5b8237c4ea08f4a3082a593f22b20046",
@@ -2291,7 +2291,8 @@
       "active_fox_token_hash": "68d0e60be0e3380c65e430d1ebc68c4eedd9e55871c84f31b1543273df17a377",
       "active_device_id": "e0f4371d530c3e7e",
       "active_token_set_at": "2026-05-07 09:59:17",
-      "photo_url": "https://api.telegram.org/file/bot8652490171:AAFAIBW9V9WoeBB9kxcx_YyfMJLbwcavIro/photos/file_233.jpg"
+      "photo_url": "https://api.telegram.org/file/bot8652490171:AAFAIBW9V9WoeBB9kxcx_YyfMJLbwcavIro/photos/file_233.jpg",
+      "last_use": "2026-05-22 00:35:54"
     },
     "8090445921": {
       "usage": 0,
@@ -3836,7 +3837,16 @@
       "username": "TO_LS",
       "first_name": "⌯ 𓏺🫆 حـمـد ﴾\"<\\>|TR\"﴿",
       "streak": 1,
-      "last_login_date": "2026-04-26"
+      "last_login_date": "2026-05-22",
+      "active_fox_token_hash": "f96619925ac9f90eb90680b5fa4c79cef538afab94a4455bba9f1e2c3ba91410",
+      "active_device_id": "da433a3d16270d41",
+      "active_token_set_at": "2026-05-22 00:38:15",
+      "refresh_token_hash": "d6ca2bd5707c415c02b5059c9d61b8b31e02c0fdb987b5d42a8d9f4880d6d3d7",
+      "session_invalidated_at": 1779410283,
+      "last_ip": "169.224.64.55",
+      "last_seen": "2026-05-22 00:38:15",
+      "last_login": "2026-05-22 00:38:15",
+      "photo_url": "https://api.telegram.org/file/bot8652490171:AAG8KjaZZwmgoLyY1niG8LGVWCckbmPLvko/photos/file_5.jpg"
     },
     "6802618214": {
       "usage": 0,
@@ -6106,7 +6116,7 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 125,
+    "total_calls": 126,
     "success_calls": 259
   },
   "voice_labels": {},
