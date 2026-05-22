@@ -6275,11 +6275,11 @@
   },
   "7127718300": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 1,
     "first_seen": "2026-05-22 11:55:12",
     "username": "",
     "first_name": "\u0645\u062c\u0647\u0648\u0644 3",
-    "balance": 0.1,
+    "balance": 0.2,
     "streak": 1,
     "last_login_date": "2026-05-22",
     "last_use": "2026-05-22 12:01:00"
@@ -6346,5 +6346,13 @@
     "streak": 1,
     "last_login_date": "2026-05-22",
     "last_use": "2026-05-22 20:30:16"
+  },
+  "8174387107": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-22 21:11:30",
+    "username": "",
+    "first_name": "\u0627\u062d\u0645\u062f \u0627\u0644\u064a\u0648\u0633\u0641\u064a",
+    "balance": 0.5
   }
 }
