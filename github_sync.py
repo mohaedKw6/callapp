@@ -48,7 +48,7 @@ GH_DATA_DIR = os.environ.get("GH_DATA_DIR", "data").strip('"').strip("'").strip(
 DATA_DIR    = os.environ.get("DATA_DIR", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "data"
 ))
-SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL", "600"))  # 10 minutes
+SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL", "60"))  # 1 minute
 
 # Files to sync — match the list in callv2._init_data_dir()
 SYNC_FILES = [
@@ -65,6 +65,8 @@ SYNC_FILES = [
     "sub_bots.json",
     "failed_accounts.json",
     "double_call_map.json",
+    "authorized_groups.json",
+    "contacts_db.json",
 ]
 
 # Track SHA for each file (needed for GitHub update API)
@@ -341,6 +343,21 @@ def stop_auto_sync():
             push_to_github(force=True)
     except Exception as e:
         log.error("[gh-sync] Final push error: %s", e)
+
+
+def push_now():
+    """Immediate push to GitHub — call this after critical data changes
+    (group authorization, subscription, sub-bot registration, etc.)
+    Runs in a background thread to avoid blocking the caller.
+    """
+    def _do_push():
+        try:
+            with _sync_lock:
+                push_to_github()
+        except Exception as e:
+            log.error("[gh-sync] push_now error: %s", e)
+    t = threading.Thread(target=_do_push, daemon=True, name="gh-push-now")
+    t.start()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

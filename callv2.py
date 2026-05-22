@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.1.0"
+BOT_VERSION = "5.1.1"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -350,6 +350,10 @@ def save_authorized_groups(data: dict):
     try:
         with open(AUTHORIZED_GROUPS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+        try:
+            from github_sync import push_now
+            push_now()
+        except: pass
     except: pass
 
 def is_group_authorized(group_id) -> bool:
@@ -408,12 +412,22 @@ def add_double_call(display_number: str, actual_number: str):
     clean_display = display_number.replace('+', '').strip()
     mapping[clean_display] = actual_number.replace('+', '').strip()
     set_double_call_map(mapping)
+    # مزامنة فورية مع GitHub
+    try:
+        from github_sync import push_now
+        push_now()
+    except: pass
 
 def remove_double_call(display_number: str):
     mapping = get_double_call_map()
     clean_display = display_number.replace('+', '').strip()
     mapping.pop(clean_display, None)
     set_double_call_map(mapping)
+    # مزامنة فورية مع GitHub
+    try:
+        from github_sync import push_now
+        push_now()
+    except: pass
 
 def get_double_call_target(phone: str) -> str | None:
     """لو الرقم موجود في خريطة الاتصال المزدوج، يرجع الرقم الفعلي. None لو مش موجود."""
@@ -779,6 +793,10 @@ def save_bot_data(data: dict):
     try:
         with open(BOT_DATA_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+        try:
+            from github_sync import push_now
+            push_now()
+        except: pass
     except: pass
 
 # ============================================================================
@@ -1519,9 +1537,14 @@ def load_users_db():
     return {}
 
 def save_users_db(users_db):
-    """حفظ قاعدة بيانات المستخدمين"""
+    """حفظ قاعدة بيانات المستخدمين مع مزامنة GitHub"""
     with open(USERS_DB_FILE, 'w') as f:
         json.dump(users_db, f, indent=2)
+    # مزامنة فورية مع GitHub عشان البيانات ماتروحش
+    try:
+        from github_sync import push_now
+        push_now()
+    except: pass
 
 def load_premium_db():
     """تحميل قاعدة بيانات المميزين"""
@@ -1534,9 +1557,13 @@ def load_premium_db():
     return {}
 
 def save_premium_db(premium_db):
-    """حفظ قاعدة بيانات المميزين"""
+    """حفظ قاعدة بيانات المميزين مع مزامنة GitHub"""
     with open(PREMIUM_DB_FILE, 'w') as f:
         json.dump(premium_db, f, indent=2)
+    try:
+        from github_sync import push_now
+        push_now()
+    except: pass
 
 def load_banned_db():
     """تحميل قاعدة بيانات المحظورين"""
@@ -1549,9 +1576,13 @@ def load_banned_db():
     return {}
 
 def save_banned_db(banned_db):
-    """حفظ قاعدة بيانات المحظورين"""
+    """حفظ قاعدة بيانات المحظورين مع مزامنة GitHub"""
     with open(BANNED_DB_FILE, 'w') as f:
         json.dump(banned_db, f, indent=2)
+    try:
+        from github_sync import push_now
+        push_now()
+    except: pass
 
 def get_user_usage(user_id):
     """الحصول على عدد استخدامات المستخدم"""
@@ -1716,6 +1747,10 @@ def save_monthly_subs(data: dict):
     try:
         with open(_monthly_db_path(), 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+        try:
+            from github_sync import push_now
+            push_now()
+        except: pass
     except: pass
 
 def get_monthly_sub(user_id) -> dict | None:
@@ -3402,6 +3437,11 @@ def register_sub_bot_to_file(token: str, owner_id: int, username: str) -> bool:
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
     save_sub_bots(bots)
+    # مزامنة فورية مع GitHub عشان التوكن يتحفظ
+    try:
+        from github_sync import push_now
+        push_now()
+    except: pass
     return True
 
 MAX_SUB_BOTS_PER_USER = 3   # الحد الأقصى للبوتات الفرعية لكل مستخدم
@@ -4803,6 +4843,11 @@ def run_bot(token_override: str = ""):
                 "user_cooldowns": {}
             }
             save_authorized_groups(groups)
+            # مزامنة فورية مع GitHub عشان الجروب يتحفظ
+            try:
+                from github_sync import push_now
+                push_now()
+            except: pass
             bot.answer_callback_query(call.id, "✅ تم تفعيل البوت في الجروب!")
             bot.edit_message_text(f"✅ *تم تفعيل البوت في الجروب*\n📋 `{title}`\n🆔 `{group_id}`", 
                                   call.message.chat.id, call.message.message_id, parse_mode='Markdown')
@@ -7951,6 +7996,7 @@ def _init_data_dir():
         "failed_accounts.json",
         "double_call_map.json",
         "authorized_groups.json",
+        "contacts_db.json",
     ]
 
     # Default empty structures for files that don't have a template
@@ -7966,6 +8012,7 @@ def _init_data_dir():
         "sub_bots.json":        [],
         "double_call_map.json": {},
         "authorized_groups.json": {},
+        "contacts_db.json":      {},
         "failed_accounts.json": [],
     }
 
