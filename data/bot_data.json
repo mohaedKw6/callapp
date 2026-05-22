@@ -6357,7 +6357,9 @@
       "balance": 0.3,
       "streak": 1,
       "last_login_date": "2026-05-22",
-      "last_use": "2026-05-22 21:12:59"
+      "last_use": "2026-05-22 21:12:59",
+      "last_call": "2026-05-22 21:17:39",
+      "last_phone": "+967784057781"
     }
   },
   "premium": {
@@ -6372,8 +6374,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 135,
-    "success_calls": 262
+    "total_calls": 136,
+    "success_calls": 263
   },
   "voice_labels": {},
   "settings": {
