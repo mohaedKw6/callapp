@@ -6126,11 +6126,19 @@
   },
   "7095707043": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 1,
     "first_seen": "2026-05-22 02:14:18",
     "username": "abwaleed107",
     "first_name": "\u0627\u0627\u0628\u0648\ufbe1 \u0648\ufbe1\u076a\u064a\u0689 \u0627\u0627\u076a\u0627\u0627\u0689\u076a\u0628\u064a 515\ud83d\udc99\ud83d\udc99\ud83d\udca4\ud80c\udf71.",
     "streak": 1,
-    "last_login_date": "2026-05-22"
+    "last_login_date": "2026-05-22",
+    "balance": 0.1
+  },
+  "8483912602": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-22 02:15:26",
+    "username": "abwaleed515",
+    "first_name": "\u0623\u0628\u064e\u0648\u0650\ufbe1 \u0648\u0650\ufbe1\u0644\u064a\u064e\u062f\u064e \u0627\u0650\u0644\u0623\u0650\u062f\u064e\u0644\u0628\u064e\u064a\u064e \u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\ud83d\uddde\ufe0f\ud83d\udda4."
   }
 }
