@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.1.1"
+BOT_VERSION = "5.2.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -350,6 +350,7 @@ def save_authorized_groups(data: dict):
     try:
         with open(AUTHORIZED_GROUPS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+        # مزامنة فورية مع GitHub — نستنى النتيجة عشان نتأكد إن الداتا اتحفظت
         try:
             from github_sync import push_now
             push_now()
@@ -438,30 +439,8 @@ def get_double_call_target(phone: str) -> str | None:
         return '+' + target
     return None
 
-# ─── دالة مسح الرسائل في الجروبات ──────────────────────────────────────
-def _delete_group_messages(chat_id, message_ids: list, delay: int = 5):
-    """مسح رسائل في جروب بعد تأخير — HTTP مباشر"""
-    ids = list(message_ids)
-    cid = int(chat_id)
-    def _worker():
-        time.sleep(delay)
-        print(f"[del] deleting {len(ids)} msgs in chat {cid}")
-        for mid in ids:
-            for attempt in range(3):
-                try:
-                    r = requests.post(
-                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                        json={"chat_id": cid, "message_id": mid}, timeout=10)
-                    if r.status_code == 200 and r.json().get("ok"):
-                        print(f"[del] ✅ deleted msg {mid}")
-                        break
-                    else:
-                        print(f"[del] ⚠️ msg {mid} attempt {attempt+1}: {r.json().get('description','?')}")
-                except Exception as e:
-                    print(f"[del] ⚠️ msg {mid} attempt {attempt+1}: {e}")
-                if attempt < 2:
-                    time.sleep(1)
-    threading.Thread(target=_worker, daemon=True).start()
+# ─── دالة مسح الرسائل في الجروبات — تم إلغاؤها بناءً على طلب المستخدم ──
+# (تم التخلي عن هذه الميزة — المستخدم قال عدي لو مش عارف خلاص مافيش مشكله)
 
 ACCOUNTS_FILE = os.path.join(DATA_DIR, "telicall_accounts.json")
 ACCOUNTS_PASSWORD = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"').strip("'").strip()   # كلمة سر ملف الحسابات
@@ -532,7 +511,9 @@ def load_bot_data() -> dict:
         },
         "promo_codes": {},             # {code: {amount, max_users, used_by, created_at, created_by}}
         "registered_accounts": [],     # قائمة الإيميلات المسجلة مسبقاً من Dan.json
-        "used_accounts": []            # قائمة الإيميلات المستعملة فعلاً في مكالمات
+        "used_accounts": [],           # قائمة الإيميلات المستعملة فعلاً في مكالمات
+        "welcome_bonus": 0.50,         # رصيد ترحيبي للمستخدمين الجدد
+        "owner_earnings": 0.0          # أرباح صاحب البوت
     }
 
 # ─── نظام Dan.json ───────────────────────────────────────────────────────────
@@ -2009,6 +1990,11 @@ def check_user_access(user_id):
             f"أو استخدم كود شحن بـ /PMC"
         )
 
+def get_welcome_bonus() -> float:
+    """يرجع قيمة الرصيد الترحيبي للمستخدمين الجدد"""
+    bd = load_bot_data()
+    return float(bd.get("settings", {}).get("welcome_bonus", 0.50))
+
 def log_user_entry(user_id, username, first_name, referred_by=None):
     """تسجيل دخول المستخدم وإشعار الأدمن"""
     users_db = load_users_db()
@@ -2027,6 +2013,10 @@ def log_user_entry(user_id, username, first_name, referred_by=None):
             "username": username or "",
             "first_name": first_name or ""
         }
+        # 🎁 رصيد ترحيبي للمستخدم الجديد
+        welcome_amount = get_welcome_bonus()
+        if welcome_amount > 0:
+            users_db[user_id_str]["balance"] = welcome_amount
         # لو جاء عن طريق إحالة نسجلها ونكافئ المحيل
         referral_rewarded = False
         if referred_by and str(referred_by) != user_id_str:
@@ -2062,13 +2052,14 @@ def log_user_entry(user_id, username, first_name, referred_by=None):
         for admin_id in ADMIN_IDS:
             try:
                 _bot = telebot.TeleBot(BOT_TOKEN)
+                bonus_info = f"\n🎁 رصيد ترحيبي: `{welcome_amount:.2f}$`" if welcome_amount > 0 else ""
                 _bot.send_message(
                     admin_id,
                     f"🆕 مستخدم جديد!\n\n"
                     f"👤 المعرف: `{user_id}`\n"
                     f"📝 اليوزر: {uname_display}\n"
                     f"🏷️ الاسم: {fname_display}\n"
-                    f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                    f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{bonus_info}",
                     parse_mode='Markdown'
                 )
             except:
@@ -3514,7 +3505,9 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
             cost = get_call_cost()
             refs = get_referral_count(cid)
             streak = get_user_streak(cid)
+            wb = get_welcome_bonus()
             bonus_note = f"\n🎁 مكافأة يومية {bonus:.2f}$ أضيفت!" if bonus else ""
+            welcome_note = f"\n🎁 رصيد ترحيبي {wb:.2f}$ — جرب المكالمات مجاناً!" if balance > 0 and balance <= wb else ""
             streak_emoji = "🔥" * min(streak, 5)
             if streak < 3:
                 streak_info = f"\n{streak_emoji}🔥 حلقاتك: {streak}/3 (تحتاج {3-streak} يوم للمكافأة اليومية)"
@@ -3526,6 +3519,7 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                 f"💰 رصيدك: {balance:.2f}$\n"
                 f"👥 إحالاتك: {refs}"
                 f"{streak_info}"
+                f"{welcome_note}"
                 f"{bonus_note}\n\n"
                 f"📞 سعر المكالمة: {cost:.2f}$\n\n"
                 f"اختر من القائمة:"
@@ -4792,6 +4786,38 @@ def run_bot(token_override: str = ""):
 
 
     # ── Group handlers ──────────────────────────────────────────────────
+    @bot.my_chat_member_handler()
+    def on_bot_chat_member(update):
+        """يتم تفعيل الجروب تلقائياً لما البوت يبقى أدمن فيه"""
+        try:
+            chat = update.chat
+            old_status = update.old_chat_member.status if update.old_chat_member else ""
+            new_status = update.new_chat_member.status if update.new_chat_member else ""
+            
+            # لو البوت بقى أدمن في الجروب → فعّله تلقائي
+            if new_status in ("administrator", "creator") and chat.type in ("group", "supergroup"):
+                group_id = str(chat.id)
+                groups = load_authorized_groups()
+                if group_id not in groups:
+                    groups[group_id] = {
+                        "title": chat.title or "غير معروف",
+                        "authorized_by": 0,  # تفعيل تلقائي
+                        "authorized_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "auto_authorized": True,
+                        "user_cooldowns": {}
+                    }
+                    save_authorized_groups(groups)
+                    print(f"[group-auth] ✅ تفعيل تلقائي للجروب: {chat.title} ({group_id}) — البوت بقى أدمن")
+                    try:
+                        bot.send_message(chat.id,
+                            "✅ *تم تفعيل البوت تلقائياً!*\n\n📞 البوت أدمن في الجروب — أي شخص يقدر يعمل مكالمة مجانية كل 20 دقيقة\nاستخدم `/fn رقم`",
+                            parse_mode='Markdown')
+                    except: pass
+                else:
+                    print(f"[group-auth] الجروب {group_id} مفعل بالفعل")
+        except Exception as e:
+            print(f"[group-auth] خطأ في my_chat_member: {e}")
+
     @bot.message_handler(content_types=['new_chat_members'])
     def on_bot_added_to_group(msg):
         """When bot is added to a group"""
@@ -4943,12 +4969,8 @@ def run_bot(token_override: str = ""):
         # بدء الاتصال
         status_msg = bot.reply_to(msg, f"{t('grp_calling', user_id=user_id)} `{display_phone}`...", parse_mode='Markdown')
 
-        # رسائل هنمسحها بعد المكالمة
-        grp_fn_msgs = [status_msg.message_id, msg.message_id]
-
         def _do_fn_call():
             _gid = group_id
-            _msgs = list(grp_fn_msgs)
             _dp = display_phone
             try:
                 result = make_call(actual_phone, dur=60, user_id=user_id, display_phone=_dp)
@@ -4965,14 +4987,12 @@ def run_bot(token_override: str = ""):
                             f"📊 *إحصائيات البوت:*\n📞 إجمالي المكالمات: {total}\n✅ مكالمات ناجحة: {success}",
                             status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                 except: pass
-                # مسح الرسائل بعد 5 ثواني
-                _delete_group_messages(_gid, _msgs, delay=5)
+                # مسح الرسائل — تم إلغاؤه بناءً على طلب المستخدم
             except Exception as e:
                 print(f"[grp-fn] Error: {e}")
                 try:
                     bot.edit_message_text(f"❌ خطأ في الاتصال بـ `{_dp}`", status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                 except: pass
-                _delete_group_messages(_gid, _msgs, delay=5)
 
         threading.Thread(target=_do_fn_call, daemon=True).start()
 
@@ -6183,6 +6203,9 @@ def run_bot(token_override: str = ""):
                     "dtmf_settings.json",
                     "sub_bots.json",
                     "failed_accounts.json",
+                    "double_call_map.json",
+                    "authorized_groups.json",
+                    "owner_earnings.json",
                 ]
                 # إنشاء ملف zip مؤقت
                 tmp_zip = tempfile.NamedTemporaryFile(mode='w', suffix='.zip', delete=False)
@@ -6761,6 +6784,9 @@ def run_bot(token_override: str = ""):
                 "dtmf_settings.json",
                 "sub_bots.json",
                 "failed_accounts.json",
+                "double_call_map.json",
+                "authorized_groups.json",
+                "owner_earnings.json",
             ]
             # ─── رفع ملف JSON واحد ───
             if fname.lower().endswith('.json'):
@@ -7997,6 +8023,7 @@ def _init_data_dir():
         "double_call_map.json",
         "authorized_groups.json",
         "contacts_db.json",
+        "owner_earnings.json",
     ]
 
     # Default empty structures for files that don't have a template
@@ -8013,6 +8040,7 @@ def _init_data_dir():
         "double_call_map.json": {},
         "authorized_groups.json": {},
         "contacts_db.json":      {},
+        "owner_earnings.json":   {"total_earned": 0.0, "history": []},
         "failed_accounts.json": [],
     }
 

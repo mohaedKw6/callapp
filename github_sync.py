@@ -9,8 +9,9 @@ Railway container restarts without needing a paid Volume.
 
 Flow:
   1. On startup:  pull latest data from GitHub → overwrite local files
-  2. Every N minutes: push local data to GitHub (only if changed)
+  2. Every 10 seconds: push local data to GitHub (only if changed)
   3. On shutdown: final push to GitHub
+  4. On critical changes (group auth, subs, sub-bots): immediate push
 
 Environment variables:
   GH_TOKEN   — GitHub personal access token (required)
@@ -18,7 +19,7 @@ Environment variables:
   GH_BRANCH  — Branch to sync with (default: main)
   GH_DATA_DIR— Directory in the repo (default: data)
   DATA_DIR   — Local data directory (default: ./data)
-  SYNC_INTERVAL— Seconds between auto-syncs (default: 600 = 10 min)
+  SYNC_INTERVAL— Seconds between auto-syncs (default: 10)
 """
 
 import os
@@ -48,7 +49,8 @@ GH_DATA_DIR = os.environ.get("GH_DATA_DIR", "data").strip('"').strip("'").strip(
 DATA_DIR    = os.environ.get("DATA_DIR", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "data"
 ))
-SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL", "60"))  # 1 minute
+# 🔁 تزامن كل 10 ثواني — عشان الداتا ما تضيعش أبداً
+SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL", "10"))
 
 # Files to sync — match the list in callv2._init_data_dir()
 SYNC_FILES = [
@@ -67,6 +69,7 @@ SYNC_FILES = [
     "double_call_map.json",
     "authorized_groups.json",
     "contacts_db.json",
+    "owner_earnings.json",
 ]
 
 # Track SHA for each file (needed for GitHub update API)
@@ -76,6 +79,9 @@ _local_hashes: dict = {}
 _sync_lock = threading.Lock()
 _sync_thread = None
 _stop_event = threading.Event()
+# Counter for sync cycles
+_sync_cycle_count = 0
+_last_push_time = 0.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -193,14 +199,105 @@ def pull_from_github() -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Push (upload) to GitHub
+#  Push (upload) to GitHub — مع إعادة المحاولة عند الفشل
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> dict:
+    """Push a single file to GitHub with retry logic.
+    Returns {"status": "ok"|"skipped"|"error", "detail": str}
+    """
+    content = _file_local_content(local_path)
+    if content is None:
+        return {"status": "skipped", "detail": f"{fname}: read error"}
+
+    gh_path = f"{GH_DATA_DIR}/{fname}"
+    url = _gh_api_url(gh_path)
+
+    # Build commit message
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    commit_msg = f"auto-sync: update {fname} [{ts}]"
+
+    # Encode content as base64
+    content_b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
+
+    # Build request body
+    body = {
+        "message": commit_msg,
+        "content": content_b64,
+        "branch": GH_BRANCH,
+    }
+
+    # If we have the SHA, include it (required for updates)
+    sha = _file_shas.get(fname)
+    if sha:
+        body["sha"] = sha
+    else:
+        # Try to get SHA from GitHub first
+        try:
+            r = req.get(url, headers=_gh_headers(), timeout=15)
+            if r.status_code == 200:
+                existing_sha = r.json().get("sha", "")
+                if existing_sha:
+                    body["sha"] = existing_sha
+                    _file_shas[fname] = existing_sha
+        except Exception:
+            pass
+
+    # محاولة الدفع مع إعادة المحاولة (3 مرات)
+    for attempt in range(3):
+        try:
+            r = req.put(url, headers=_gh_headers(), json=body, timeout=30)
+            if r.status_code in (200, 201):
+                data = r.json()
+                new_sha = data.get("content", {}).get("sha", "") or data.get("commit", {}).get("sha", "")
+                if new_sha and "content" in data:
+                    _file_shas[fname] = data["content"].get("sha", new_sha)
+                _local_hashes[fname] = current_hash
+                return {"status": "ok", "detail": f"{fname}: pushed OK"}
+            
+            # لو فيه تعارض (409 Conflict) — نحدث الـ SHA ونعيد المحاولة
+            if r.status_code == 409:
+                log.warning("[gh-sync] Conflict on %s, refreshing SHA (attempt %d)", fname, attempt + 1)
+                try:
+                    r2 = req.get(url, headers=_gh_headers(), timeout=15)
+                    if r2.status_code == 200:
+                        new_sha = r2.json().get("sha", "")
+                        if new_sha:
+                            body["sha"] = new_sha
+                            _file_shas[fname] = new_sha
+                            continue  # إعادة المحاولة بالـ SHA الجديد
+                except Exception:
+                    pass
+            
+            error_msg = ""
+            try:
+                error_msg = r.json().get("message", r.text[:200])
+            except Exception:
+                error_msg = r.text[:200]
+            
+            # لو مش التعارض، نحاول تاني بعد انتظار
+            if attempt < 2:
+                time.sleep(1 * (attempt + 1))
+                continue
+            
+            return {"status": "error", "detail": f"{fname}: HTTP {r.status_code} - {error_msg}"}
+
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(1 * (attempt + 1))
+                continue
+            return {"status": "error", "detail": f"{fname}: {e}"}
+
+    return {"status": "error", "detail": f"{fname}: failed after 3 attempts"}
+
 
 def push_to_github(force: bool = False) -> dict:
     """Upload changed data files to GitHub repo.
     Only uploads files that have actually changed (hash comparison).
     Returns {pushed: int, skipped: int, errors: int, details: []}
     """
+    global _sync_cycle_count, _last_push_time
+
     if not GH_TOKEN:
         log.warning("[gh-sync] No GH_TOKEN set — skipping push")
         return {"pushed": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"]}
@@ -208,6 +305,7 @@ def push_to_github(force: bool = False) -> dict:
     import requests as req
 
     result = {"pushed": 0, "skipped": 0, "errors": 0, "details": []}
+    _sync_cycle_count += 1
 
     for fname in SYNC_FILES:
         local_path = os.path.join(DATA_DIR, fname)
@@ -221,82 +319,33 @@ def push_to_github(force: bool = False) -> dict:
         current_hash = _file_local_hash(local_path)
         if not force and current_hash == _local_hashes.get(fname, ""):
             result["skipped"] += 1
-            result["details"].append(f"{fname}: no changes")
+            # لا نضيف التفاصيل للملفات اللي ما تغيرتش عشان ما نكدّرش اللوج
             continue
 
-        content = _file_local_content(local_path)
-        if content is None:
+        push_result = _push_single_file(req, fname, local_path, current_hash)
+        
+        if push_result["status"] == "ok":
+            result["pushed"] += 1
+            result["details"].append(push_result["detail"])
+            log.info("[gh-sync] Pushed %s", fname)
+        elif push_result["status"] == "skipped":
             result["skipped"] += 1
-            result["details"].append(f"{fname}: read error")
-            continue
-
-        gh_path = f"{GH_DATA_DIR}/{fname}"
-        url = _gh_api_url(gh_path)
-
-        # Build commit message
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        commit_msg = f"auto-sync: update {fname} [{ts}]"
-
-        # Encode content as base64
-        content_b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
-
-        # Build request body
-        body = {
-            "message": commit_msg,
-            "content": content_b64,
-            "branch": GH_BRANCH,
-        }
-
-        # If we have the SHA, include it (required for updates)
-        sha = _file_shas.get(fname)
-        if sha:
-            body["sha"] = sha
+            result["details"].append(push_result["detail"])
         else:
-            # Try to get SHA from GitHub first
-            try:
-                r = req.get(url, headers=_gh_headers(), timeout=15)
-                if r.status_code == 200:
-                    existing_sha = r.json().get("sha", "")
-                    if existing_sha:
-                        body["sha"] = existing_sha
-                        _file_shas[fname] = existing_sha
-            except Exception:
-                pass
-
-        try:
-            r = req.put(url, headers=_gh_headers(), json=body, timeout=30)
-            if r.status_code in (200, 201):
-                data = r.json()
-                new_sha = data.get("content", {}).get("sha", "") or data.get("commit", {}).get("sha", "")
-                if new_sha and "content" in data:
-                    _file_shas[fname] = data["content"].get("sha", new_sha)
-                _local_hashes[fname] = current_hash
-                result["pushed"] += 1
-                result["details"].append(f"{fname}: pushed OK")
-                log.info("[gh-sync] Pushed %s", fname)
-            else:
-                error_msg = ""
-                try:
-                    error_msg = r.json().get("message", r.text[:200])
-                except Exception:
-                    error_msg = r.text[:200]
-                result["errors"] += 1
-                result["details"].append(f"{fname}: HTTP {r.status_code} - {error_msg}")
-                log.warning("[gh-sync] Failed to push %s: HTTP %d - %s",
-                            fname, r.status_code, error_msg)
-
-        except Exception as e:
             result["errors"] += 1
-            result["details"].append(f"{fname}: {e}")
-            log.error("[gh-sync] Error pushing %s: %s", fname, e)
+            result["details"].append(push_result["detail"])
+            log.warning("[gh-sync] Failed to push %s: %s", fname, push_result["detail"])
 
-    log.info("[gh-sync] Push complete: %d pushed, %d skipped, %d errors",
-             result["pushed"], result["skipped"], result["errors"])
+    _last_push_time = time.time()
+
+    if result["pushed"] > 0 or result["errors"] > 0:
+        log.info("[gh-sync] Push #%d complete: %d pushed, %d skipped, %d errors",
+                 _sync_cycle_count, result["pushed"], result["skipped"], result["errors"])
     return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Auto-sync background thread
+#  Auto-sync background thread — كل 10 ثواني
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _sync_loop():
@@ -304,11 +353,11 @@ def _sync_loop():
     log.info("[gh-sync] Auto-sync started (interval: %ds)", SYNC_INTERVAL)
 
     while not _stop_event.is_set():
-        # Wait for the interval, but check stop_event every 10 seconds
+        # Wait for the interval, but check stop_event frequently
         waited = 0
         while waited < SYNC_INTERVAL and not _stop_event.is_set():
-            time.sleep(min(10, SYNC_INTERVAL - waited))
-            waited += 10
+            time.sleep(min(2, SYNC_INTERVAL - waited))
+            waited += 2
 
         if _stop_event.is_set():
             break
@@ -367,6 +416,7 @@ def push_now():
 def init_github_sync():
     """Full initialization: pull from GitHub, then start auto-sync.
     Call this AFTER _init_data_dir() so defaults exist locally.
+    This ensures all .json data is loaded BEFORE the bot starts processing messages.
     """
     if not GH_TOKEN:
         log.warning("[gh-sync] No GH_TOKEN — GitHub sync disabled")
@@ -375,13 +425,13 @@ def init_github_sync():
 
     log.info("[gh-sync] Initializing GitHub sync (repo: %s, branch: %s)", GH_REPO, GH_BRANCH)
 
-    # Step 1: Pull latest data from GitHub
+    # Step 1: Pull latest data from GitHub (BLOCKING — must complete before bot starts)
     log.info("[gh-sync] Pulling latest data from GitHub...")
     result = pull_from_github()
     log.info("[gh-sync] Pull result: %d pulled, %d skipped, %d errors",
              result["pulled"], result["skipped"], result["errors"])
 
-    # Step 2: Start auto-sync thread
+    # Step 2: Start auto-sync thread (every 10 seconds)
     start_auto_sync()
 
     log.info("[gh-sync] Ready — data will auto-sync every %d seconds", SYNC_INTERVAL)
