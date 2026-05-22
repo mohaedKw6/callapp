@@ -6357,7 +6357,8 @@
       "balance": 0.1,
       "streak": 1,
       "last_login_date": "2026-05-22",
-      "last_use": "2026-05-22 21:16:11"
+      "last_use": "2026-05-22 21:16:11",
+      "successful_calls": 1
     }
   },
   "premium": {
@@ -6372,8 +6373,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 135,
-    "success_calls": 262
+    "total_calls": 136,
+    "success_calls": 263
   },
   "voice_labels": {},
   "settings": {
