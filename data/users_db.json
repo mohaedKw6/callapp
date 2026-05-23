@@ -3519,15 +3519,16 @@
     "first_name": "\u0642\u0627\u0647\u0631 \u0627\u0644\u0639\u062f\u0648\u0627\u0646 \u1855\u1835\u180a\u1843\u085a\u0822\u0818\u0ec8\u2e1d\u0ec8\u0821\u180a\u07ef\u1841\u0823\u0818\u180a\u180a\u0822\u0818\u6c14\u4ea0",
     "streak": 2,
     "last_login_date": "2026-05-23",
-    "last_ip": "175.110.57.1",
-    "last_seen": "2026-04-27 21:41:46",
-    "refresh_token_hash": "",
-    "last_login": "2026-04-27 21:17:39",
+    "last_ip": "175.110.56.219",
+    "last_seen": "2026-05-23 21:01:00",
+    "refresh_token_hash": "afd449256c6123e02bc854c0c69ccadc68f1bb7a6869e74c1eac42a3cbe39157",
+    "last_login": "2026-05-23 20:59:53",
     "balance": 0.2,
-    "active_fox_token_hash": "231fa8e7326ace306af6873c0f49d5cdbea2140f9cde1bcafd8a022696d3cc5a",
-    "active_device_id": "",
-    "active_token_set_at": "2026-05-22 20:08:50",
-    "session_invalidated_at": 1779480530
+    "active_fox_token_hash": "3a1899b90597169d095d74fd5c006867ca2056732deef14f690df15d196accbd",
+    "active_device_id": "e2571da298381082",
+    "active_token_set_at": "2026-05-23 20:59:53",
+    "session_invalidated_at": 1779569978,
+    "photo_url": "https://api.telegram.org/file/bot8652490171:AAG8KjaZZwmgoLyY1niG8LGVWCckbmPLvko/photos/file_24.jpg"
   },
   "8227915827": {
     "usage": 0,
@@ -6415,11 +6416,11 @@
   },
   "8439336329": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 1,
     "first_seen": "2026-05-23 03:10:38",
     "username": "alamyr111",
     "first_name": "*\u0627\u0644\u0627\u0645\u0640\ud80c\udd57\u20df\u0640\u0640\u064a\u0631 \u0627\u0644\u0636\u0640\uaa9d\ud83c\udff4\u200d\u2620\ufe0f\u20df\u0640\u0640\u0627\u0644\u0639\u064a*",
-    "balance": 0.05,
+    "balance": 0.15,
     "streak": 1,
     "last_login_date": "2026-05-23",
     "last_use": "2026-05-23 18:11:17",
@@ -6556,5 +6557,17 @@
     "streak": 1,
     "last_login_date": "2026-05-23",
     "last_use": "2026-05-23 20:31:53"
+  },
+  "7003495730": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-23 20:57:50",
+    "username": "X_2_np",
+    "first_name": "taher",
+    "balance": 0.15,
+    "streak": 1,
+    "last_login_date": "2026-05-23",
+    "last_use": "2026-05-23 21:03:43",
+    "successful_calls": 1
   }
 }
