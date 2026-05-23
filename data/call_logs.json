@@ -3784,6 +3784,29 @@
       "first_seen": "2026-05-23 06:27:45",
       "total_calls": 0,
       "phones_called": []
+    },
+    "8512458714": {
+      "username": "",
+      "first_name": "b k",
+      "first_seen": "2026-05-23 06:55:50",
+      "total_calls": 2,
+      "phones_called": [
+        "201013695327"
+      ]
+    },
+    "8395001709": {
+      "username": "",
+      "first_name": "جبريا محمد",
+      "first_seen": "2026-05-23 06:58:44",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "1932376774": {
+      "username": "zaghlouls",
+      "first_name": "ً 😋Sai3d Zaghloul😜",
+      "first_seen": "2026-05-23 07:02:49",
+      "total_calls": 0,
+      "phones_called": []
     }
   },
   "all_calls": [
@@ -8538,6 +8561,22 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-23 03:12:50"
+    },
+    {
+      "user_id": "8512458714",
+      "phone": "+201013695327",
+      "from_number": "447456451501",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 06:57:39"
+    },
+    {
+      "user_id": "8512458714",
+      "phone": "+201013695327",
+      "from_number": "447456445363",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 07:05:22"
     }
   ],
   "all_phones": {
@@ -9315,6 +9354,14 @@
         "8439336329"
       ],
       "last_call": "2026-05-23 03:12:50"
+    },
+    "201013695327": {
+      "first_call": "2026-05-23 06:57:39",
+      "total_calls": 2,
+      "users_called": [
+        "8512458714"
+      ],
+      "last_call": "2026-05-23 07:05:22"
     }
   }
 }
