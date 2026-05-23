@@ -6569,7 +6569,9 @@
       "streak": 1,
       "last_login_date": "2026-05-23",
       "last_use": "2026-05-23 21:03:43",
-      "successful_calls": 1
+      "successful_calls": 1,
+      "last_call": "2026-05-23 21:25:48",
+      "last_phone": "+967770602645"
     },
     "6081247425": {
       "last_call": "2026-05-23 21:25:19",
@@ -6588,8 +6590,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 151,
-    "success_calls": 270
+    "total_calls": 152,
+    "success_calls": 271
   },
   "voice_labels": {},
   "settings": {
