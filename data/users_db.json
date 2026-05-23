@@ -6464,5 +6464,16 @@
     "balance": 1.5,
     "streak": 1,
     "last_login_date": "2026-05-23"
+  },
+  "7732566558": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-23 08:13:38",
+    "username": "shddck",
+    "first_name": "\u210d\ud835\udd3c\ud835\udd3e\u210d\ud835\udd39",
+    "balance": 0.4,
+    "streak": 1,
+    "last_login_date": "2026-05-23",
+    "last_use": "2026-05-23 08:16:25"
   }
 }
