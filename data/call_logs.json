@@ -3893,7 +3893,7 @@
       "username": "X_2_np",
       "first_name": "taher",
       "first_seen": "2026-05-23 20:57:50",
-      "total_calls": 1,
+      "total_calls": 2,
       "phones_called": [
         "967770602645"
       ]
@@ -8715,6 +8715,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-23 21:25:19"
+    },
+    {
+      "user_id": "7003495730",
+      "phone": "+967770602645",
+      "from_number": "447577358007",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 21:25:48"
     }
   ],
   "all_phones": {
@@ -9512,11 +9520,11 @@
     },
     "967770602645": {
       "first_call": "2026-05-23 21:05:14",
-      "total_calls": 1,
+      "total_calls": 2,
       "users_called": [
         "7003495730"
       ],
-      "last_call": "2026-05-23 21:05:14"
+      "last_call": "2026-05-23 21:25:48"
     },
     "967771102289": {
       "first_call": "2026-05-23 21:25:19",
