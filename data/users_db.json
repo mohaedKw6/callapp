@@ -6518,13 +6518,21 @@
   },
   "8945281347": {
     "usage": 0,
-    "referrals": 0,
+    "referrals": 1,
     "first_seen": "2026-05-23 12:46:45",
     "username": "",
     "first_name": "\ud83d\udc78\ud83c\udffb\ud83d\udda4",
-    "balance": 0.1,
+    "balance": 0.2,
     "streak": 1,
     "last_login_date": "2026-05-23",
     "last_use": "2026-05-23 12:49:37"
+  },
+  "7267026963": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-23 12:53:04",
+    "username": "",
+    "first_name": "\u0647\u0640\u0648\u0650\u0644\u0651\u0641\u08aa || \ud835\udc07\ud835\udc0e\ud835\udc73\ud835\udc15\ud835\udc04\ud835\udc11",
+    "balance": 0.5
   }
 }
