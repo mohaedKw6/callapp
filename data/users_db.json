@@ -4943,7 +4943,8 @@
     "active_token_set_at": "2026-05-23 22:21:26",
     "refresh_token_hash": "",
     "session_invalidated_at": 1779574886,
-    "last_use": "2026-05-23 22:24:14"
+    "last_use": "2026-05-23 22:24:14",
+    "successful_calls": 1
   },
   "6071027713": {
     "usage": 0,
