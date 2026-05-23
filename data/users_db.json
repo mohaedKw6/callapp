@@ -6621,6 +6621,7 @@
     "balance": 0.3,
     "streak": 1,
     "last_login_date": "2026-05-23",
-    "last_use": "2026-05-23 21:23:53"
+    "last_use": "2026-05-23 21:23:53",
+    "successful_calls": 1
   }
 }
