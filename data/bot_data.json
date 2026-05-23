@@ -6609,7 +6609,12 @@
           "label": "# هاش",
           "enabled": true
         }
-      }
+      },
+      "active_fox_token_hash": "16bdb17431ce585ce2a28a7f606552874501a721c3e0e5948057fb89085146d7",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-23 22:42:59",
+      "refresh_token_hash": "",
+      "session_invalidated_at": 1779576179
     },
     "7205151156": {
       "usage": 0,
