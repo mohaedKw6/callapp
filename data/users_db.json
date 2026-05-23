@@ -4937,7 +4937,12 @@
     "first_name": "Ail",
     "streak": 1,
     "last_login_date": "2026-05-23",
-    "balance": 0.2
+    "balance": 0.2,
+    "active_fox_token_hash": "c2d417e8b4bd0603c558a3898a0727cfc7cd3eacfacbe7240620d6eec39a57e6",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-23 22:21:26",
+    "refresh_token_hash": "",
+    "session_invalidated_at": 1779574886
   },
   "6071027713": {
     "usage": 0,
