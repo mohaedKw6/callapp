@@ -6272,11 +6272,11 @@
     "streak": 2,
     "last_login_date": "2026-05-23",
     "last_use": "2026-05-22 11:58:23",
-    "active_fox_token_hash": "4587531d5a1e8d391ce321baaf0c3332870c5a2b66390691552a6b42b8f032ae",
+    "active_fox_token_hash": "13bda1d3e3d5517713db378b741360fe936fcac88996d5c528e329a0b4313ec9",
     "active_device_id": "",
-    "active_token_set_at": "2026-05-23 01:32:26",
+    "active_token_set_at": "2026-05-23 01:33:13",
     "refresh_token_hash": "",
-    "session_invalidated_at": 1779499946
+    "session_invalidated_at": 1779499993
   },
   "7127718300": {
     "usage": 0,
