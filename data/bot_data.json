@@ -6272,7 +6272,12 @@
       "balance": 0.1,
       "streak": 2,
       "last_login_date": "2026-05-23",
-      "last_use": "2026-05-22 11:58:23"
+      "last_use": "2026-05-22 11:58:23",
+      "active_fox_token_hash": "4587531d5a1e8d391ce321baaf0c3332870c5a2b66390691552a6b42b8f032ae",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-23 01:32:26",
+      "refresh_token_hash": "",
+      "session_invalidated_at": 1779499946
     },
     "7127718300": {
       "usage": 0,
