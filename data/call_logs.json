@@ -3909,8 +3909,10 @@
       "username": "x_xyt",
       "first_name": "أݪـمـتـم͜ــࢪډᴴᴬᴹᴼᵁᴰᴵ",
       "first_seen": "2026-05-23 21:23:18",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967771102289"
+      ]
     }
   },
   "all_calls": [
@@ -8705,6 +8707,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-23 21:05:14"
+    },
+    {
+      "user_id": "6081247425",
+      "phone": "+967771102289",
+      "from_number": "447577351049",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 21:25:19"
     }
   ],
   "all_phones": {
@@ -9507,6 +9517,14 @@
         "7003495730"
       ],
       "last_call": "2026-05-23 21:05:14"
+    },
+    "967771102289": {
+      "first_call": "2026-05-23 21:25:19",
+      "total_calls": 1,
+      "users_called": [
+        "6081247425"
+      ],
+      "last_call": "2026-05-23 21:25:19"
     }
   }
 }
