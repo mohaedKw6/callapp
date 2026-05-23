@@ -2764,8 +2764,10 @@
       "username": "",
       "first_name": "Ail",
       "first_seen": "2026-04-27 20:52:47",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967714362461"
+      ]
     },
     "6071027713": {
       "username": "f_4_4444",
@@ -8760,6 +8762,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-23 21:29:56"
+    },
+    {
+      "user_id": "7309897184",
+      "phone": "+967714362461",
+      "from_number": "447577364910",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 22:25:49"
     }
   ],
   "all_phones": {
@@ -9578,6 +9588,14 @@
         "6081247425"
       ],
       "last_call": "2026-05-23 21:29:56"
+    },
+    "967714362461": {
+      "first_call": "2026-05-23 22:25:49",
+      "total_calls": 1,
+      "users_called": [
+        "7309897184"
+      ],
+      "last_call": "2026-05-23 22:25:49"
     }
   }
 }
