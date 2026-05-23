@@ -6477,5 +6477,52 @@
     "streak": 1,
     "last_login_date": "2026-05-23",
     "last_use": "2026-05-23 08:16:25"
+  },
+  "8700588967": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-23 12:20:38",
+    "username": "",
+    "first_name": "14",
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-23",
+    "active_fox_token_hash": "1f2fc10834aa65a936c72bb60361493672b71c37a5c9244e0f53e655c0cdeedd",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-23 12:22:18",
+    "refresh_token_hash": "",
+    "session_invalidated_at": 1779538938
+  },
+  "8161761984": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-23 12:23:21",
+    "username": "",
+    "first_name": "13",
+    "balance": 0.2,
+    "streak": 1,
+    "last_login_date": "2026-05-23",
+    "last_use": "2026-05-23 12:45:14",
+    "successful_calls": 1
+  },
+  "8589711073": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-23 12:33:15",
+    "username": "ZZG11O",
+    "first_name": "\ud835\ude51\ud835\ude44\ud835\ude4f\ud835\ude4a",
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-23"
+  },
+  "8945281347": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-23 12:46:45",
+    "username": "",
+    "first_name": "\ud83d\udc78\ud83c\udffb\ud83d\udda4",
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-23"
   }
 }
