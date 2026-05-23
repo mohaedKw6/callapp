@@ -3833,8 +3833,10 @@
       "username": "",
       "first_name": "14",
       "first_seen": "2026-05-23 12:20:38",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967771896950"
+      ]
     },
     "8161761984": {
       "username": "",
@@ -8636,6 +8638,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-23 12:46:32"
+    },
+    {
+      "user_id": "8700588967",
+      "phone": "+967771896950",
+      "from_number": "",
+      "success": false,
+      "duration": 0,
+      "timestamp": "2026-05-23 12:53:02"
     }
   ],
   "all_phones": {
@@ -9424,11 +9434,12 @@
     },
     "967771896950": {
       "first_call": "2026-05-23 12:46:32",
-      "total_calls": 1,
+      "total_calls": 2,
       "users_called": [
-        "8161761984"
+        "8161761984",
+        "8700588967"
       ],
-      "last_call": "2026-05-23 12:46:32"
+      "last_call": "2026-05-23 12:53:02"
     }
   }
 }
