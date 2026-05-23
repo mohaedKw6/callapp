@@ -4938,7 +4938,9 @@
       "first_name": "Ail",
       "streak": 1,
       "last_login_date": "2026-05-23",
-      "balance": 0.2
+      "balance": 0.2,
+      "last_call": "2026-05-23 22:25:49",
+      "last_phone": "+967714362461"
     },
     "6071027713": {
       "usage": 0,
@@ -6670,8 +6672,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 153,
-    "success_calls": 273
+    "total_calls": 154,
+    "success_calls": 274
   },
   "voice_labels": {},
   "settings": {
