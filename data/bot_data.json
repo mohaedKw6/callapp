@@ -3643,8 +3643,8 @@
           "enabled": true
         },
         "9": {
-          "action": "confirm",
-          "label": "✅ موافق",
+          "action": "hangup",
+          "label": "📴 قطع مكالمة",
           "enabled": true
         },
         "*": {
