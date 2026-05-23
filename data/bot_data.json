@@ -3514,21 +3514,21 @@
     },
     "6926059919": {
       "usage": 0,
-      "referrals": 2,
+      "referrals": 3,
       "first_seen": "2026-04-26 20:21:46",
       "username": "qahir782599",
       "first_name": "قاهر العدوان ᡕᠵ᠊ᡃ່࡚ࠢ࠘⸝່ࠡ᠊߯ᡁࠣ࠘᠊᠊ࠢ࠘气亠",
       "streak": 2,
       "last_login_date": "2026-05-23",
-      "last_ip": "175.110.56.219",
-      "last_seen": "2026-05-23 21:01:00",
-      "refresh_token_hash": "afd449256c6123e02bc854c0c69ccadc68f1bb7a6869e74c1eac42a3cbe39157",
-      "last_login": "2026-05-23 20:59:53",
-      "balance": 0.2,
-      "active_fox_token_hash": "3a1899b90597169d095d74fd5c006867ca2056732deef14f690df15d196accbd",
+      "last_ip": "134.35.230.6",
+      "last_seen": "2026-05-23 21:42:17",
+      "refresh_token_hash": "257208bd63fdfc788b05879248c9fd772e2b6e216a86a5caa85f408ec3b9d052",
+      "last_login": "2026-05-23 21:40:33",
+      "balance": 0.3,
+      "active_fox_token_hash": "c3975eb6db72871349b90915050fec1e270d2ea3c96c7a5f79fac1b694b981c7",
       "active_device_id": "e2571da298381082",
-      "active_token_set_at": "2026-05-23 20:59:53",
-      "session_invalidated_at": 1779569978,
+      "active_token_set_at": "2026-05-23 21:40:33",
+      "session_invalidated_at": 1779570893,
       "photo_url": "https://api.telegram.org/file/bot8652490171:AAG8KjaZZwmgoLyY1niG8LGVWCckbmPLvko/photos/file_24.jpg"
     },
     "8227915827": {
@@ -6561,21 +6561,79 @@
     },
     "7003495730": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 1,
       "first_seen": "2026-05-23 20:57:50",
       "username": "X_2_np",
       "first_name": "taher",
-      "balance": 0.15,
+      "balance": 0.05,
       "streak": 1,
       "last_login_date": "2026-05-23",
-      "last_use": "2026-05-23 21:03:43",
-      "successful_calls": 1,
-      "last_call": "2026-05-23 21:25:48",
-      "last_phone": "+967770602645"
+      "last_use": "2026-05-23 21:24:09",
+      "successful_calls": 2,
+      "dtmf": {
+        "0": {
+          "action": "replay",
+          "label": "🔁 إعادة الصوت",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "hangup",
+          "label": "📴 قطع المكالمة",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      }
+    },
+    "7205151156": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-23 21:08:06",
+      "username": "x_z_x_xz",
+      "first_name": "ٱلَشِــ٘ۛᬼ☠️⑅⃝ـ٘ۛᬼـيطٱنه ٱلَٱنيـᩚ⃐🥂⑅⃝ᬼ‌‍قه",
+      "balance": 0.5,
+      "streak": 1,
+      "last_login_date": "2026-05-23"
     },
     "6081247425": {
-      "last_call": "2026-05-23 21:29:56",
-      "last_phone": "+967783463702"
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-23 21:23:18",
+      "username": "x_xyt",
+      "first_name": "أݪـمـتـم͜ــࢪډᴴᴬᴹᴼᵁᴰᴵ",
+      "balance": 0.1,
+      "streak": 1,
+      "last_login_date": "2026-05-23",
+      "last_use": "2026-05-23 21:28:34",
+      "successful_calls": 2
+    },
+    "8789394065": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-23 22:15:33",
+      "username": "",
+      "first_name": "Moh10",
+      "balance": 0.5,
+      "streak": 1,
+      "last_login_date": "2026-05-23"
     }
   },
   "premium": {
