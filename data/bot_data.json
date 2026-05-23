@@ -6553,7 +6553,7 @@
       "first_seen": "2026-05-23 20:26:45",
       "username": "",
       "first_name": "ݥݥـۦۧـۧۧـۧۧۧـۧۧۧـۧۧۧـۧۧـٮ۬۬ݪـــ͜❁ــ͡‏ـڪٱٮ۬۬​​​​​​​​​​​​​​​​​​​🎀ݥ",
-      "balance": 0.1,
+      "balance": 0.25,
       "streak": 1,
       "last_login_date": "2026-05-23",
       "last_use": "2026-05-23 20:29:41"
@@ -6571,7 +6571,7 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 146,
+    "total_calls": 147,
     "success_calls": 267
   },
   "voice_labels": {},
