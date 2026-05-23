@@ -3828,6 +3828,36 @@
       "first_seen": "2026-05-23 09:30:36",
       "total_calls": 0,
       "phones_called": []
+    },
+    "8700588967": {
+      "username": "",
+      "first_name": "14",
+      "first_seen": "2026-05-23 12:20:38",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "8161761984": {
+      "username": "",
+      "first_name": "13",
+      "first_seen": "2026-05-23 12:23:21",
+      "total_calls": 1,
+      "phones_called": [
+        "967771896950"
+      ]
+    },
+    "8589711073": {
+      "username": "ZZG11O",
+      "first_name": "𝙑𝙄𝙏𝙊",
+      "first_seen": "2026-05-23 12:33:15",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "8945281347": {
+      "username": "",
+      "first_name": "👸🏻🖤",
+      "first_seen": "2026-05-23 12:46:45",
+      "total_calls": 0,
+      "phones_called": []
     }
   },
   "all_calls": [
@@ -8598,6 +8628,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-23 07:05:22"
+    },
+    {
+      "user_id": "8161761984",
+      "phone": "+967771896950",
+      "from_number": "447577370466",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 12:46:32"
     }
   ],
   "all_phones": {
@@ -9383,6 +9421,14 @@
         "8512458714"
       ],
       "last_call": "2026-05-23 07:05:22"
+    },
+    "967771896950": {
+      "first_call": "2026-05-23 12:46:32",
+      "total_calls": 1,
+      "users_called": [
+        "8161761984"
+      ],
+      "last_call": "2026-05-23 12:46:32"
     }
   }
 }
