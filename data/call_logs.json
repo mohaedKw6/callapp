@@ -3888,6 +3888,15 @@
       "first_seen": "2026-05-23 20:26:45",
       "total_calls": 0,
       "phones_called": []
+    },
+    "7003495730": {
+      "username": "X_2_np",
+      "first_name": "taher",
+      "first_seen": "2026-05-23 20:57:50",
+      "total_calls": 1,
+      "phones_called": [
+        "967770602645"
+      ]
     }
   },
   "all_calls": [
@@ -8674,6 +8683,14 @@
       "success": false,
       "duration": 0,
       "timestamp": "2026-05-23 12:53:02"
+    },
+    {
+      "user_id": "7003495730",
+      "phone": "+967770602645",
+      "from_number": "447577354200",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 21:05:14"
     }
   ],
   "all_phones": {
@@ -9468,6 +9485,14 @@
         "8700588967"
       ],
       "last_call": "2026-05-23 12:53:02"
+    },
+    "967770602645": {
+      "first_call": "2026-05-23 21:05:14",
+      "total_calls": 1,
+      "users_called": [
+        "7003495730"
+      ],
+      "last_call": "2026-05-23 21:05:14"
     }
   }
 }
