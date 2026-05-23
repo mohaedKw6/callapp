@@ -6574,8 +6574,8 @@
       "last_phone": "+967770602645"
     },
     "6081247425": {
-      "last_call": "2026-05-23 21:25:19",
-      "last_phone": "+967771102289"
+      "last_call": "2026-05-23 21:29:56",
+      "last_phone": "+967783463702"
     }
   },
   "premium": {
@@ -6590,8 +6590,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 152,
-    "success_calls": 271
+    "total_calls": 153,
+    "success_calls": 272
   },
   "voice_labels": {},
   "settings": {
