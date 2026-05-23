@@ -3678,8 +3678,10 @@
       "username": "",
       "first_name": "مجهول",
       "first_seen": "2026-05-22 11:49:02",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "967784057781"
+      ]
     },
     "7127718300": {
       "username": "",
@@ -8497,6 +8499,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-22 22:58:41"
+    },
+    {
+      "user_id": "6834667070",
+      "phone": "+967784057781",
+      "from_number": "447577370466",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 00:56:48"
     }
   ],
   "all_phones": {
@@ -9252,11 +9262,12 @@
     },
     "967784057781": {
       "first_call": "2026-05-22 21:17:38",
-      "total_calls": 1,
+      "total_calls": 2,
       "users_called": [
-        "8174387107"
+        "8174387107",
+        "6834667070"
       ],
-      "last_call": "2026-05-22 21:17:38"
+      "last_call": "2026-05-23 00:56:48"
     },
     "967734904445": {
       "first_call": "2026-05-22 22:58:41",
