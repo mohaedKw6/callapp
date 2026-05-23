@@ -6433,8 +6433,36 @@
       "last_login_date": "2026-05-23"
     },
     "8512458714": {
-      "last_call": "2026-05-23 07:05:22",
-      "last_phone": "+201013695327"
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-23 06:55:50",
+      "username": "",
+      "first_name": "b k",
+      "balance": 1.1,
+      "streak": 1,
+      "last_login_date": "2026-05-23",
+      "last_use": "2026-05-23 07:04:08",
+      "successful_calls": 2
+    },
+    "8395001709": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-23 06:58:44",
+      "username": "",
+      "first_name": "جبريا محمد",
+      "balance": 0.5,
+      "streak": 1,
+      "last_login_date": "2026-05-23"
+    },
+    "1932376774": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-23 07:02:49",
+      "username": "zaghlouls",
+      "first_name": "ً 😋Sai3d Zaghloul😜",
+      "balance": 1.5,
+      "streak": 1,
+      "last_login_date": "2026-05-23"
     }
   },
   "premium": {
