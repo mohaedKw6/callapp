@@ -3768,6 +3768,15 @@
       "first_seen": "2026-05-23 01:57:12",
       "total_calls": 0,
       "phones_called": []
+    },
+    "8439336329": {
+      "username": "alamyr111",
+      "first_name": "*الامـ𓅗⃟ــير الضـꪝ🏴‍☠️⃟ــالعي*",
+      "first_seen": "2026-05-23 03:10:38",
+      "total_calls": 1,
+      "phones_called": [
+        "967781041561"
+      ]
     }
   },
   "all_calls": [
@@ -8514,6 +8523,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-23 00:56:48"
+    },
+    {
+      "user_id": "8439336329",
+      "phone": "+967781041561",
+      "from_number": "447577354258",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-23 03:12:50"
     }
   ],
   "all_phones": {
@@ -9283,6 +9300,14 @@
         "8434731763"
       ],
       "last_call": "2026-05-22 22:58:41"
+    },
+    "967781041561": {
+      "first_call": "2026-05-23 03:12:50",
+      "total_calls": 1,
+      "users_called": [
+        "8439336329"
+      ],
+      "last_call": "2026-05-23 03:12:50"
     }
   }
 }
