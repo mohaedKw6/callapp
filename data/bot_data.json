@@ -6387,9 +6387,10 @@
       "first_seen": "2026-05-23 00:14:35",
       "username": "Muatasim1",
       "first_name": "M s",
-      "balance": 0.5,
+      "balance": 0.3,
       "streak": 1,
-      "last_login_date": "2026-05-23"
+      "last_login_date": "2026-05-23",
+      "last_use": "2026-05-23 00:19:30"
     }
   },
   "premium": {
@@ -9462,8 +9463,7 @@
     "kegon25355@westecom.com",
     "nexox80417@web5h.com",
     "togag17022@shortapk.com",
-    "limerad608@westecom.com",
-    "popakoc409@web5h.com"
+    "limerad608@westecom.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
