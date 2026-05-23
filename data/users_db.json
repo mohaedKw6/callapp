@@ -3521,13 +3521,13 @@
     "last_login_date": "2026-05-23",
     "last_ip": "175.110.56.219",
     "last_seen": "2026-05-23 21:01:00",
-    "refresh_token_hash": "afd449256c6123e02bc854c0c69ccadc68f1bb7a6869e74c1eac42a3cbe39157",
+    "refresh_token_hash": "",
     "last_login": "2026-05-23 20:59:53",
     "balance": 0.3,
-    "active_fox_token_hash": "3a1899b90597169d095d74fd5c006867ca2056732deef14f690df15d196accbd",
-    "active_device_id": "e2571da298381082",
-    "active_token_set_at": "2026-05-23 20:59:53",
-    "session_invalidated_at": 1779569978,
+    "active_fox_token_hash": "c3975eb6db72871349b90915050fec1e270d2ea3c96c7a5f79fac1b694b981c7",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-23 21:14:53",
+    "session_invalidated_at": 1779570893,
     "photo_url": "https://api.telegram.org/file/bot8652490171:AAG8KjaZZwmgoLyY1niG8LGVWCckbmPLvko/photos/file_24.jpg"
   },
   "8227915827": {
