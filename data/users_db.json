@@ -6667,6 +6667,8 @@
     "first_seen": "2026-05-23 22:22:14",
     "username": "Anas23006",
     "first_name": "\ud835\udcd0\ud835\udcf7\ud835\udcea\ud835\udcfc",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-23"
   }
 }
