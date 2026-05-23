@@ -3513,7 +3513,7 @@
   },
   "6926059919": {
     "usage": 0,
-    "referrals": 2,
+    "referrals": 3,
     "first_seen": "2026-04-26 20:21:46",
     "username": "qahir782599",
     "first_name": "\u0642\u0627\u0647\u0631 \u0627\u0644\u0639\u062f\u0648\u0627\u0646 \u1855\u1835\u180a\u1843\u085a\u0822\u0818\u0ec8\u2e1d\u0ec8\u0821\u180a\u07ef\u1841\u0823\u0818\u180a\u180a\u0822\u0818\u6c14\u4ea0",
@@ -3523,7 +3523,7 @@
     "last_seen": "2026-05-23 21:01:00",
     "refresh_token_hash": "afd449256c6123e02bc854c0c69ccadc68f1bb7a6869e74c1eac42a3cbe39157",
     "last_login": "2026-05-23 20:59:53",
-    "balance": 0.2,
+    "balance": 0.3,
     "active_fox_token_hash": "3a1899b90597169d095d74fd5c006867ca2056732deef14f690df15d196accbd",
     "active_device_id": "e2571da298381082",
     "active_token_set_at": "2026-05-23 20:59:53",
@@ -6569,5 +6569,13 @@
     "last_login_date": "2026-05-23",
     "last_use": "2026-05-23 21:03:43",
     "successful_calls": 1
+  },
+  "7205151156": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-23 21:08:06",
+    "username": "x_z_x_xz",
+    "first_name": "\u0671\u0644\u064e\u0634\u0650\u0640\u0640\u0658\u06db\u1b3c\u2620\ufe0f\u2445\u20dd\u0640\u0658\u06db\u1b3c\u0640\u064a\u0637\u0671\u0646\u0647 \u0671\u0644\u064e\u0671\u0646\u064a\u0640\u1a5a\u20d0\ud83e\udd42\u2445\u20dd\u1b3c\u200c\u200d\u0642\u0647",
+    "balance": 0.5
   }
 }
