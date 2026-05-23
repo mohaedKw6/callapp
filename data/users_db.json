@@ -3642,8 +3642,8 @@
         "enabled": true
       },
       "9": {
-        "action": "confirm",
-        "label": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+        "action": "hangup",
+        "label": "\ud83d\udcf4 \u0642\u0637\u0639 \u0645\u0643\u0627\u0644\u0645\u0629",
         "enabled": true
       },
       "*": {
