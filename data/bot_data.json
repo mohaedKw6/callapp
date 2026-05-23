@@ -6431,6 +6431,10 @@
       "balance": 0.5,
       "streak": 1,
       "last_login_date": "2026-05-23"
+    },
+    "8512458714": {
+      "last_call": "2026-05-23 07:05:22",
+      "last_phone": "+201013695327"
     }
   },
   "premium": {
@@ -6445,8 +6449,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 139,
-    "success_calls": 264
+    "total_calls": 141,
+    "success_calls": 266
   },
   "voice_labels": {},
   "settings": {
@@ -6571,7 +6575,9 @@
       "max_users": 10000,
       "used_by": [
         "962731079",
-        "7650233250"
+        "7650233250",
+        "8512458714",
+        "1932376774"
       ],
       "created_at": "2026-05-05 20:10:03",
       "created_by": "962731079"
@@ -9507,7 +9513,9 @@
     "popakoc409@web5h.com",
     "fivol13833@seolaner.com",
     "binot31312@viawoo.com",
-    "vodefar973@seolaner.com"
+    "vodefar973@seolaner.com",
+    "sijij93531@shortapk.com",
+    "henetof589@westecom.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
