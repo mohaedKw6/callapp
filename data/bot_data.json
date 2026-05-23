@@ -6409,6 +6409,10 @@
       "balance": 0.5,
       "streak": 1,
       "last_login_date": "2026-05-23"
+    },
+    "8439336329": {
+      "last_call": "2026-05-23 03:12:50",
+      "last_phone": "+967781041561"
     }
   },
   "premium": {
@@ -6423,8 +6427,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 137,
-    "success_calls": 263
+    "total_calls": 139,
+    "success_calls": 264
   },
   "voice_labels": {},
   "settings": {
@@ -9483,7 +9487,8 @@
     "togag17022@shortapk.com",
     "limerad608@westecom.com",
     "popakoc409@web5h.com",
-    "fivol13833@seolaner.com"
+    "fivol13833@seolaner.com",
+    "binot31312@viawoo.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
