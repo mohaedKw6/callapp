@@ -2159,7 +2159,7 @@
       "last_login": "2026-04-26 22:02:15",
       "streak": 1,
       "last_login_date": "2026-05-01",
-      "balance": 0.15,
+      "balance": 0.0,
       "last_use": "2026-05-22 08:21:39"
     },
     "8206623999": {
@@ -4318,7 +4318,7 @@
     "7176942849": {
       "usage": 0,
       "first_seen": "2026-04-27 09:01:41",
-      "balance": 0.0,
+      "balance": 0.15,
       "last_ip": "31.31.186.50",
       "last_seen": "2026-04-27 12:12:42",
       "refresh_token_hash": "072bda1ff8f80ddd5f0077d4c1e5df0ca47fd3596172b33f23c3c3045537587b",
@@ -10040,12 +10040,7 @@
     "jidolav853@westecom.com",
     "pokebec117@westecom.com",
     "fikelag605@shortapk.com",
-    "yagahem601@viawoo.com",
-    "maloti7249@savdz.com",
-    "webobis862@westecom.com",
-    "bitomec323@viawoo.com",
-    "polom39157@viawoo.com",
-    "xebixaj190@shortapk.com"
+    "yagahem601@viawoo.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
