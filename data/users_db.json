@@ -6770,8 +6770,9 @@
     "first_seen": "2026-05-24 13:10:48",
     "username": "Helengarci1",
     "first_name": "Helengarci Gr",
-    "balance": 0.5,
+    "balance": 0.3,
     "streak": 1,
-    "last_login_date": "2026-05-24"
+    "last_login_date": "2026-05-24",
+    "last_use": "2026-05-24 13:12:04"
   }
 }
