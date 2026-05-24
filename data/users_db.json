@@ -6736,6 +6736,8 @@
     "first_seen": "2026-05-24 08:15:53",
     "username": "xvid10",
     "first_name": "\u56f3 \u30fd\u30fb \u24c9.\u24c9",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
