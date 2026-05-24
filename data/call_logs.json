@@ -3561,8 +3561,10 @@
       "username": "A1R4E",
       "first_name": "Black x",
       "first_seen": "2026-05-22 01:47:39",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "201020816867"
+      ]
     },
     "5418422904": {
       "username": "DRAKEST_1",
@@ -8865,6 +8867,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-24 16:00:55"
+    },
+    {
+      "user_id": "5425706540",
+      "phone": "+201020816867",
+      "from_number": "447577354200",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-24 16:42:08"
     }
   ],
   "all_phones": {
@@ -9699,6 +9709,14 @@
         "1932376774"
       ],
       "last_call": "2026-05-24 16:00:55"
+    },
+    "201020816867": {
+      "first_call": "2026-05-24 16:42:08",
+      "total_calls": 1,
+      "users_called": [
+        "5425706540"
+      ],
+      "last_call": "2026-05-24 16:42:08"
     }
   }
 }
