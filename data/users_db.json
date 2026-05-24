@@ -6989,6 +6989,8 @@
     "first_seen": "2026-05-24 22:34:53",
     "username": "anasomran",
     "first_name": "\u2090\u2099\u2090\u209b",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
