@@ -6800,6 +6800,8 @@
     "first_seen": "2026-05-24 16:41:03",
     "username": "T_o_w_3",
     "first_name": ".",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
