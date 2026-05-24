@@ -6157,11 +6157,9 @@
       "first_name": "Black x",
       "streak": 2,
       "last_login_date": "2026-05-23",
-      "balance": 0.4,
-      "last_use": "2026-05-24 16:40:49",
-      "successful_calls": 1,
-      "last_call": "2026-05-24 17:01:37",
-      "last_phone": "+201019941595"
+      "balance": 0.2,
+      "last_use": "2026-05-24 17:00:04",
+      "successful_calls": 2
     },
     "5418422904": {
       "usage": 0,
@@ -6455,13 +6453,11 @@
       "first_seen": "2026-05-23 06:55:50",
       "username": "",
       "first_name": "b k",
-      "balance": 1.1,
-      "streak": 1,
-      "last_login_date": "2026-05-23",
-      "last_use": "2026-05-23 07:04:08",
-      "successful_calls": 2,
-      "last_call": "2026-05-24 17:10:42",
-      "last_phone": "+201020816867"
+      "balance": 0.7,
+      "streak": 2,
+      "last_login_date": "2026-05-24",
+      "last_use": "2026-05-24 17:09:25",
+      "successful_calls": 4
     },
     "8395001709": {
       "usage": 0,
