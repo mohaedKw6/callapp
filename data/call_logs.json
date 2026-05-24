@@ -3596,7 +3596,7 @@
       "username": "r_9he",
       "first_name": "جہنہرال •",
       "first_seen": "2026-05-22 02:31:41",
-      "total_calls": 1,
+      "total_calls": 2,
       "phones_called": [
         "9647763511071"
       ]
@@ -8770,6 +8770,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-23 22:25:49"
+    },
+    {
+      "user_id": "1219775387",
+      "phone": "+9647763511071",
+      "from_number": "447456451501",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-24 00:09:59"
     }
   ],
   "all_phones": {
@@ -9493,11 +9501,11 @@
     },
     "9647763511071": {
       "first_call": "2026-05-22 04:54:40",
-      "total_calls": 1,
+      "total_calls": 2,
       "users_called": [
         "1219775387"
       ],
-      "last_call": "2026-05-22 04:54:40"
+      "last_call": "2026-05-24 00:09:59"
     },
     "201008393752": {
       "first_call": "2026-05-22 08:02:51",
