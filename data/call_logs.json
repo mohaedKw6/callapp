@@ -4023,8 +4023,10 @@
       "username": "T_o_w_3",
       "first_name": ".",
       "first_seen": "2026-05-24 16:41:03",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "966559520809"
+      ]
     }
   },
   "all_calls": [
@@ -8875,6 +8877,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-24 16:42:08"
+    },
+    {
+      "user_id": "7818816235",
+      "phone": "+966559520809",
+      "from_number": "447456451501",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-24 16:44:44"
     }
   ],
   "all_phones": {
@@ -9717,6 +9727,14 @@
         "5425706540"
       ],
       "last_call": "2026-05-24 16:42:08"
+    },
+    "966559520809": {
+      "first_call": "2026-05-24 16:44:44",
+      "total_calls": 1,
+      "users_called": [
+        "7818816235"
+      ],
+      "last_call": "2026-05-24 16:44:44"
     }
   }
 }
