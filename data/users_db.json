@@ -6897,6 +6897,8 @@
     "first_seen": "2026-05-24 20:52:48",
     "username": "qeh_m",
     "first_name": "\u0622\u0644\u0637\u0f05\u0637\u0622\u0624\u064a\u0f3c \u0f08 \u0f3d\u0f17",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
