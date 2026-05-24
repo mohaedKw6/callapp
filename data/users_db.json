@@ -6802,6 +6802,11 @@
     "first_name": ".",
     "balance": 0.5,
     "streak": 1,
-    "last_login_date": "2026-05-24"
+    "last_login_date": "2026-05-24",
+    "active_fox_token_hash": "a65e01797dc767a8f1ffe219094eb2d98d96bd403a2d0fe72677e0a94c37b21d",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-24 16:42:03",
+    "refresh_token_hash": "",
+    "session_invalidated_at": 1779640923
   }
 }
