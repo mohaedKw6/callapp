@@ -3807,8 +3807,10 @@
       "username": "zaghlouls",
       "first_name": "ً 😋Sai3d Zaghloul😜",
       "first_seen": "2026-05-23 07:02:49",
-      "total_calls": 0,
-      "phones_called": []
+      "total_calls": 1,
+      "phones_called": [
+        "201093411051"
+      ]
     },
     "7683820841": {
       "username": "",
@@ -8848,6 +8850,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-24 00:09:59"
+    },
+    {
+      "user_id": "1932376774",
+      "phone": "+201093411051",
+      "from_number": "447577370466",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-24 16:00:55"
     }
   ],
   "all_phones": {
@@ -9674,6 +9684,14 @@
         "7309897184"
       ],
       "last_call": "2026-05-23 22:25:49"
+    },
+    "201093411051": {
+      "first_call": "2026-05-24 16:00:55",
+      "total_calls": 1,
+      "users_called": [
+        "1932376774"
+      ],
+      "last_call": "2026-05-24 16:00:55"
     }
   }
 }
