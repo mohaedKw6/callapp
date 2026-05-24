@@ -6883,7 +6883,12 @@
       "username": "",
       "first_name": "Bbbhbb Bbb",
       "balance": 0.3,
-      "last_use": "2026-05-24 20:43:52"
+      "last_use": "2026-05-24 20:43:52",
+      "active_fox_token_hash": "de5a6fd9efe9ed114a8e55db8c4806a48fd449538be1673373ba8ad81c8c8e4b",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-24 20:44:31",
+      "refresh_token_hash": "",
+      "session_invalidated_at": 1779655471
     }
   },
   "premium": {
