@@ -6887,6 +6887,8 @@
     "active_device_id": "",
     "active_token_set_at": "2026-05-24 20:44:31",
     "refresh_token_hash": "",
-    "session_invalidated_at": 1779655471
+    "session_invalidated_at": 1779655471,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
