@@ -6705,6 +6705,8 @@
     "first_seen": "2026-05-24 05:40:21",
     "username": "",
     "first_name": "\u0646\u0648\u0627\u0641 \u0645\u062d\u0645\u062f",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
