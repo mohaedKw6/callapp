@@ -6834,7 +6834,12 @@
       "streak": 1,
       "last_login_date": "2026-05-24",
       "last_use": "2026-05-24 19:17:04",
-      "successful_calls": 2
+      "successful_calls": 2,
+      "active_fox_token_hash": "9db6cb346fa978c8db4b2586f7d7f1c1c8a0f8190386f967752553f9ed7cded8",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-24 19:28:57",
+      "refresh_token_hash": "",
+      "session_invalidated_at": 1779650937
     }
   },
   "premium": {
