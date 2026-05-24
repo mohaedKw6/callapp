@@ -6781,6 +6781,8 @@
     "first_seen": "2026-05-24 14:14:36",
     "username": "ifgsk_o",
     "first_name": "Ta. ib",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
