@@ -6977,10 +6977,10 @@
       "first_seen": "2026-05-24 21:17:24",
       "username": "MrLow24",
       "first_name": "Mr. Law24",
-      "balance": 0.25,
+      "balance": 0.05,
       "streak": 1,
       "last_login_date": "2026-05-24",
-      "last_use": "2026-05-24 21:33:02",
+      "last_use": "2026-05-24 21:38:32",
       "successful_calls": 1
     }
   },
@@ -6996,7 +6996,7 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 187,
+    "total_calls": 186,
     "success_calls": 283
   },
   "voice_labels": {},
