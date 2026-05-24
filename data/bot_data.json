@@ -6802,14 +6802,15 @@
       "first_seen": "2026-05-24 16:41:03",
       "username": "T_o_w_3",
       "first_name": ".",
-      "balance": 0.5,
+      "balance": 0.1,
       "streak": 1,
       "last_login_date": "2026-05-24",
       "active_fox_token_hash": "a65e01797dc767a8f1ffe219094eb2d98d96bd403a2d0fe72677e0a94c37b21d",
       "active_device_id": "",
       "active_token_set_at": "2026-05-24 16:42:03",
       "refresh_token_hash": "",
-      "session_invalidated_at": 1779640923
+      "session_invalidated_at": 1779640923,
+      "last_use": "2026-05-24 16:44:27"
     }
   },
   "premium": {
@@ -9970,8 +9971,7 @@
     "yokifoy134@savdz.com",
     "hohida1915@tivogo.com",
     "yivaya1050@toondot.com",
-    "jajicet457@seolaner.com",
-    "yivowo6558@piraly.com"
+    "jajicet457@seolaner.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
