@@ -6747,6 +6747,8 @@
     "first_seen": "2026-05-24 08:26:03",
     "username": "Fvjfj",
     "first_name": "Elshenawy Ahmed",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
