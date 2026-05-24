@@ -6759,6 +6759,8 @@
     "first_seen": "2026-05-24 12:42:07",
     "username": "YZZL1",
     "first_name": "\u1587\u13a5\u1946 \u03c1\u1963\u1959\u1949 - \ud835\uddcc\u1959\ud835\uddc9\ud835\uddc9\u1946\ud835\uddcb\ud835\uddcd",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-24"
   }
 }
