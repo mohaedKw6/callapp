@@ -7457,7 +7457,7 @@ def run_bot(token_override: str = ""):
                 f"🔀 الخطوة 2/2:\n"
                 f"أرسل الرقم الفعلي (اللي هيتم الاتصال بيه فعلياً)\n"
                 f"الرقم الظاهر: `{display_num}`\n\n"
-                f"مثال: `201118975909`",
+                f"مثال: `201234567809`",
                 parse_mode='Markdown')
             return
 
@@ -7467,7 +7467,7 @@ def run_bot(token_override: str = ""):
             display_num = user_state[cid].get("display_num", "")
             user_state.pop(cid, None)
             if not actual_num or not actual_num.isdigit():
-                bot.reply_to(msg, "❌ أرسل رقماً صحيحاً\nمثال: `201118975909`", parse_mode='Markdown')
+                bot.reply_to(msg, "❌ أرسل رقماً صحيحاً\nمثال: `201234567809`", parse_mode='Markdown')
                 return
             add_double_call(display_num, actual_num)
             bot.send_message(cid,
