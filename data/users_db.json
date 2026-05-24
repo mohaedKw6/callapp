@@ -6614,7 +6614,8 @@
     "active_device_id": "",
     "active_token_set_at": "2026-05-23 22:42:59",
     "refresh_token_hash": "",
-    "session_invalidated_at": 1779576179
+    "session_invalidated_at": 1779576179,
+    "language": "ar"
   },
   "7205151156": {
     "usage": 0,
