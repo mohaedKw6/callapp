@@ -6918,7 +6918,7 @@
       "first_seen": "2026-05-24 20:55:24",
       "username": "bnndde",
       "first_name": "𝐇𝐀𝐌𝐎 𝐄𝐋 𝐌𝐎𝐒𝐇𝐊𝐄𝐒",
-      "balance": 0.5,
+      "balance": 0.45,
       "streak": 1,
       "last_login_date": "2026-05-24",
       "active_fox_token_hash": "7d2577c494814e7a230df72175ee92c1c2222d3a91e9698a49b959adc30a2ea0",
@@ -6926,10 +6926,11 @@
       "active_token_set_at": "2026-05-24 21:00:55",
       "refresh_token_hash": "a4029c49152b9660f518bf0d59edd805e6aaef486a06affd89bea21775b19f55",
       "session_invalidated_at": 1779656316,
-      "last_ip": "104.28.154.251",
-      "last_seen": "2026-05-24 21:49:13",
+      "last_ip": "104.28.164.103",
+      "last_seen": "2026-05-24 22:24:31",
       "last_login": "2026-05-24 21:00:55",
-      "photo_url": "https://api.telegram.org/file/bot8652490171:AAG8KjaZZwmgoLyY1niG8LGVWCckbmPLvko/photos/file_45.jpg"
+      "photo_url": "https://api.telegram.org/file/bot8652490171:AAG8KjaZZwmgoLyY1niG8LGVWCckbmPLvko/photos/file_45.jpg",
+      "last_use": "2026-05-24 22:25:12"
     },
     "8672304163": {
       "usage": 0,
@@ -6977,10 +6978,10 @@
       "first_seen": "2026-05-24 21:17:24",
       "username": "MrLow24",
       "first_name": "Mr. Law24",
-      "balance": 0.2,
+      "balance": 0.15,
       "streak": 1,
       "last_login_date": "2026-05-24",
-      "last_use": "2026-05-24 21:38:32",
+      "last_use": "2026-05-24 22:04:45",
       "successful_calls": 1
     }
   },
