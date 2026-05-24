@@ -6157,8 +6157,8 @@
       "first_name": "Black x",
       "streak": 2,
       "last_login_date": "2026-05-23",
-      "balance": 0.6,
-      "last_use": "2026-05-23 06:48:52"
+      "balance": 0.4,
+      "last_use": "2026-05-24 16:40:49"
     },
     "5418422904": {
       "usage": 0,
@@ -6794,6 +6794,21 @@
       "username": "Q6_QX",
       "first_name": "♕♡•𝓽𝓱𝓮 𝓴𝓲𝓷𝓰 •♡♕",
       "balance": 0.5
+    },
+    "7818816235": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-24 16:41:03",
+      "username": "T_o_w_3",
+      "first_name": ".",
+      "balance": 0.5,
+      "streak": 1,
+      "last_login_date": "2026-05-24",
+      "active_fox_token_hash": "a65e01797dc767a8f1ffe219094eb2d98d96bd403a2d0fe72677e0a94c37b21d",
+      "active_device_id": "",
+      "active_token_set_at": "2026-05-24 16:42:03",
+      "refresh_token_hash": "",
+      "session_invalidated_at": 1779640923
     }
   },
   "premium": {
@@ -9954,8 +9969,7 @@
     "yokifoy134@savdz.com",
     "hohida1915@tivogo.com",
     "yivaya1050@toondot.com",
-    "jajicet457@seolaner.com",
-    "pevesir110@savdz.com"
+    "jajicet457@seolaner.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
