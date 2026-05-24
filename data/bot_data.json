@@ -6842,6 +6842,16 @@
       "active_token_set_at": "2026-05-24 19:28:57",
       "refresh_token_hash": "",
       "session_invalidated_at": 1779650937
+    },
+    "8608515093": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-24 20:00:37",
+      "username": "",
+      "first_name": "Hhhh Yhhr",
+      "balance": 0.5,
+      "streak": 1,
+      "last_login_date": "2026-05-24"
     }
   },
   "premium": {
