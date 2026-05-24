@@ -6477,7 +6477,9 @@
       "balance": 0.5,
       "streak": 2,
       "last_login_date": "2026-05-24",
-      "last_use": "2026-05-24 07:13:08"
+      "last_use": "2026-05-24 07:13:08",
+      "last_call": "2026-05-24 16:00:55",
+      "last_phone": "+201093411051"
     },
     "7732566558": {
       "usage": 0,
@@ -6799,8 +6801,8 @@
   "banned": {},
   "dtmf": {},
   "stats": {
-    "total_calls": 162,
-    "success_calls": 274
+    "total_calls": 164,
+    "success_calls": 275
   },
   "voice_labels": {},
   "settings": {
@@ -9944,7 +9946,8 @@
     "fedeye8798@savdz.com",
     "yokifoy134@savdz.com",
     "hohida1915@tivogo.com",
-    "yivaya1050@toondot.com"
+    "yivaya1050@toondot.com",
+    "jajicet457@seolaner.com"
   ],
   "competition": {
     "start_date": "2026-04-27",
