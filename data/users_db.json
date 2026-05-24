@@ -6809,6 +6809,7 @@
     "active_token_set_at": "2026-05-24 16:42:03",
     "refresh_token_hash": "",
     "session_invalidated_at": 1779640923,
-    "last_use": "2026-05-24 16:44:27"
+    "last_use": "2026-05-24 16:44:27",
+    "successful_calls": 1
   }
 }
