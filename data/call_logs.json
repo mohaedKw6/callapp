@@ -4036,6 +4036,15 @@
       "first_seen": "2026-05-24 17:37:52",
       "total_calls": 0,
       "phones_called": []
+    },
+    "8732546124": {
+      "username": "Tonyhfd",
+      "first_name": "I'mtony𓆩🤎𓆪",
+      "first_seen": "2026-05-24 19:10:00",
+      "total_calls": 2,
+      "phones_called": [
+        "201127330873"
+      ]
     }
   },
   "all_calls": [
@@ -8918,6 +8927,22 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-24 17:10:42"
+    },
+    {
+      "user_id": "8732546124",
+      "phone": "+201127330873",
+      "from_number": "447577364910",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-24 19:12:19"
+    },
+    {
+      "user_id": "8732546124",
+      "phone": "+201127330873",
+      "from_number": "447577370285",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-24 19:18:27"
     }
   ],
   "all_phones": {
@@ -9777,6 +9802,14 @@
         "5425706540"
       ],
       "last_call": "2026-05-24 17:01:37"
+    },
+    "201127330873": {
+      "first_call": "2026-05-24 19:12:19",
+      "total_calls": 2,
+      "users_called": [
+        "8732546124"
+      ],
+      "last_call": "2026-05-24 19:18:27"
     }
   }
 }
