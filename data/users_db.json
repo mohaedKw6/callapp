@@ -6569,11 +6569,11 @@
   },
   "7003495730": {
     "usage": 0,
-    "referrals": 2,
+    "referrals": 3,
     "first_seen": "2026-05-23 20:57:50",
     "username": "X_2_np",
     "first_name": "taher",
-    "balance": 0.15,
+    "balance": 0.25,
     "streak": 2,
     "last_login_date": "2026-05-24",
     "last_use": "2026-05-23 21:24:09",
@@ -6740,5 +6740,13 @@
     "streak": 1,
     "last_login_date": "2026-05-24",
     "last_use": "2026-05-24 08:16:43"
+  },
+  "1271664275": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-24 08:26:03",
+    "username": "Fvjfj",
+    "first_name": "Elshenawy Ahmed",
+    "balance": 0.5
   }
 }
