@@ -100,14 +100,15 @@
       "streak": 1,
       "last_login_date": "2026-05-24",
       "last_daily_bonus": "2026-05-06",
-      "balance": 99.6,
+      "balance": 0.0,
       "last_ip": "31.31.184.6",
       "last_seen": "2026-05-04 13:29:51",
       "refresh_token_hash": "",
       "last_login": "2026-05-04 13:29:02",
       "active_fox_token_hash": "76190153fc9d96fccda11fe1b285a791b159b223e2e898b47be4b160b735cd66",
       "active_device_id": "",
-      "active_token_set_at": "2026-05-05 08:44:40"
+      "active_token_set_at": "2026-05-05 08:44:40",
+      "language": "ar"
     },
     "8752475170": {
       "usage": 0,
