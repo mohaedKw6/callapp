@@ -6708,5 +6708,13 @@
     "balance": 0.5,
     "streak": 1,
     "last_login_date": "2026-05-24"
+  },
+  "5427144471": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-24 07:13:22",
+    "username": "medo77002",
+    "first_name": "Mohamed",
+    "balance": 0.5
   }
 }
