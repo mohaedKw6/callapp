@@ -7021,6 +7021,13 @@
       "used_by": [],
       "created_at": "2026-05-24 19:53:56",
       "created_by": "7627857345"
+    },
+    "F3NZ42UK": {
+      "amount": 3.0,
+      "max_users": 1,
+      "used_by": [],
+      "created_at": "2026-05-24 19:58:06",
+      "created_by": "7627857345"
     }
   },
   "registered_accounts": [
