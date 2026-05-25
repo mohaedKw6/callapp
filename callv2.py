@@ -3718,8 +3718,10 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
 
         @sub.message_handler(commands=['fn'])
         def _sub_fn(msg):
-            """اتصال مباشر بالرقم — يخصم 0.20$ مهما كان رد أو ما ردش
-            ⚡ فقط غير المحدود معفي من الدفع
+            """اتصال مباشر بالرقم
+            💎 غير محدود: مجاني
+            🥇🥉 مشترك شهري محدود: خصم من المكالمات، لو خلصت من الرصيد
+            💰 مش مشترك: خصم من الرصيد
             🚀 يستخدم make_call_fast للسرعة
             """
             cid = msg.chat.id
@@ -3750,11 +3752,21 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                 sub.reply_to(msg, "❌ رقم غير صحيح\nمثال: `/fn +966512345678`", parse_mode='Markdown')
                 return
 
-            # تحقق الصلاحية — فقط غير المحدود معفي
-            is_unlimited = is_premium_unlimited(user_id)
+            # ═══ منطق الخصم ═══
             cost = get_call_cost()
+            monthly = get_monthly_sub(user_id)
+            is_unlimited = is_premium_unlimited(user_id) or (monthly and monthly.get("plan") == "unlimited")
+            need_charge = True
 
-            if not is_unlimited:
+            if is_unlimited:
+                need_charge = False
+            elif monthly:
+                calls_left = get_monthly_calls_left(user_id)
+                if calls_left > 0:
+                    use_monthly_call(user_id)
+                    need_charge = False
+
+            if need_charge:
                 balance = get_user_balance(user_id)
                 if balance < cost:
                     sub.send_message(cid,
@@ -3793,8 +3805,10 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
 
         @sub.message_handler(commands=['fd'])
         def _sub_fd(msg):
-            """اتصال بصوت — يخصم 0.20$ مهما كان رد أو ما ردش
-            ⚡ فقط غير المحدود معفي من الدفع
+            """اتصال بصوت
+            💎 غير محدود: مجاني
+            🥇🥉 مشترك شهري محدود: خصم من المكالمات، لو خلصت من الرصيد
+            💰 مش مشترك: خصم من الرصيد
             """
             cid = msg.chat.id
             if is_banned(cid): return
@@ -3805,10 +3819,21 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                 send_force_sub_msg(sub, user_id)
                 return
 
-            is_unlimited = is_premium_unlimited(user_id)
+            # ═══ منطق الخصم ═══
             cost = get_call_cost()
+            monthly = get_monthly_sub(user_id)
+            is_unlimited = is_premium_unlimited(user_id) or (monthly and monthly.get("plan") == "unlimited")
+            need_charge = True
 
-            if not is_unlimited:
+            if is_unlimited:
+                need_charge = False
+            elif monthly:
+                calls_left = get_monthly_calls_left(user_id)
+                if calls_left > 0:
+                    use_monthly_call(user_id)
+                    need_charge = False
+
+            if need_charge:
                 balance = get_user_balance(user_id)
                 if balance < cost:
                     sub.send_message(cid,
@@ -5169,9 +5194,10 @@ def run_bot(token_override: str = ""):
     @bot.message_handler(commands=['fn'])
     def on_fn(msg):
         """اتصال مباشر بالرقم — يشتغل في الخاص والجروب
-        ⚡ يخصم 0.20$ مهما كان رد أو ما ردش
-        💎 لو مميز غير محدود فقط: مبيخصمش ومفيش انتظار
-        🚀 يستخدم make_call_fast للسرعة (توكن جاهز فوراً)
+        💎 غير محدود (شهري أو مميز): مجاني — مفيش خصم خالص
+        🥇🥉 مشترك شهري محدود: خصم من المكالمات، لو خلصت من الرصيد
+        💰 مش مشترك: خصم من الرصيد
+        🚀 يستخدم make_call_fast للسرعة
         """
         user_id = msg.from_user.id
         chat_type = msg.chat.type
@@ -5204,11 +5230,17 @@ def run_bot(token_override: str = ""):
             uid = str(user_id)
             refs = users_db.get(uid, {}).get("referrals", 0)
             ref_code = encode_ref_id(user_id)
+            monthly = get_monthly_sub(user_id)
+            monthly_info = ""
+            if monthly:
+                calls_left = get_monthly_calls_left(user_id)
+                plan_name = MONTHLY_PLANS.get(monthly.get("plan", ""), {}).get("name", "")
+                monthly_info = f"\n📅 اشتراك: {plan_name} — {calls_left} مكالمة متبقية"
             bot.reply_to(msg,
                 f"📞 استخدم: `/fn +966512345678`\n\n"
                 f"💰 رصيدك: `{balance:.2f}$`\n"
                 f"👥 إحالاتك: {refs}/3\n"
-                f"📞 سعر المكالمة: `{cost:.2f}$`\n\n"
+                f"📞 سعر المكالمة: `{cost:.2f}$`{monthly_info}\n\n"
                 f"🔗 رابط الإحالة الخاص بك:\n"
                 f"https://t.me/{bot.get_me().username}?start=ref_{ref_code}",
                 parse_mode='Markdown')
@@ -5223,12 +5255,34 @@ def run_bot(token_override: str = ""):
             bot.reply_to(msg, "❌ رقم غير صحيح\nمثال: `/fn +966512345678`", parse_mode='Markdown')
             return
 
-        # تحقق الصلاحية والرصيد — فقط غير المحدود يدفع
-        is_unlimited = is_premium_unlimited(user_id)
+        # ═══ منطق الخصم ═══
+        # 1) 💎 غير محدود (مميز أو شهري) → مجاني
+        # 2) 🥇🥉 مشترك شهري محدود → خصم من المكالمات، لو خلصت من الرصيد
+        # 3) 💰 مش مشترك → خصم من الرصيد
         cost = get_call_cost()  # 0.20$
+        monthly = get_monthly_sub(user_id)
+        is_unlimited = is_premium_unlimited(user_id) or (monthly and monthly.get("plan") == "unlimited")
+        need_charge = True  # هل هنخصم فلوس؟
 
-        if not is_unlimited:
-            # في الجروب: انتظار 20 دقيقة لغير المميزين غير المحدودين
+        if is_unlimited:
+            # 💎 مجاني — مفيش خصم خالص
+            need_charge = False
+            print(f"[fn] 💎 Unlimited user {user_id} — free call")
+        elif monthly:
+            # 🥇🥉 مشترك شهري محدود — خصم من المكالمات
+            calls_left = get_monthly_calls_left(user_id)
+            if calls_left > 0:
+                # فيه مكالمات متبقية — خصم من المكالمات
+                use_monthly_call(user_id)
+                need_charge = False
+                print(f"[fn] 📅 Monthly subscriber {user_id} — deducted from calls ({calls_left-1} left)")
+            else:
+                # المكالمات خلصت — خصم من الرصيد
+                need_charge = True
+                print(f"[fn] 📅 Monthly subscriber {user_id} — calls exhausted, charging balance")
+
+        if need_charge:
+            # في الجروب: انتظار 20 دقيقة لغير المشتركين
             if group_id:
                 cooldown = get_group_cooldown(user_id, group_id)
                 if not cooldown["can_call"]:
@@ -5246,7 +5300,7 @@ def run_bot(token_override: str = ""):
                     parse_mode='Markdown')
                 return
 
-            # ⚡ خصم فوري 0.20$ مهما كانت النتيجة — لكل المستخدمين ما عدا غير المحدود
+            # ⚡ خصم فوري 0.20$ مهما كانت النتيجة
             deduct_balance(user_id, cost)
 
         # 🔀 تحقق من الاتصال المزدوج
@@ -5257,8 +5311,8 @@ def run_bot(token_override: str = ""):
             actual_phone = dc_target
             print(f"[fn] 🔀 تحويل: {phone} → {dc_target}")
 
-        # في الجروب: سجل الانتظار لغير المميزين غير المحدودين
-        if group_id and not is_unlimited:
+        # في الجروب: سجل الانتظار للي بيدفعوا من الرصيد فقط
+        if group_id and need_charge:
             set_group_cooldown(user_id, group_id)
 
         # 🚀 بدء الاتصال فوراً باستخدام make_call_fast
@@ -5313,12 +5367,25 @@ def run_bot(token_override: str = ""):
                 send_force_sub_msg(bot, user_id)
                 return
 
-        # تحقق الصلاحية — فقط غير المحدود معفي من الدفع
-        is_unlimited = is_premium_unlimited(user_id)
-        cost = get_call_cost()
+        # ═══ منطق الخصم ═══
+        # 1) 💎 غير محدود (مميز أو شهري) → مجاني
+        # 2) 🥇🥉 مشترك شهري محدود → خصم من المكالمات، لو خلصت من الرصيد
+        # 3) 💰 مش مشترك → خصم من الرصيد
+        cost = get_call_cost()  # 0.20$
+        monthly = get_monthly_sub(user_id)
+        is_unlimited = is_premium_unlimited(user_id) or (monthly and monthly.get("plan") == "unlimited")
+        need_charge = True
 
-        if not is_unlimited:
-            # في الجروب: انتظار 20 دقيقة لغير المميزين غير المحدودين
+        if is_unlimited:
+            need_charge = False
+        elif monthly:
+            calls_left = get_monthly_calls_left(user_id)
+            if calls_left > 0:
+                use_monthly_call(user_id)
+                need_charge = False
+
+        if need_charge:
+            # في الجروب: انتظار 20 دقيقة لغير المشتركين
             if group_id:
                 cooldown = get_group_cooldown(user_id, group_id)
                 if not cooldown["can_call"]:
@@ -5336,7 +5403,7 @@ def run_bot(token_override: str = ""):
                     parse_mode='Markdown')
                 return
 
-            # ⚡ خصم فوري 0.20$ مهما كانت النتيجة — لكل المستخدمين ما عدا غير المحدود
+            # ⚡ خصم فوري 0.20$ مهما كانت النتيجة
             deduct_balance(user_id, cost)
 
         # استخراج رقم الهاتف
@@ -5354,8 +5421,8 @@ def run_bot(token_override: str = ""):
             bot.reply_to(msg, "❌ رقم غير صحيح\nمثال: `/fd +966512345678`", parse_mode='Markdown')
             return
 
-        # في الجروب: سجل الانتظار لغير المميزين
-        if group_id and not is_unlimited:
+        # في الجروب: سجل الانتظار للي بيدفعوا من الرصيد فقط
+        if group_id and need_charge:
             set_group_cooldown(user_id, group_id)
 
         # حفظ حالة المستخدم — ينتظر صوت
