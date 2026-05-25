@@ -6766,5 +6766,9 @@
     "yokifoy134@savdz.com"
   ],
   "welcome_bonus": 0.5,
-  "owner_earnings": 0.0
+  "owner_earnings": 0.0,
+  "competition": {
+    "start_date": "2026-05-25",
+    "duration_days": 30
+  }
 }
