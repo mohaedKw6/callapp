@@ -295,9 +295,26 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
     return {"status": "error", "detail": f"{fname}: failed after 3 attempts"}
 
 
+def _get_total_local_size() -> int:
+    """Get total size in bytes of all local data files."""
+    total = 0
+    for fname in SYNC_FILES:
+        fpath = os.path.join(DATA_DIR, fname)
+        if os.path.exists(fpath):
+            try:
+                total += os.path.getsize(fpath)
+            except Exception:
+                pass
+    return total
+
+
 def push_to_github(force: bool = False) -> dict:
     """Upload changed data files to GitHub repo.
     Only uploads files that have actually changed (hash comparison).
+    
+    🔒 Automatic data protection: If total local data size is less than 50KB,
+    this means data was likely wiped on restart. In this case, we pull from
+    GitHub instead of pushing empty data (which would destroy the backup).
     
     Args:
         force: Force push even if hashes match
@@ -309,6 +326,22 @@ def push_to_github(force: bool = False) -> dict:
     if not GH_TOKEN:
         log.warning("[gh-sync] No GH_TOKEN set — skipping push")
         return {"pushed": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"]}
+
+    # ═══ 🔒 حماية تلقائية: لو الداتا المحلية صغيرة أوي < 50KB ═══
+    # يبقى الداتا اتسحت بعد restart — نسحب من GitHub بدل ما نرفع فاضي
+    local_total = _get_total_local_size()
+    if local_total < 50 * 1024 and not force:  # أقل من 50KB
+        log.warning("[gh-sync] 🚨 Local data too small (%d bytes) — pulling from GitHub instead of pushing!", local_total)
+        try:
+            pull_result = pull_from_github()
+            log.info("[gh-sync] Recovery pull: %d pulled, %d skipped, %d errors",
+                     pull_result["pulled"], pull_result["skipped"], pull_result["errors"])
+            return {"pushed": 0, "skipped": 0, "errors": 0,
+                    "details": [f"DATA PROTECTION: Local too small ({local_total}B), pulled from GitHub instead"]}
+        except Exception as e:
+            log.error("[gh-sync] Recovery pull failed: %s", e)
+            return {"pushed": 0, "skipped": 0, "errors": 1,
+                    "details": [f"DATA PROTECTION: Local too small, pull also failed: {e}"]}
 
     import requests as req
 

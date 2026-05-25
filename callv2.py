@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.4.3"
+BOT_VERSION = "5.4.4"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -4722,6 +4722,9 @@ def _admin_panel():
         InlineKeyboardButton("📥 تحميل من GitHub", callback_data="admin_gh_pull")
     )
     kb.add(
+        InlineKeyboardButton("📦 نسخ احتياطي تلقائي", callback_data="admin_auto_backup_toggle")
+    )
+    kb.add(
         InlineKeyboardButton("📱 منح اشتراك تطبيق", callback_data="admin_grant_app_sub"),
         InlineKeyboardButton("📱 إلغاء اشتراك تطبيق", callback_data="admin_cancel_app_sub")
     )
@@ -6627,6 +6630,26 @@ def run_bot(token_override: str = ""):
         # (تم إلغاء خاصية حماية حجم الداتا — كانت بتسبب تعليق البوت)
 
         # ══════════════════════════════════════════════════════════════
+        # 📦 نسخ احتياطي تلقائي — تفعيل/تعطيل
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_auto_backup_toggle":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id)
+            current = is_auto_backup_enabled()
+            new_state = not current
+            set_auto_backup_enabled(new_state)
+            status_text = "✅ مفعّل" if new_state else "❌ معطّل"
+            status_emoji = "🟢" if new_state else "🔴"
+            bot.send_message(
+                cid,
+                f"📦 *النسخ الاحتياطي التلقائي*\n\n"
+                f"الحالة: {status_emoji} {status_text}\n\n"
+                f"{'⏰ هيتبعتلك ملف الداتا كل 5 ساعات تلقائياً' if new_state else '⏸️ مش هيتبعت ملف الداتا تلقائياً'}",
+                parse_mode='Markdown'
+            )
+
+        # ══════════════════════════════════════════════════════════════
         # 📤 رفع الداتا — Push Data (expect zip upload)
         # ══════════════════════════════════════════════════════════════
         elif data == "admin_data_push":
@@ -8492,22 +8515,54 @@ def _init_data_dir():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 AUTO_BACKUP_INTERVAL = 5 * 60 * 60  # 5 ساعات بالثواني
+_auto_backup_enabled = False  # الحالة الافتراضية: معطل
+
+
+def is_auto_backup_enabled() -> bool:
+    """يرجع حالة النسخ الاحتياطي التلقائي من bot_data.json"""
+    global _auto_backup_enabled
+    try:
+        data = load_bot_data()
+        _auto_backup_enabled = data.get("settings", {}).get("auto_backup_enabled", False)
+    except Exception:
+        pass
+    return _auto_backup_enabled
+
+
+def set_auto_backup_enabled(enabled: bool):
+    """يحفظ حالة النسخ الاحتياطي التلقائي في bot_data.json"""
+    global _auto_backup_enabled
+    _auto_backup_enabled = enabled
+    try:
+        data = load_bot_data()
+        if "settings" not in data:
+            data["settings"] = {}
+        data["settings"]["auto_backup_enabled"] = enabled
+        save_bot_data(data)
+    except Exception as e:
+        print(f"[auto_backup] ❌ Error saving setting: {e}")
 
 def _auto_backup_daemon():
-    """خلفية النسخ الاحتياطي — أول نسخة بعد دقيقة، بعدين كل 5 ساعات"""
-    # أول نسخة بعد دقيقة واحدة من التشغيل
+    """خلفية النسخ الاحتياطي — أول نسخة بعد دقيقة (لو مفعلة)، بعدين كل 5 ساعات"""
+    # أول نسخة بعد دقيقة واحدة من التشغيل (لو مفعلة)
     time.sleep(60)
-    try:
-        _send_data_backup_to_admins()
-        print("[auto_backup] ✅ First backup sent")
-    except Exception as e:
-        print(f"[auto_backup] ❌ First backup error: {e}")
+    if is_auto_backup_enabled():
+        try:
+            _send_data_backup_to_admins()
+            print("[auto_backup] ✅ First backup sent")
+        except Exception as e:
+            print(f"[auto_backup] ❌ First backup error: {e}")
+    else:
+        print("[auto_backup] ⏸️ Auto backup is disabled, skipping first backup")
     
     # بعدين كل 5 ساعات
     while True:
         try:
             time.sleep(AUTO_BACKUP_INTERVAL)
-            _send_data_backup_to_admins()
+            if is_auto_backup_enabled():
+                _send_data_backup_to_admins()
+            else:
+                print("[auto_backup] ⏸️ Skipped (disabled)")
         except Exception as e:
             print(f"[auto_backup] ❌ Error: {e}")
 
