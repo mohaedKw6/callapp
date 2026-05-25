@@ -13,6 +13,8 @@
     "authorized_by": 0,
     "authorized_at": "2026-05-25 22:46:28",
     "auto_authorized": true,
-    "user_cooldowns": {}
+    "user_cooldowns": {
+      "5562432583": 1779749424.0221124
+    }
   }
 }
