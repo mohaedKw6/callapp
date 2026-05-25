@@ -4120,7 +4120,7 @@
       "username": "MrLow24",
       "first_name": "Mr. Law24",
       "first_seen": "2026-05-24 21:17:24",
-      "total_calls": 1,
+      "total_calls": 2,
       "phones_called": [
         "972567188265"
       ]
@@ -9037,6 +9037,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-24 21:19:33"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+972567188265",
+      "from_number": "447456450724",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 00:24:30"
     }
   ],
   "all_phones": {
@@ -9907,11 +9915,11 @@
     },
     "972567188265": {
       "first_call": "2026-05-24 21:19:33",
-      "total_calls": 1,
+      "total_calls": 2,
       "users_called": [
         "6108823033"
       ],
-      "last_call": "2026-05-24 21:19:33"
+      "last_call": "2026-05-25 00:24:30"
     }
   }
 }
