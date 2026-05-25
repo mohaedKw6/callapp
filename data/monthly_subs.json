@@ -1,16 +1,9 @@
 {
-  "6108823033": {
-    "plan": "pro",
-    "granted_by": 7627857345,
-    "started": "2026-05-25",
-    "expires": "2026-06-24",
-    "calls_used": 0
-  },
   "6594705905": {
-    "plan": "pro",
+    "plan": "unlimited",
     "granted_by": 962731079,
-    "started": "2026-05-25",
-    "expires": "2026-06-24",
-    "calls_used": 0
+    "started": "2026-04-20",
+    "expires": "2026-05-20",
+    "calls_used": 1
   }
 }
