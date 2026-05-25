@@ -2137,14 +2137,15 @@
       "referrals": 0,
       "first_seen": "2026-04-19 02:41:06",
       "username": "Hfffnd",
-      "first_name": "مشاكس 😎",
+      "first_name": ".. 😎",
       "last_ip": "31.31.184.54",
       "last_seen": "2026-04-26 22:09:15",
       "refresh_token_hash": "1b24772194fe00b4034d673e032ae71592fcee926f1a05ebe3b34f72d3a6b830",
       "last_login": "2026-04-26 22:02:15",
       "streak": 1,
-      "last_login_date": "2026-05-01",
-      "balance": 0.8
+      "last_login_date": "2026-05-25",
+      "balance": 0.75,
+      "last_use": "2026-05-25 10:29:58"
     },
     "8206623999": {
       "usage": 0,
@@ -4301,7 +4302,11 @@
       "last_ip": "31.31.186.50",
       "last_seen": "2026-04-27 12:12:42",
       "refresh_token_hash": "072bda1ff8f80ddd5f0077d4c1e5df0ca47fd3596172b33f23c3c3045537587b",
-      "last_login": "2026-04-27 12:11:33"
+      "last_login": "2026-04-27 12:11:33",
+      "streak": 1,
+      "last_login_date": "2026-05-25",
+      "username": "",
+      "first_name": ".. .."
     },
     "7462995114": {
       "usage": 0,
