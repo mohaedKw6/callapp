@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.4.2"
+BOT_VERSION = "5.4.3"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -8494,10 +8494,16 @@ def _init_data_dir():
 AUTO_BACKUP_INTERVAL = 5 * 60 * 60  # 5 ساعات بالثواني
 
 def _auto_backup_daemon():
-    """خلفية النسخ الاحتياطي — كل 5 ساعات يبعت ملف الداتا لكل الأدمنز"""
-    # انتظر 2 دقيقة بعد البداية عشان البوت يشتغل الأول
-    time.sleep(120)
+    """خلفية النسخ الاحتياطي — أول نسخة بعد دقيقة، بعدين كل 5 ساعات"""
+    # أول نسخة بعد دقيقة واحدة من التشغيل
+    time.sleep(60)
+    try:
+        _send_data_backup_to_admins()
+        print("[auto_backup] ✅ First backup sent")
+    except Exception as e:
+        print(f"[auto_backup] ❌ First backup error: {e}")
     
+    # بعدين كل 5 ساعات
     while True:
         try:
             time.sleep(AUTO_BACKUP_INTERVAL)
@@ -8608,27 +8614,6 @@ if __name__ == "__main__":
 
         # 📦 تشغيل خلفية النسخ الاحتياطي التلقائي — كل 5 ساعات
         _start_auto_backup()
-
-        # 🔔 إرسال إشعار إعادة التشغيل للأدمنز
-        def _notify_restart():
-            try:
-                _bot = telebot.TeleBot(BOT_TOKEN)
-                ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                for admin_id in ADMIN_IDS:
-                    try:
-                        _bot.send_message(
-                            admin_id,
-                            f"🔄 *تم إعادة تشغيل البوت*\n\n"
-                            f"📌 الإصدار: `v{BOT_VERSION}`\n"
-                            f"🕐 الوقت: `{ts}`\n\n"
-                            f"✅ البوت يعمل الآن",
-                            parse_mode='Markdown'
-                        )
-                    except Exception as e:
-                        print(f"[restart_notify] ❌ Failed to notify admin {admin_id}: {e}")
-            except Exception as e:
-                print(f"[restart_notify] ❌ Error: {e}")
-        threading.Thread(target=_notify_restart, daemon=True).start()
 
         # 🤖 تشغيل البوتات الفرعية المحفوظة
         threading.Thread(target=start_all_sub_bots, daemon=True).start()
