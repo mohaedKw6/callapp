@@ -6635,6 +6635,8 @@
     "first_seen": "2026-05-25 08:06:08",
     "username": "Tonyhfd",
     "first_name": "I'mtony\ud80c\udda9\ud83e\udd0e\ud80c\uddaa",
-    "balance": 0.5
+    "balance": 0.5,
+    "streak": 1,
+    "last_login_date": "2026-05-25"
   }
 }
