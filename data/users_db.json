@@ -6718,6 +6718,11 @@
     "first_name": "\u054f\u13aa\u13f4\u038c | \u0492\u13a5\u0425",
     "balance": 0.5,
     "streak": 1,
-    "last_login_date": "2026-05-25"
+    "last_login_date": "2026-05-25",
+    "active_fox_token_hash": "1caaec5c321e1a818e76734b8bb02a3442cd0d9250e14fab114b954c5f93330f",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-25 20:10:13",
+    "refresh_token_hash": "",
+    "session_invalidated_at": 1779739813
   }
 }
