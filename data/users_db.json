@@ -6626,6 +6626,7 @@
     "first_name": "Mr. Law24",
     "balance": 0.5,
     "streak": 1,
-    "last_login_date": "2026-05-25"
+    "last_login_date": "2026-05-25",
+    "successful_calls": 1
   }
 }
