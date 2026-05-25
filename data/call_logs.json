@@ -23,6 +23,14 @@
       "success": true,
       "duration": 60,
       "timestamp": "2026-05-25 10:17:23"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735768774",
+      "from_number": "",
+      "success": false,
+      "duration": 0,
+      "timestamp": "2026-05-25 10:46:24"
     }
   ],
   "all_phones": {
@@ -33,6 +41,14 @@
         "6108823033"
       ],
       "last_call": "2026-05-25 10:17:23"
+    },
+    "967735768774": {
+      "first_call": "2026-05-25 10:46:24",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:46:24"
     }
   }
 }
