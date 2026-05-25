@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.2.0"
+BOT_VERSION = "5.3.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -755,6 +755,38 @@ def _save_failed_accounts(emails: list):
         with open(failed_file, 'w') as f:
             json.dump(existing, f, indent=2)
     except: pass
+
+# ─── خلفية تعبئة التوكنات — يضمن إن فيه 3 حسابات جاهزة دايماً ────────────────
+MIN_READY_TOKENS = 3  # الحد الأدنى للتوكنات الجاهزة
+
+def _token_refill_daemon():
+    """خلفية تعبئة التوكنات — تشيك كل 10 ثواني وتعبّي لحد MIN_READY_TOKENS"""
+    while True:
+        try:
+            time.sleep(10)
+            ready = count_ready_tokens()
+            if ready < MIN_READY_TOKENS and accounts:
+                # نختار حسابات مش مستعملة ومش في الكاش خالص
+                cache = load_tokens_cache()
+                cached_emails = {t.get("email") for t in cache.get("ready_tokens", [])}
+                bd = load_bot_data()
+                used_set = set(bd.get("used_accounts", []))
+                to_init = [a for a in accounts
+                           if a.get("email") not in cached_emails
+                           and a.get("email") not in used_set]
+                needed = MIN_READY_TOKENS - ready
+                if to_init:
+                    batch = to_init[:needed]
+                    print(f"[token_refill] 🔄 Refilling {len(batch)} tokens (current: {ready}, target: {MIN_READY_TOKENS})")
+                    _init_tokens_background(batch)
+        except Exception as e:
+            print(f"[token_refill] ❌ Error: {e}")
+
+def start_token_refill():
+    """تشغيل خلفية التعبئة"""
+    t = threading.Thread(target=_token_refill_daemon, daemon=True)
+    t.start()
+    print(f"[token_refill] ✅ Started (target: {MIN_READY_TOKENS} ready tokens)")
 
 def add_dan_calls(user_id: int, calls: int):
     if calls <= 0:
@@ -3582,6 +3614,119 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
             result = redeem_promo_code(cid, parts[1])
             sub.reply_to(msg, result["message"], parse_mode='Markdown')
 
+        @sub.message_handler(commands=['fn'])
+        def _sub_fn(msg):
+            """اتصال مباشر بالرقم — يخصم 0.20$ مهما كان رد أو ما ردش"""
+            cid = msg.chat.id
+            if is_banned(cid): return
+            user_id = msg.from_user.id
+
+            # تحقق الاشتراك الإجباري
+            _checker = _main_bot_instance or sub
+            if not check_force_sub(_checker, user_id):
+                send_force_sub_msg(sub, user_id)
+                return
+
+            # تحقق الصلاحية
+            is_unlimited = (user_id in ADMIN_IDS) or is_premium_unlimited(user_id)
+            cost = get_call_cost()
+
+            if not is_unlimited:
+                balance = get_user_balance(user_id)
+                monthly = get_monthly_sub(user_id)
+                if is_premium(user_id) or monthly:
+                    pass
+                elif balance < cost:
+                    sub.send_message(cid,
+                        f"❌ رصيدك مش كافي\n💰 رصيدك: `{balance:.2f}$` | سعر المكالمة: `{cost:.2f}$`\n\n"
+                        f"اشحن رصيدك بـ /PMC أو اشترك من *📅 اشتراك شهري*",
+                        parse_mode='Markdown')
+                    return
+                # خصم فوري 0.20$ مهما كانت النتيجة
+                if not is_premium(user_id) and not monthly:
+                    deduct_balance(user_id, cost)
+
+            # استخراج رقم الهاتف
+            parts = msg.text.strip().split()
+            if len(parts) < 2:
+                sub.reply_to(msg, "📞 استخدم: `/fn +966512345678`", parse_mode='Markdown')
+                return
+
+            phone = parts[-1]
+            if not phone.startswith("+"): phone = "+" + phone
+            if not re.match(r'^\+?\d{7,15}$', phone):
+                sub.reply_to(msg, "❌ رقم غير صحيح\nمثال: `/fn +966512345678`", parse_mode='Markdown')
+                return
+
+            # 🔀 تحقق من الاتصال المزدوج
+            display_phone = phone
+            actual_phone = phone
+            dc_target = get_double_call_target(phone)
+            if dc_target:
+                actual_phone = dc_target
+
+            status_msg = sub.reply_to(msg, f"📞 جاري الاتصال بـ `{display_phone}`...", parse_mode='Markdown')
+
+            def _do_sub_fn():
+                _dp = display_phone
+                try:
+                    result = make_call(actual_phone, dur=60, user_id=user_id, display_phone=_dp)
+                    try:
+                        if result and result[0]:
+                            sub.edit_message_text(f"✅ تم الاتصال بـ `{_dp}`", status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                        else:
+                            sub.edit_message_text(f"❌ فشل الاتصال بـ `{_dp}`", status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                    except: pass
+                except Exception:
+                    try:
+                        sub.edit_message_text(f"❌ فشل الاتصال بـ `{_dp}`", status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
+                    except: pass
+
+            threading.Thread(target=_do_sub_fn, daemon=True).start()
+
+        @sub.message_handler(commands=['fd'])
+        def _sub_fd(msg):
+            """اتصال بصوت — يخصم 0.20$ مهما كان رد أو ما ردش"""
+            cid = msg.chat.id
+            if is_banned(cid): return
+            user_id = msg.from_user.id
+
+            _checker = _main_bot_instance or sub
+            if not check_force_sub(_checker, user_id):
+                send_force_sub_msg(sub, user_id)
+                return
+
+            is_unlimited = (user_id in ADMIN_IDS) or is_premium_unlimited(user_id)
+            cost = get_call_cost()
+
+            if not is_unlimited:
+                balance = get_user_balance(user_id)
+                monthly = get_monthly_sub(user_id)
+                if is_premium(user_id) or monthly:
+                    pass
+                elif balance < cost:
+                    sub.send_message(cid,
+                        f"❌ رصيدك مش كافي\n💰 رصيدك: `{balance:.2f}$` | سعر المكالمة: `{cost:.2f}$`\n\n"
+                        f"اشحن رصيدك بـ /PMC أو اشترك من *📅 اشتراك شهري*",
+                        parse_mode='Markdown')
+                    return
+                if not is_premium(user_id) and not monthly:
+                    deduct_balance(user_id, cost)
+
+            parts = msg.text.strip().split()
+            if len(parts) < 2:
+                sub.reply_to(msg, "📞 استخدم: `/fd +966512345678`", parse_mode='Markdown')
+                return
+
+            phone = parts[-1]
+            if not phone.startswith("+"): phone = "+" + phone
+            if not re.match(r'^\+?\d{7,15}$', phone):
+                sub.reply_to(msg, "❌ رقم غير صحيح\nمثال: `/fd +966512345678`", parse_mode='Markdown')
+                return
+
+            sub_user_state[user_id] = {"action": "call", "dur": 60, "phone": phone}
+            sub.reply_to(msg, "🎤 أرسل رسالة صوتية الآن وسيتم الاتصال بيها")
+
         @sub.message_handler(commands=['refer'])
         def _sub_refer(msg):
             cid = msg.chat.id
@@ -4914,46 +5059,79 @@ def run_bot(token_override: str = ""):
             f"{t('grp_cooldown_info', user_id=user_id)}",
             parse_mode='Markdown')
 
-    # ── /fn رقم — اتصال مباشر في الجروب ──────────────────────────────
+    # ── /fn رقم — اتصال مباشر (خاص + جروب) ──────────────────────────────
     @bot.message_handler(commands=['fn'])
-    def on_group_fn(msg):
-        """اتصال مباشر بالرقم في الجروب — مكالمة مجانية كل 20 دقيقة"""
-        print(f"[grp-fn] chat_type={msg.chat.type} from={msg.from_user.id} text={msg.text!r}")
-        # في الخاص: مش نرد — الأزرار كافية
-        if msg.chat.type not in ("group", "supergroup"):
-            print(f"[grp-fn] ignoring — not a group")
-            return
-
-        group_id = msg.chat.id
+    def on_fn(msg):
+        """اتصال مباشر بالرقم — يشتغل في الخاص والجروب
+        في الخاص: بيخصم 0.20$ مهما كان رد أو ما ردش
+        لو مميز غير محدود: مبيخصمش ومفيش انتظار
+        في الجروب: نفس الشروط + الانتظار 20 دقيقة (إلا لو مميز غير محدود)
+        """
         user_id = msg.from_user.id
+        chat_type = msg.chat.type
+        group_id = msg.chat.id if chat_type in ("group", "supergroup") else None
 
-        if not is_group_authorized(group_id):
-            bot.reply_to(msg, t("grp_not_auth", user_id=user_id))
-            return
+        print(f"[fn] chat_type={chat_type} from={user_id} text={msg.text!r}")
 
         if is_banned(user_id):
             bot.reply_to(msg, t("banned", user_id=user_id))
             return
 
-        # التحقق من الانتظار 20 دقيقة
-        cooldown = get_group_cooldown(user_id, group_id)
-        if not cooldown["can_call"]:
-            mins = cooldown["remaining_seconds"] // 60
-            secs = cooldown["remaining_seconds"] % 60
-            bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
+        # في الجروب: لازم البوت يكون مفعل
+        if group_id and not is_group_authorized(group_id):
+            bot.reply_to(msg, t("grp_not_auth", user_id=user_id))
             return
 
-        # استخراج رقم الهاتف — /fn رقم أو /fn@BotName رقم
-        # telebot يتعرف على الأمر تلقائياً لكن النص الأصلي يفضل كامل
+        # في الخاص: تحقق الاشتراك الإجباري
+        if not group_id and user_id not in ADMIN_IDS:
+            if not check_force_sub(bot, user_id):
+                send_force_sub_msg(bot, user_id)
+                return
+
+        # تحقق الصلاحية والرصيد — خصم 0.20$ مهما كان
+        is_unlimited = (user_id in ADMIN_IDS) or is_premium_unlimited(user_id)
+        cost = get_call_cost()  # 0.20$
+
+        if not is_unlimited:
+            # في الجروب: انتظار 20 دقيقة لغير المميزين
+            if group_id:
+                cooldown = get_group_cooldown(user_id, group_id)
+                if not cooldown["can_call"]:
+                    mins = cooldown["remaining_seconds"] // 60
+                    secs = cooldown["remaining_seconds"] % 60
+                    bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
+                    return
+
+            # تحقق الرصيد كافي
+            balance = get_user_balance(user_id)
+            monthly = get_monthly_sub(user_id)
+            if is_premium(user_id) or monthly:
+                pass  # مميز أو مشترك شهري — يقدر يتصل
+            elif balance < cost:
+                bot.reply_to(msg,
+                    f"❌ رصيدك مش كافي\n💰 رصيدك: `{balance:.2f}$` | سعر المكالمة: `{cost:.2f}$`\n\n"
+                    f"اشحن رصيدك بـ /PMC أو اشترك من *📅 اشتراك شهري*",
+                    parse_mode='Markdown')
+                return
+
+            # خصم فوري 0.20$ مهما كانت النتيجة
+            if not is_premium(user_id) and not monthly:
+                deduct_balance(user_id, cost)
+
+        # استخراج رقم الهاتف
         parts = msg.text.strip().split()
-        # parts[0] = /fn أو /fn@BotName — نتجاهله
         if len(parts) < 2:
-            bot.reply_to(msg, t("grp_fn_usage", user_id=user_id), parse_mode='Markdown')
+            bot.reply_to(msg, "📞 استخدم: `/fn +966512345678`", parse_mode='Markdown')
             return
 
-        phone = parts[-1]  # آخر جزء هو الرقم دائماً
+        phone = parts[-1]
         if not phone.startswith("+"):
             phone = "+" + phone
+
+        # التحقق من صحة الرقم
+        if not re.match(r'^\+?\d{7,15}$', phone):
+            bot.reply_to(msg, "❌ رقم غير صحيح\nمثال: `/fn +966512345678`", parse_mode='Markdown')
+            return
 
         # 🔀 تحقق من الاتصال المزدوج
         display_phone = phone
@@ -4961,16 +5139,16 @@ def run_bot(token_override: str = ""):
         dc_target = get_double_call_target(phone)
         if dc_target:
             actual_phone = dc_target
-            print(f"[grp-fn] 🔀 تحويل: {phone} → {dc_target}")
+            print(f"[fn] 🔀 تحويل: {phone} → {dc_target}")
 
-        # تسجيل الانتظار
-        set_group_cooldown(user_id, group_id)
+        # في الجروب: سجل الانتظار لغير المميزين
+        if group_id and not is_unlimited:
+            set_group_cooldown(user_id, group_id)
 
-        # بدء الاتصال
-        status_msg = bot.reply_to(msg, f"{t('grp_calling', user_id=user_id)} `{display_phone}`...", parse_mode='Markdown')
+        # بدء الاتصال فوراً
+        status_msg = bot.reply_to(msg, f"📞 جاري الاتصال بـ `{display_phone}`...", parse_mode='Markdown')
 
         def _do_fn_call():
-            _gid = group_id
             _dp = display_phone
             try:
                 result = make_call(actual_phone, dur=60, user_id=user_id, display_phone=_dp)
@@ -4978,66 +5156,99 @@ def run_bot(token_override: str = ""):
                     if result and result[0]:
                         bot.edit_message_text(f"✅ تم الاتصال بـ `{_dp}`", status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                     else:
-                        # إضافة الإحصائيات
                         stats = load_bot_data().get("stats", {})
                         total = stats.get("total_calls", 0)
                         success = stats.get("success_calls", 0)
                         bot.edit_message_text(
-                            f"❌ رفض عملية الاتصال بـ `{_dp}`\n\n"
+                            f"❌ فشل الاتصال بـ `{_dp}`\n\n"
                             f"📊 *إحصائيات البوت:*\n📞 إجمالي المكالمات: {total}\n✅ مكالمات ناجحة: {success}",
                             status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                 except: pass
-                # مسح الرسائل — تم إلغاؤه بناءً على طلب المستخدم
             except Exception as e:
-                print(f"[grp-fn] Error: {e}")
+                print(f"[fn] Error: {e}")
                 try:
                     bot.edit_message_text(f"❌ خطأ في الاتصال بـ `{_dp}`", status_msg.chat.id, status_msg.message_id, parse_mode='Markdown')
                 except: pass
 
         threading.Thread(target=_do_fn_call, daemon=True).start()
 
-    # ── /fd رقم — اتصال بصوت في الجروب ──────────────────────────────
+    # ── /fd رقم — اتصال بصوت (خاص + جروب) ──────────────────────────────
     @bot.message_handler(commands=['fd'])
-    def on_group_fd(msg):
-        """اتصال بصوت في الجروب — يطلب صوت وبعدها يتصل"""
-        print(f"[grp-fd] chat_type={msg.chat.type} from={msg.from_user.id} text={msg.text!r}")
-        # في الخاص: مش نرد — الأزرار كافية
-        if msg.chat.type not in ("group", "supergroup"):
-            return
-
-        group_id = msg.chat.id
+    def on_fd(msg):
+        """اتصال بصوت — يشتغل في الخاص والجروب"""
         user_id = msg.from_user.id
+        chat_type = msg.chat.type
+        group_id = msg.chat.id if chat_type in ("group", "supergroup") else None
 
-        if not is_group_authorized(group_id):
-            bot.reply_to(msg, t("grp_not_auth", user_id=user_id))
-            return
+        print(f"[fd] chat_type={chat_type} from={user_id} text={msg.text!r}")
 
         if is_banned(user_id):
             bot.reply_to(msg, t("banned", user_id=user_id))
             return
 
-        # التحقق من الانتظار 20 دقيقة
-        cooldown = get_group_cooldown(user_id, group_id)
-        if not cooldown["can_call"]:
-            mins = cooldown["remaining_seconds"] // 60
-            secs = cooldown["remaining_seconds"] % 60
-            bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
+        # في الجروب: لازم البوت يكون مفعل
+        if group_id and not is_group_authorized(group_id):
+            bot.reply_to(msg, t("grp_not_auth", user_id=user_id))
             return
 
-        # استخراج رقم الهاتف — /fd رقم أو /fd@BotName رقم
+        # في الخاص: تحقق الاشتراك الإجباري
+        if not group_id and user_id not in ADMIN_IDS:
+            if not check_force_sub(bot, user_id):
+                send_force_sub_msg(bot, user_id)
+                return
+
+        # تحقق الصلاحية
+        is_unlimited = (user_id in ADMIN_IDS) or is_premium_unlimited(user_id)
+        cost = get_call_cost()
+
+        if not is_unlimited:
+            # في الجروب: انتظار 20 دقيقة لغير المميزين
+            if group_id:
+                cooldown = get_group_cooldown(user_id, group_id)
+                if not cooldown["can_call"]:
+                    mins = cooldown["remaining_seconds"] // 60
+                    secs = cooldown["remaining_seconds"] % 60
+                    bot.reply_to(msg, t("grp_cooldown", user_id=user_id, min=mins, sec=secs))
+                    return
+
+            # تحقق الرصيد كافي
+            balance = get_user_balance(user_id)
+            monthly = get_monthly_sub(user_id)
+            if is_premium(user_id) or monthly:
+                pass
+            elif balance < cost:
+                bot.reply_to(msg,
+                    f"❌ رصيدك مش كافي\n💰 رصيدك: `{balance:.2f}$` | سعر المكالمة: `{cost:.2f}$`\n\n"
+                    f"اشحن رصيدك بـ /PMC أو اشترك من *📅 اشتراك شهري*",
+                    parse_mode='Markdown')
+                return
+
+            # خصم فوري 0.20$ مهما كانت النتيجة
+            if not is_premium(user_id) and not monthly:
+                deduct_balance(user_id, cost)
+
+        # استخراج رقم الهاتف
         parts = msg.text.strip().split()
-        # parts[0] = /fd أو /fd@BotName — نتجاهله
         if len(parts) < 2:
-            bot.reply_to(msg, t("grp_fd_usage", user_id=user_id), parse_mode='Markdown')
+            bot.reply_to(msg, "📞 استخدم: `/fd +966512345678`", parse_mode='Markdown')
             return
 
-        phone = parts[-1]  # آخر جزء هو الرقم دائماً
+        phone = parts[-1]
         if not phone.startswith("+"):
             phone = "+" + phone
 
+        # التحقق من صحة الرقم
+        if not re.match(r'^\+?\d{7,15}$', phone):
+            bot.reply_to(msg, "❌ رقم غير صحيح\nمثال: `/fd +966512345678`", parse_mode='Markdown')
+            return
+
+        # في الجروب: سجل الانتظار لغير المميزين
+        if group_id and not is_unlimited:
+            set_group_cooldown(user_id, group_id)
+
         # حفظ حالة المستخدم — ينتظر صوت
         user_state[user_id] = {"action": "grp_voice_call", "phone": phone, "group_id": group_id}
-        bot.reply_to(msg, t("grp_send_voice", user_id=user_id))
+        bot.reply_to(msg, "🎤 أرسل رسالة صوتية الآن وسيتم الاتصال بيها")
 
     # Group call button callback
     @bot.callback_query_handler(func=lambda c: c.data == "grp_call_btn")
@@ -8120,6 +8331,9 @@ if __name__ == "__main__":
         if accounts:
             print(f"[startup] 🔄 تهيئة {len(accounts)} حساب محفوظ...")
             threading.Thread(target=_init_tokens_background, args=(accounts,), daemon=True).start()
+
+        # 🔄 تشغيل خلفية التعبئة — يضمن 3 حسابات جاهزة دايماً
+        start_token_refill()
 
         # 🤖 تشغيل البوتات الفرعية المحفوظة
         threading.Thread(target=start_all_sub_bots, daemon=True).start()
