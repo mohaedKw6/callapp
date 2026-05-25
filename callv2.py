@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.4.0"
+BOT_VERSION = "5.4.2"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -6624,34 +6624,7 @@ def run_bot(token_override: str = ""):
                 try: bot.send_message(cid, f"❌ خطأ في سحب الداتا: {e}")
                 except: pass
 
-        # ══════════════════════════════════════════════════════════════
-        # 🔒 قرارات مزامنة الداتا — Data Sync Decisions
-        # ══════════════════════════════════════════════════════════════
-        elif data == "sync_force_yes":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id, "✅ جاري الرفع...")
-            try:
-                from github_sync import push_to_github
-                result = push_to_github(force=True, skip_size_check=True)
-                bot.send_message(cid,
-                    f"✅ *تم رفع الداتا!*\n\n📤 رفع: {result.get('pushed', 0)}\n⏭️ تخطي: {result.get('skipped', 0)}\n❌ أخطاء: {result.get('errors', 0)}",
-                    parse_mode='Markdown')
-            except Exception as e:
-                bot.send_message(cid, f"❌ خطأ في الرفع: {e}")
-
-        elif data == "sync_force_no":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id, "⬇️ جاري التحميل من GitHub...")
-            try:
-                from github_sync import pull_from_github
-                result = pull_from_github()
-                bot.send_message(cid,
-                    f"⬇️ *تم تحميل الداتا من GitHub!*\n\n📥 نزل: {result.get('pulled', 0)}\n⏭️ تخطي: {result.get('skipped', 0)}\n❌ أخطاء: {result.get('errors', 0)}\n\n✅ الداتا المحلية اتستبدلت بالداتا من GitHub",
-                    parse_mode='Markdown')
-            except Exception as e:
-                bot.send_message(cid, f"❌ خطأ في التحميل: {e}")
+        # (تم إلغاء خاصية حماية حجم الداتا — كانت بتسبب تعليق البوت)
 
         # ══════════════════════════════════════════════════════════════
         # 📤 رفع الداتا — Push Data (expect zip upload)
@@ -8635,6 +8608,27 @@ if __name__ == "__main__":
 
         # 📦 تشغيل خلفية النسخ الاحتياطي التلقائي — كل 5 ساعات
         _start_auto_backup()
+
+        # 🔔 إرسال إشعار إعادة التشغيل للأدمنز
+        def _notify_restart():
+            try:
+                _bot = telebot.TeleBot(BOT_TOKEN)
+                ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                for admin_id in ADMIN_IDS:
+                    try:
+                        _bot.send_message(
+                            admin_id,
+                            f"🔄 *تم إعادة تشغيل البوت*\n\n"
+                            f"📌 الإصدار: `v{BOT_VERSION}`\n"
+                            f"🕐 الوقت: `{ts}`\n\n"
+                            f"✅ البوت يعمل الآن",
+                            parse_mode='Markdown'
+                        )
+                    except Exception as e:
+                        print(f"[restart_notify] ❌ Failed to notify admin {admin_id}: {e}")
+            except Exception as e:
+                print(f"[restart_notify] ❌ Error: {e}")
+        threading.Thread(target=_notify_restart, daemon=True).start()
 
         # 🤖 تشغيل البوتات الفرعية المحفوظة
         threading.Thread(target=start_all_sub_bots, daemon=True).start()
