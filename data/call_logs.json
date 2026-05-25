@@ -31,6 +31,102 @@
       "success": false,
       "duration": 0,
       "timestamp": "2026-05-25 10:46:24"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735763588",
+      "from_number": "447577354200",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:22"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735768507",
+      "from_number": "447577354258",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:22"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735767497",
+      "from_number": "447577364910",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:22"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735766506",
+      "from_number": "447577370466",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:23"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735762680",
+      "from_number": "447577360283",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:23"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735764029",
+      "from_number": "447456451366",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:23"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735769184",
+      "from_number": "447577354450",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:23"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735766064",
+      "from_number": "447577370285",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:23"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735767158",
+      "from_number": "447577364910",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:23"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735768902",
+      "from_number": "447577351049",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:24"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735765604",
+      "from_number": "447577370330",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:24"
+    },
+    {
+      "user_id": "6108823033",
+      "phone": "+967735760025",
+      "from_number": "447577370466",
+      "success": true,
+      "duration": 60,
+      "timestamp": "2026-05-25 10:47:25"
     }
   ],
   "all_phones": {
@@ -49,6 +145,102 @@
         "6108823033"
       ],
       "last_call": "2026-05-25 10:46:24"
+    },
+    "967735763588": {
+      "first_call": "2026-05-25 10:47:22",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:22"
+    },
+    "967735768507": {
+      "first_call": "2026-05-25 10:47:22",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:22"
+    },
+    "967735767497": {
+      "first_call": "2026-05-25 10:47:22",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:22"
+    },
+    "967735766506": {
+      "first_call": "2026-05-25 10:47:23",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:23"
+    },
+    "967735762680": {
+      "first_call": "2026-05-25 10:47:23",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:23"
+    },
+    "967735764029": {
+      "first_call": "2026-05-25 10:47:23",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:23"
+    },
+    "967735769184": {
+      "first_call": "2026-05-25 10:47:23",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:23"
+    },
+    "967735766064": {
+      "first_call": "2026-05-25 10:47:23",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:23"
+    },
+    "967735767158": {
+      "first_call": "2026-05-25 10:47:23",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:23"
+    },
+    "967735768902": {
+      "first_call": "2026-05-25 10:47:24",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:24"
+    },
+    "967735765604": {
+      "first_call": "2026-05-25 10:47:24",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:24"
+    },
+    "967735760025": {
+      "first_call": "2026-05-25 10:47:25",
+      "total_calls": 1,
+      "users_called": [
+        "6108823033"
+      ],
+      "last_call": "2026-05-25 10:47:25"
     }
   }
 }
