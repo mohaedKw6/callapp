@@ -75,7 +75,7 @@
     "first_name": "\u26e5-\ud835\udd3e_\ud835\udd44_\ud835\udd38_\u211a-\u26e5",
     "streak": 1,
     "last_login_date": "2026-05-25",
-    "balance": 11.2,
+    "balance": 11.4,
     "dan_calls": 418,
     "last_daily_bonus": "2026-05-07",
     "last_ip": "156.214.77.23",
@@ -1301,9 +1301,7 @@
     "referrals": 0,
     "first_seen": "2026-04-15 14:30:19",
     "username": "",
-    "first_name": "\u2764\u2764 \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641",
-    "streak": 1,
-    "last_login_date": "2026-05-25"
+    "first_name": "\u2764\u2764 \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641"
   },
   "8753603135": {
     "usage": 0,
@@ -2138,15 +2136,14 @@
     "referrals": 0,
     "first_seen": "2026-04-19 02:41:06",
     "username": "Hfffnd",
-    "first_name": ".. \ud83d\ude0e",
+    "first_name": "\u0645\u0634\u0627\u0643\u0633 \ud83d\ude0e",
     "last_ip": "31.31.184.54",
     "last_seen": "2026-04-26 22:09:15",
     "refresh_token_hash": "1b24772194fe00b4034d673e032ae71592fcee926f1a05ebe3b34f72d3a6b830",
     "last_login": "2026-04-26 22:02:15",
     "streak": 1,
-    "last_login_date": "2026-05-25",
-    "balance": 0.7,
-    "last_use": "2026-05-25 18:18:36"
+    "last_login_date": "2026-05-01",
+    "balance": 0.8
   },
   "8206623999": {
     "usage": 0,
@@ -4303,11 +4300,7 @@
     "last_ip": "31.31.186.50",
     "last_seen": "2026-04-27 12:12:42",
     "refresh_token_hash": "072bda1ff8f80ddd5f0077d4c1e5df0ca47fd3596172b33f23c3c3045537587b",
-    "last_login": "2026-04-27 12:11:33",
-    "streak": 1,
-    "last_login_date": "2026-05-25",
-    "username": "",
-    "first_name": ".. .."
+    "last_login": "2026-04-27 12:11:33"
   },
   "7462995114": {
     "usage": 0,
@@ -6141,15 +6134,15 @@
     "username": "",
     "first_name": "\u062a\u0633\u062a\u0637\u064a\u0639",
     "streak": 1,
-    "last_login_date": "2026-05-25",
+    "last_login_date": "2026-05-21",
     "last_ip": "145.224.125.241",
     "last_seen": "2026-05-21 08:54:18",
     "refresh_token_hash": "",
     "last_login": "2026-05-21 08:47:46",
-    "active_fox_token_hash": "a0c26bb9312de3911de357853dda9fc7b23400acb86faa779d6ba46d61012fb0",
+    "active_fox_token_hash": "505efab210e0963b33c67541686d7e95ce16d743c8595ab6b49e48c9c030c34f",
     "active_device_id": "",
-    "active_token_set_at": "2026-05-25 16:07:37",
-    "session_invalidated_at": 1779725257
+    "active_token_set_at": "2026-05-21 08:55:10",
+    "session_invalidated_at": 1779353710
   },
   "8798692370": {
     "usage": 0,
@@ -6451,7 +6444,7 @@
     "username": "r_9he",
     "first_name": "\u062c\u06c1\u0646\u06c1\u0631\u0627\u0644 \u2022",
     "streak": 1,
-    "last_login_date": "2026-05-25",
+    "last_login_date": "2026-05-21",
     "active_fox_token_hash": "ae29def757372103fd53939381ec637630fdeaeba561ba52605f4df980ed9f05",
     "active_device_id": "",
     "active_token_set_at": "2026-05-21 16:35:21",
@@ -6656,111 +6649,5 @@
     "streak": 1,
     "last_login_date": "2026-05-25",
     "last_use": "2026-05-25 08:50:32"
-  },
-  "7451318125": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 17:21:12",
-    "username": "hjh_p",
-    "first_name": "\u0643\u0627\u0633\u062a\u064a\u0644",
-    "balance": 0.5,
-    "streak": 1,
-    "last_login_date": "2026-05-25"
-  },
-  "8635427657": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 18:17:20",
-    "username": "",
-    "first_name": "81907 81907",
-    "balance": 0.5,
-    "streak": 1,
-    "last_login_date": "2026-05-25"
-  },
-  "8236728764": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 19:03:05",
-    "username": "",
-    "first_name": "\ud835\udc07\ud835\udc00\ud835\udc0c\ud835\udc0e \ud835\udc04\ud835\udc0b \ud835\udc0c\ud835\udc0e\ud835\udc12\ud835\udc07\ud835\udc0a\ud835\udc04\ud835\udc12",
-    "balance": 0.25,
-    "streak": 1,
-    "last_login_date": "2026-05-25",
-    "last_use": "2026-05-25 19:04:19"
-  },
-  "6480750877": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 19:09:04",
-    "username": "aldhalii711",
-    "first_name": "\u0622\u0644\u0639\u0633\u0640\u0643\u0631\u064a<711\u0640\u0636\u0640\u0622\u0644\u0639\u064a_\u2122>",
-    "balance": 0.1,
-    "streak": 1,
-    "last_login_date": "2026-05-25",
-    "last_use": "2026-05-25 19:11:46"
-  },
-  "8074014401": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 20:06:24",
-    "username": "s128079",
-    "first_name": "Jsjsj Ananaa",
-    "balance": 0.3,
-    "streak": 1,
-    "last_login_date": "2026-05-25",
-    "last_use": "2026-05-25 20:06:48"
-  },
-  "8428121812": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 20:09:37",
-    "username": "v_ww3",
-    "first_name": "\u054f\u13aa\u13f4\u038c | \u0492\u13a5\u0425",
-    "balance": 0.5,
-    "streak": 1,
-    "last_login_date": "2026-05-25",
-    "active_fox_token_hash": "1caaec5c321e1a818e76734b8bb02a3442cd0d9250e14fab114b954c5f93330f",
-    "active_device_id": "",
-    "active_token_set_at": "2026-05-25 20:10:13",
-    "refresh_token_hash": "",
-    "session_invalidated_at": 1779739813
-  },
-  "5562432583": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 21:52:38",
-    "username": "mhmd3214",
-    "first_name": "\u24dc\u24d7\u24dc\u24d3",
-    "balance": 0.3
-  },
-  "1693478426": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 22:10:45",
-    "username": "",
-    "first_name": "Mina \ud83d\udc3a",
-    "balance": 0.35,
-    "streak": 1,
-    "last_login_date": "2026-05-25",
-    "last_use": "2026-05-25 22:13:16"
-  },
-  "8952793690": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 22:46:52",
-    "username": "jdnncb",
-    "first_name": "..",
-    "balance": 0.5
-  },
-  "8259436935": {
-    "usage": 0,
-    "referrals": 0,
-    "first_seen": "2026-05-25 23:04:17",
-    "username": "",
-    "first_name": "\u0627\u0644\u0627\u0646 \u0644\u0645 \u064a\u062a\u0645 \u0627\u0628\u0648\u0639\u062f\u064a",
-    "balance": 0.5,
-    "streak": 1,
-    "last_login_date": "2026-05-25",
-    "language": "ar"
   }
 }
