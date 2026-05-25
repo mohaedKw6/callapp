@@ -5,5 +5,12 @@
     "type": "unlimited",
     "calls_limit": 999999,
     "calls_used": 0
+  },
+  "6108823033": {
+    "added_by": 7627857345,
+    "added_at": "2026-05-25 00:05:48",
+    "type": "limited",
+    "calls_limit": 10,
+    "calls_used": 0
   }
 }
