@@ -7,5 +7,12 @@
       "1087968824": 1779350840.8939908,
       "7802084894": 1779347555.4917989
     }
+  },
+  "-1002628640844": {
+    "title": "Python tools(Script)",
+    "authorized_by": 0,
+    "authorized_at": "2026-05-25 22:46:28",
+    "auto_authorized": true,
+    "user_cooldowns": {}
   }
 }
