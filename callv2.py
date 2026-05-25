@@ -6625,6 +6625,35 @@ def run_bot(token_override: str = ""):
                 except: pass
 
         # ══════════════════════════════════════════════════════════════
+        # 🔒 قرارات مزامنة الداتا — Data Sync Decisions
+        # ══════════════════════════════════════════════════════════════
+        elif data == "sync_force_yes":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "✅ جاري الرفع...")
+            try:
+                from github_sync import push_to_github
+                result = push_to_github(force=True, skip_size_check=True)
+                bot.send_message(cid,
+                    f"✅ *تم رفع الداتا!*\n\n📤 رفع: {result.get('pushed', 0)}\n⏭️ تخطي: {result.get('skipped', 0)}\n❌ أخطاء: {result.get('errors', 0)}",
+                    parse_mode='Markdown')
+            except Exception as e:
+                bot.send_message(cid, f"❌ خطأ في الرفع: {e}")
+
+        elif data == "sync_force_no":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "⬇️ جاري التحميل من GitHub...")
+            try:
+                from github_sync import pull_from_github
+                result = pull_from_github()
+                bot.send_message(cid,
+                    f"⬇️ *تم تحميل الداتا من GitHub!*\n\n📥 نزل: {result.get('pulled', 0)}\n⏭️ تخطي: {result.get('skipped', 0)}\n❌ أخطاء: {result.get('errors', 0)}\n\n✅ الداتا المحلية اتستبدلت بالداتا من GitHub",
+                    parse_mode='Markdown')
+            except Exception as e:
+                bot.send_message(cid, f"❌ خطأ في التحميل: {e}")
+
+        # ══════════════════════════════════════════════════════════════
         # 📤 رفع الداتا — Push Data (expect zip upload)
         # ══════════════════════════════════════════════════════════════
         elif data == "admin_data_push":
@@ -8485,6 +8514,96 @@ def _init_data_dir():
     print(f"[init_data] ✅ Data directory ready: {DATA_DIR}")
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  📦 النسخ الاحتياطي التلقائي — كل 5 ساعات يبعت الداتا للأدمنز
+# ═══════════════════════════════════════════════════════════════════════════════
+
+AUTO_BACKUP_INTERVAL = 5 * 60 * 60  # 5 ساعات بالثواني
+
+def _auto_backup_daemon():
+    """خلفية النسخ الاحتياطي — كل 5 ساعات يبعت ملف الداتا لكل الأدمنز"""
+    # انتظر 2 دقيقة بعد البداية عشان البوت يشتغل الأول
+    time.sleep(120)
+    
+    while True:
+        try:
+            time.sleep(AUTO_BACKUP_INTERVAL)
+            _send_data_backup_to_admins()
+        except Exception as e:
+            print(f"[auto_backup] ❌ Error: {e}")
+
+def _send_data_backup_to_admins():
+    """يبعت ملف الداتا zip لكل الأدمنز"""
+    import zipfile
+    import tempfile
+    
+    try:
+        data_files = [
+            "bot_data.json",
+            "telicall_accounts.json",
+            "users_db.json",
+            "premium_db.json",
+            "banned_db.json",
+            "tokens_cache.json",
+            "call_logs.json",
+            "security_strikes.json",
+            "monthly_subs.json",
+            "dtmf_settings.json",
+            "sub_bots.json",
+            "failed_accounts.json",
+            "double_call_map.json",
+            "authorized_groups.json",
+            "owner_earnings.json",
+        ]
+        
+        # إنشاء ملف zip مؤقت
+        tmp_zip = tempfile.NamedTemporaryFile(mode='w', suffix='.zip', delete=False)
+        tmp_zip_path = tmp_zip.name
+        tmp_zip.close()
+        
+        with zipfile.ZipFile(tmp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for fname in data_files:
+                fpath = os.path.join(DATA_DIR, fname)
+                if os.path.exists(fpath):
+                    zf.write(fpath, fname)
+        
+        # إرسال الملف لكل أدمن
+        file_size = os.path.getsize(tmp_zip_path)
+        size_mb = file_size / (1024 * 1024)
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+        
+        # نستخدم البوت مباشرة
+        try:
+            _bot = telebot.TeleBot(BOT_TOKEN)
+            for admin_id in ADMIN_IDS:
+                try:
+                    with open(tmp_zip_path, 'rb') as zf:
+                        _bot.send_document(
+                            admin_id, zf,
+                            caption=f"📦 *نسخة الداتا التلقائية*\n📊 الحجم: `{size_mb:.2f} MB`\n📅 `{timestamp}`\n⏰ كل 5 ساعات",
+                            parse_mode='Markdown'
+                        )
+                    print(f"[auto_backup] ✅ Sent to admin {admin_id}")
+                except Exception as e:
+                    print(f"[auto_backup] ❌ Failed to send to admin {admin_id}: {e}")
+        except Exception as e:
+            print(f"[auto_backup] ❌ Bot init error: {e}")
+        
+        # تنظيف
+        try: os.unlink(tmp_zip_path)
+        except: pass
+        
+        print(f"[auto_backup] ✅ Backup sent ({size_mb:.2f} MB)")
+    except Exception as e:
+        print(f"[auto_backup] ❌ Error creating backup: {e}")
+
+def _start_auto_backup():
+    """تشغيل خلفية النسخ الاحتياطي"""
+    t = threading.Thread(target=_auto_backup_daemon, daemon=True, name="auto-backup")
+    t.start()
+    print(f"[auto_backup] ✅ Started (every {AUTO_BACKUP_INTERVAL // 3600} hours)")
+
+
 # ============================================================================
 if __name__ == "__main__":
     try:
@@ -8513,6 +8632,9 @@ if __name__ == "__main__":
 
         # 🔄 تشغيل خلفية التعبئة — يضمن 3 حسابات جاهزة دايماً
         start_token_refill()
+
+        # 📦 تشغيل خلفية النسخ الاحتياطي التلقائي — كل 5 ساعات
+        _start_auto_backup()
 
         # 🤖 تشغيل البوتات الفرعية المحفوظة
         threading.Thread(target=start_all_sub_bots, daemon=True).start()

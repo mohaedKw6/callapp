@@ -82,6 +82,10 @@ _stop_event = threading.Event()
 # Counter for sync cycles
 _sync_cycle_count = 0
 _last_push_time = 0.0
+# Track remote file sizes for data protection
+_remote_sizes: dict = {}
+# Pending sync decision from admin (data size warning)
+_sync_decision_pending = False
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -122,6 +126,42 @@ def _file_local_content(filepath: str) -> str | None:
             return f.read()
     except Exception:
         return None
+
+
+def _get_total_local_data_size() -> int:
+    """Get total size in bytes of all local data files."""
+    total = 0
+    for fname in SYNC_FILES:
+        fpath = os.path.join(DATA_DIR, fname)
+        if os.path.exists(fpath):
+            try:
+                total += os.path.getsize(fpath)
+            except Exception:
+                pass
+    return total
+
+
+def _get_remote_data_size() -> int:
+    """Get total size in bytes of all data files on GitHub.
+    Also updates _remote_sizes dict for individual file tracking.
+    """
+    import requests as req
+    total = 0
+    for fname in SYNC_FILES:
+        gh_path = f"{GH_DATA_DIR}/{fname}"
+        url = _gh_api_url(gh_path)
+        try:
+            r = req.get(url, headers=_gh_headers(), timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                size = data.get("size", 0)
+                _remote_sizes[fname] = size
+                total += size
+            elif r.status_code == 404:
+                _remote_sizes[fname] = 0
+        except Exception:
+            pass
+    return total
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -291,21 +331,61 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
     return {"status": "error", "detail": f"{fname}: failed after 3 attempts"}
 
 
-def push_to_github(force: bool = False) -> dict:
+def push_to_github(force: bool = False, skip_size_check: bool = False) -> dict:
     """Upload changed data files to GitHub repo.
     Only uploads files that have actually changed (hash comparison).
-    Returns {pushed: int, skipped: int, errors: int, details: []}
+    
+    🔒 Data protection: If local data size is smaller than remote GitHub data,
+    the push is BLOCKED and admins are notified with Yes/No buttons.
+    
+    Args:
+        force: Force push even if hashes match
+        skip_size_check: Skip the size protection check (used when admin approves)
+    
+    Returns {pushed: int, skipped: int, errors: int, details: [], size_blocked: bool}
     """
-    global _sync_cycle_count, _last_push_time
+    global _sync_cycle_count, _last_push_time, _sync_decision_pending
 
     if not GH_TOKEN:
         log.warning("[gh-sync] No GH_TOKEN set — skipping push")
-        return {"pushed": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"]}
+        return {"pushed": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"], "size_blocked": False}
+
+    # ═══ 🔒 حماية الداتا: تحقق الحجم ═══
+    if not skip_size_check and not force:
+        try:
+            local_size = _get_total_local_data_size()
+            remote_size = _get_remote_data_size()
+            
+            if remote_size > 0 and local_size < remote_size:
+                # الحجم المحلي أقل من الحجم المرفوع — خطر فقدان بيانات!
+                local_mb = local_size / (1024 * 1024)
+                remote_mb = remote_size / (1024 * 1024)
+                diff_mb = remote_mb - local_mb
+                
+                log.warning(
+                    "[gh-sync] 🚨 SIZE PROTECTION: Local %.2f MB < Remote %.2f MB (diff: %.2f MB) — blocking push!",
+                    local_mb, remote_mb, diff_mb
+                )
+                
+                # أبلغ الأدمنز وانتظر قرارهم
+                _notify_admins_size_warning(local_mb, remote_mb, diff_mb)
+                _sync_decision_pending = True
+                
+                return {
+                    "pushed": 0, "skipped": 0, "errors": 0,
+                    "details": [f"SIZE BLOCKED: Local {local_mb:.2f} MB < Remote {remote_mb:.2f} MB"],
+                    "size_blocked": True,
+                    "local_size_mb": local_mb,
+                    "remote_size_mb": remote_mb
+                }
+        except Exception as e:
+            log.error("[gh-sync] Size check error (proceeding anyway): %s", e)
 
     import requests as req
 
-    result = {"pushed": 0, "skipped": 0, "errors": 0, "details": []}
+    result = {"pushed": 0, "skipped": 0, "errors": 0, "details": [], "size_blocked": False}
     _sync_cycle_count += 1
+    _sync_decision_pending = False
 
     for fname in SYNC_FILES:
         local_path = os.path.join(DATA_DIR, fname)
@@ -319,7 +399,6 @@ def push_to_github(force: bool = False) -> dict:
         current_hash = _file_local_hash(local_path)
         if not force and current_hash == _local_hashes.get(fname, ""):
             result["skipped"] += 1
-            # لا نضيف التفاصيل للملفات اللي ما تغيرتش عشان ما نكدّرش اللوج
             continue
 
         push_result = _push_single_file(req, fname, local_path, current_hash)
@@ -342,6 +421,41 @@ def push_to_github(force: bool = False) -> dict:
         log.info("[gh-sync] Push #%d complete: %d pushed, %d skipped, %d errors",
                  _sync_cycle_count, result["pushed"], result["skipped"], result["errors"])
     return result
+
+
+def _notify_admins_size_warning(local_mb: float, remote_mb: float, diff_mb: float):
+    """أبلغ الأدمنز إن حجم الداتا المحلية أقل من المرفوع على GitHub"""
+    try:
+        import telebot
+        from callv2 import BOT_TOKEN, ADMIN_IDS
+        
+        _bot = telebot.TeleBot(BOT_TOKEN)
+        
+        for admin_id in ADMIN_IDS:
+            try:
+                from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+                kb = InlineKeyboardMarkup()
+                kb.row(
+                    InlineKeyboardButton("✅ نعم — اكمل الرفع", callback_data="sync_force_yes"),
+                    InlineKeyboardButton("❌ لا — نزل من GitHub", callback_data="sync_force_no"),
+                )
+                _bot.send_message(
+                    admin_id,
+                    f"🚨 *تحذير حماية الداتا!*\n\n"
+                    f"📊 الحجم المحلي: `{local_mb:.2f} MB`\n"
+                    f"☁️ حجم GitHub: `{remote_mb:.2f} MB`\n"
+                    f"📉 الفرق: `{diff_mb:.2f} MB` أقل\n\n"
+                    f"الحجم المحلي **أقل** من المرفوع على GitHub.\n"
+                    f"هل تريدني أكمل الرفع واستبدال الداتا على GitHub؟\n\n"
+                    f"✅ *نعم* = ارفع الداتا المحلية واستبدل\n"
+                    f"❌ *لا* = نزل الداتا من GitHub واستعملها محلياً",
+                    parse_mode='Markdown',
+                    reply_markup=kb
+                )
+            except Exception as e:
+                log.error("[gh-sync] Failed to notify admin %s: %s", admin_id, e)
+    except Exception as e:
+        log.error("[gh-sync] Failed to notify admins: %s", e)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
