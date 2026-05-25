@@ -1,5 +1,20 @@
 {
-  "all_users": {},
+  "all_users": {
+    "7176942849": {
+      "username": "",
+      "first_name": ".. ..",
+      "first_seen": "2026-05-25 10:29:04",
+      "total_calls": 0,
+      "phones_called": []
+    },
+    "7720825547": {
+      "username": "",
+      "first_name": ".. 😎",
+      "first_seen": "2026-05-25 10:29:26",
+      "total_calls": 0,
+      "phones_called": []
+    }
+  },
   "all_calls": [
     {
       "user_id": "6108823033",
