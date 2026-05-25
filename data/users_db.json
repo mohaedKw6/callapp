@@ -7013,5 +7013,17 @@
     "balance": 0.5,
     "streak": 1,
     "last_login_date": "2026-05-25"
+  },
+  "8715761355": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-25 03:14:00",
+    "username": "",
+    "first_name": "\u062d\u0640\u20ea\u2661\u3099\u0640\u20ea\u0640\u0644\u0627|\u210e\ud835\udc4e\ud835\udc59\ud835\udc4e \u0323\u060d\u0652\ud83d\udc97 \u203a\u064e",
+    "balance": 0.1,
+    "streak": 1,
+    "last_login_date": "2026-05-25",
+    "last_use": "2026-05-25 03:16:04",
+    "successful_calls": 2
   }
 }
