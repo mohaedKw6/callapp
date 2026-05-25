@@ -72,6 +72,10 @@ SYNC_FILES = [
     "owner_earnings.json",
 ]
 
+# ═══ الملف الرئيسي اللي بنقارن بناءً عليه ═══
+# telicall_accounts.json هو ملف الحسابات — لو عدده أقل من GitHub يبقي الداتا اتمسحت
+ACCOUNTS_FNAME = "telicall_accounts.json"
+
 # Track SHA for each file (needed for GitHub update API)
 _file_shas: dict = {}
 # Track local file hashes to detect changes
@@ -308,13 +312,98 @@ def _get_total_local_size() -> int:
     return total
 
 
+def _count_local_accounts() -> int:
+    """عدد الحسابات في telicall_accounts.json المحلي.
+    بيرجع -1 لو الملف مش موجود أو مش قرأه."""
+    local_path = os.path.join(DATA_DIR, ACCOUNTS_FNAME)
+    if not os.path.exists(local_path):
+        return -1
+    try:
+        with open(local_path, 'rb') as f:
+            raw = f.read()
+        # حاول JSON عادي الأول
+        try:
+            data = json.loads(raw.decode('utf-8'))
+            if isinstance(data, list):
+                return len(data)
+            return -1
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
+        # لو مشفر — حاول فك التشفير بنفس طريقة callv2
+        try:
+            import hashlib as _hl
+            _acc_pass = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"').strip("'").strip()
+            key = _hl.sha256(_acc_pass.encode()).digest()
+            decoded_b64 = base64.b64decode(raw)
+            decrypted = bytes([decoded_b64[i] ^ key[i % len(key)] for i in range(len(decoded_b64))]).decode('utf-8')
+            data = json.loads(decrypted)
+            if isinstance(data, list):
+                return len(data)
+        except Exception:
+            pass
+        return -1
+    except Exception:
+        return -1
+
+
+def _count_github_accounts() -> int:
+    """عدد الحسابات في telicall_accounts.json على GitHub.
+    بيرجع -1 لو مفيش ملف أو حصل خطأ."""
+    if not GH_TOKEN:
+        return -1
+    import requests as req
+    gh_path = f"{GH_DATA_DIR}/{ACCOUNTS_FNAME}"
+    url = _gh_api_url(gh_path)
+    try:
+        r = req.get(url, headers=_gh_headers(), timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            content_b64 = data.get("content", "")
+            sha = data.get("sha", "")
+            # سجل الـ SHA
+            if sha:
+                _file_shas[ACCOUNTS_FNAME] = sha
+            # فك الـ base64
+            content_b64_clean = content_b64.replace("\n", "")
+            content_bytes = base64.b64decode(content_b64_clean)
+            content_str = content_bytes.decode("utf-8")
+            # حاول JSON عادي
+            try:
+                parsed = json.loads(content_str)
+                if isinstance(parsed, list):
+                    return len(parsed)
+                return -1
+            except json.JSONDecodeError:
+                pass
+            # لو مشفر — حاول فك التشفير
+            try:
+                import hashlib as _hl
+                _acc_pass = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"').strip("'").strip()
+                key = _hl.sha256(_acc_pass.encode()).digest()
+                decrypted = bytes([content_bytes[i] ^ key[i % len(key)] for i in range(len(content_bytes))]).decode('utf-8')
+                parsed = json.loads(decrypted)
+                if isinstance(parsed, list):
+                    return len(parsed)
+            except Exception:
+                pass
+            return -1
+        elif r.status_code == 404:
+            return 0  # مفيش ملف على GitHub بعد
+        else:
+            return -1
+    except Exception:
+        return -1
+
+
 def push_to_github(force: bool = False) -> dict:
     """Upload changed data files to GitHub repo.
     Only uploads files that have actually changed (hash comparison).
     
-    🔒 Automatic data protection: If total local data size is less than 50KB,
-    this means data was likely wiped on restart. In this case, we pull from
-    GitHub instead of pushing empty data (which would destroy the backup).
+    🔒 حماية الداتا بناءً على عدد الحسابات:
+    قبل ما يرفع، بيقرأ عدد الحسابات من telicall_accounts.json المحلي
+    ويقارنه بعدد الحسابات على GitHub.
+    - لو المحلي >= GitHub → يرفع عادي (الداتا سليمة)
+    - لو المحلي < GitHub → ميرفعمش وبدل كده يسحب من GitHub
     
     Args:
         force: Force push even if hashes match
@@ -327,21 +416,36 @@ def push_to_github(force: bool = False) -> dict:
         log.warning("[gh-sync] No GH_TOKEN set — skipping push")
         return {"pushed": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"]}
 
-    # ═══ 🔒 حماية تلقائية: لو الداتا المحلية صغيرة أوي < 50KB ═══
-    # يبقى الداتا اتسحت بعد restart — نسحب من GitHub بدل ما نرفع فاضي
-    local_total = _get_total_local_size()
-    if local_total < 50 * 1024 and not force:  # أقل من 50KB
-        log.warning("[gh-sync] 🚨 Local data too small (%d bytes) — pulling from GitHub instead of pushing!", local_total)
-        try:
-            pull_result = pull_from_github()
-            log.info("[gh-sync] Recovery pull: %d pulled, %d skipped, %d errors",
-                     pull_result["pulled"], pull_result["skipped"], pull_result["errors"])
-            return {"pushed": 0, "skipped": 0, "errors": 0,
-                    "details": [f"DATA PROTECTION: Local too small ({local_total}B), pulled from GitHub instead"]}
-        except Exception as e:
-            log.error("[gh-sync] Recovery pull failed: %s", e)
-            return {"pushed": 0, "skipped": 0, "errors": 1,
-                    "details": [f"DATA PROTECTION: Local too small, pull also failed: {e}"]}
+    # ═══ 🔒 حماية الداتا: مقارنة عدد الحسابات ═══
+    # لو عدد الحسابات المحلي أقل من GitHub → الداتا اتمسحت → نسحب من GitHub
+    if not force:
+        local_count = _count_local_accounts()
+        gh_count = _count_github_accounts()
+        log.info("[gh-sync] 📊 Accounts check: local=%d, github=%d", local_count, gh_count)
+        
+        if gh_count >= 0 and local_count >= 0 and local_count < gh_count:
+            log.warning("[gh-sync] 🚨 Local accounts (%d) < GitHub accounts (%d) — pulling from GitHub instead!",
+                       local_count, gh_count)
+            try:
+                pull_result = pull_from_github()
+                log.info("[gh-sync] Recovery pull: %d pulled, %d skipped, %d errors",
+                         pull_result["pulled"], pull_result["skipped"], pull_result["errors"])
+                return {"pushed": 0, "skipped": 0, "errors": 0,
+                        "details": [f"DATA PROTECTION: Local accounts ({local_count}) < GitHub ({gh_count}), pulled from GitHub instead"]}
+            except Exception as e:
+                log.error("[gh-sync] Recovery pull failed: %s", e)
+                return {"pushed": 0, "skipped": 0, "errors": 1,
+                        "details": [f"DATA PROTECTION: Accounts too few, pull also failed: {e}"]}
+        elif local_count == -1 and gh_count > 0:
+            # ملف الحسابات المحلي مش موجود أو مش قرأه بس GitHub عنده بيانات
+            log.warning("[gh-sync] 🚨 Local accounts file unreadable but GitHub has %d accounts — pulling!", gh_count)
+            try:
+                pull_result = pull_from_github()
+                return {"pushed": 0, "skipped": 0, "errors": 0,
+                        "details": [f"DATA PROTECTION: Local unreadable, pulled {pull_result['pulled']} files from GitHub"]}
+            except Exception as e:
+                return {"pushed": 0, "skipped": 0, "errors": 1,
+                        "details": [f"DATA PROTECTION: Local unreadable, pull failed: {e}"]}
 
     import requests as req
 

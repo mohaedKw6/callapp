@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.4.4"
+BOT_VERSION = "5.4.5"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -4721,9 +4721,7 @@ def _admin_panel():
         InlineKeyboardButton("☁️ مزامنة GitHub", callback_data="admin_gh_sync"),
         InlineKeyboardButton("📥 تحميل من GitHub", callback_data="admin_gh_pull")
     )
-    kb.add(
-        InlineKeyboardButton("📦 نسخ احتياطي تلقائي", callback_data="admin_auto_backup_toggle")
-    )
+    # 📦 النسخ الاحتياطي التلقائي — تم إلغاؤه
     kb.add(
         InlineKeyboardButton("📱 منح اشتراك تطبيق", callback_data="admin_grant_app_sub"),
         InlineKeyboardButton("📱 إلغاء اشتراك تطبيق", callback_data="admin_cancel_app_sub")
@@ -6629,25 +6627,7 @@ def run_bot(token_override: str = ""):
 
         # (تم إلغاء خاصية حماية حجم الداتا — كانت بتسبب تعليق البوت)
 
-        # ══════════════════════════════════════════════════════════════
-        # 📦 نسخ احتياطي تلقائي — تفعيل/تعطيل
-        # ══════════════════════════════════════════════════════════════
-        elif data == "admin_auto_backup_toggle":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id)
-            current = is_auto_backup_enabled()
-            new_state = not current
-            set_auto_backup_enabled(new_state)
-            status_text = "✅ مفعّل" if new_state else "❌ معطّل"
-            status_emoji = "🟢" if new_state else "🔴"
-            bot.send_message(
-                cid,
-                f"📦 *النسخ الاحتياطي التلقائي*\n\n"
-                f"الحالة: {status_emoji} {status_text}\n\n"
-                f"{'⏰ هيتبعتلك ملف الداتا كل 5 ساعات تلقائياً' if new_state else '⏸️ مش هيتبعت ملف الداتا تلقائياً'}",
-                parse_mode='Markdown'
-            )
+        # (تم إلغاء خاصية النسخ الاحتياطي التلقائي نهائياً)
 
         # ══════════════════════════════════════════════════════════════
         # 📤 رفع الداتا — Push Data (expect zip upload)
@@ -8514,128 +8494,8 @@ def _init_data_dir():
 #  📦 النسخ الاحتياطي التلقائي — كل 5 ساعات يبعت الداتا للأدمنز
 # ═══════════════════════════════════════════════════════════════════════════════
 
-AUTO_BACKUP_INTERVAL = 5 * 60 * 60  # 5 ساعات بالثواني
-_auto_backup_enabled = False  # الحالة الافتراضية: معطل
-
-
-def is_auto_backup_enabled() -> bool:
-    """يرجع حالة النسخ الاحتياطي التلقائي من bot_data.json"""
-    global _auto_backup_enabled
-    try:
-        data = load_bot_data()
-        _auto_backup_enabled = data.get("settings", {}).get("auto_backup_enabled", False)
-    except Exception:
-        pass
-    return _auto_backup_enabled
-
-
-def set_auto_backup_enabled(enabled: bool):
-    """يحفظ حالة النسخ الاحتياطي التلقائي في bot_data.json"""
-    global _auto_backup_enabled
-    _auto_backup_enabled = enabled
-    try:
-        data = load_bot_data()
-        if "settings" not in data:
-            data["settings"] = {}
-        data["settings"]["auto_backup_enabled"] = enabled
-        save_bot_data(data)
-    except Exception as e:
-        print(f"[auto_backup] ❌ Error saving setting: {e}")
-
-def _auto_backup_daemon():
-    """خلفية النسخ الاحتياطي — أول نسخة بعد دقيقة (لو مفعلة)، بعدين كل 5 ساعات"""
-    # أول نسخة بعد دقيقة واحدة من التشغيل (لو مفعلة)
-    time.sleep(60)
-    if is_auto_backup_enabled():
-        try:
-            _send_data_backup_to_admins()
-            print("[auto_backup] ✅ First backup sent")
-        except Exception as e:
-            print(f"[auto_backup] ❌ First backup error: {e}")
-    else:
-        print("[auto_backup] ⏸️ Auto backup is disabled, skipping first backup")
-    
-    # بعدين كل 5 ساعات
-    while True:
-        try:
-            time.sleep(AUTO_BACKUP_INTERVAL)
-            if is_auto_backup_enabled():
-                _send_data_backup_to_admins()
-            else:
-                print("[auto_backup] ⏸️ Skipped (disabled)")
-        except Exception as e:
-            print(f"[auto_backup] ❌ Error: {e}")
-
-def _send_data_backup_to_admins():
-    """يبعت ملف الداتا zip لكل الأدمنز"""
-    import zipfile
-    import tempfile
-    
-    try:
-        data_files = [
-            "bot_data.json",
-            "telicall_accounts.json",
-            "users_db.json",
-            "premium_db.json",
-            "banned_db.json",
-            "tokens_cache.json",
-            "call_logs.json",
-            "security_strikes.json",
-            "monthly_subs.json",
-            "dtmf_settings.json",
-            "sub_bots.json",
-            "failed_accounts.json",
-            "double_call_map.json",
-            "authorized_groups.json",
-            "owner_earnings.json",
-        ]
-        
-        # إنشاء ملف zip مؤقت
-        tmp_zip = tempfile.NamedTemporaryFile(mode='w', suffix='.zip', delete=False)
-        tmp_zip_path = tmp_zip.name
-        tmp_zip.close()
-        
-        with zipfile.ZipFile(tmp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for fname in data_files:
-                fpath = os.path.join(DATA_DIR, fname)
-                if os.path.exists(fpath):
-                    zf.write(fpath, fname)
-        
-        # إرسال الملف لكل أدمن
-        file_size = os.path.getsize(tmp_zip_path)
-        size_mb = file_size / (1024 * 1024)
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
-        
-        # نستخدم البوت مباشرة
-        try:
-            _bot = telebot.TeleBot(BOT_TOKEN)
-            for admin_id in ADMIN_IDS:
-                try:
-                    with open(tmp_zip_path, 'rb') as zf:
-                        _bot.send_document(
-                            admin_id, zf,
-                            caption=f"📦 *نسخة الداتا التلقائية*\n📊 الحجم: `{size_mb:.2f} MB`\n📅 `{timestamp}`\n⏰ كل 5 ساعات",
-                            parse_mode='Markdown'
-                        )
-                    print(f"[auto_backup] ✅ Sent to admin {admin_id}")
-                except Exception as e:
-                    print(f"[auto_backup] ❌ Failed to send to admin {admin_id}: {e}")
-        except Exception as e:
-            print(f"[auto_backup] ❌ Bot init error: {e}")
-        
-        # تنظيف
-        try: os.unlink(tmp_zip_path)
-        except: pass
-        
-        print(f"[auto_backup] ✅ Backup sent ({size_mb:.2f} MB)")
-    except Exception as e:
-        print(f"[auto_backup] ❌ Error creating backup: {e}")
-
-def _start_auto_backup():
-    """تشغيل خلفية النسخ الاحتياطي"""
-    t = threading.Thread(target=_auto_backup_daemon, daemon=True, name="auto-backup")
-    t.start()
-    print(f"[auto_backup] ✅ Started (every {AUTO_BACKUP_INTERVAL // 3600} hours)")
+# ═══ النسخ الاحتياطي التلقائي — تم إلغاؤه نهائياً بناءً على طلب المستخدم ═══
+# (لا حاجة لنسخ احتياطي تلقائي — الداتا محمية عبر GitHub sync بحساب عدد الحسابات)
 
 
 # ============================================================================
@@ -8667,8 +8527,7 @@ if __name__ == "__main__":
         # 🔄 تشغيل خلفية التعبئة — يضمن 3 حسابات جاهزة دايماً
         start_token_refill()
 
-        # 📦 تشغيل خلفية النسخ الاحتياطي التلقائي — كل 5 ساعات
-        _start_auto_backup()
+        # 📦 النسخ الاحتياطي التلقائي — تم إلغاؤه نهائياً
 
         # 🤖 تشغيل البوتات الفرعية المحفوظة
         threading.Thread(target=start_all_sub_bots, daemon=True).start()
