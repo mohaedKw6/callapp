@@ -6652,7 +6652,8 @@
     "call_cost": 0.2,
     "unanswered_call_cost": 0.05,
     "daily_bonus": 0.1,
-    "referral_bonus": 0.1
+    "referral_bonus": 0.1,
+    "auto_backup_enabled": true
   },
   "promo_codes": {
     "WLQ5O06V": {
