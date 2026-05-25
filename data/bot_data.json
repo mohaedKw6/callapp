@@ -675,12 +675,13 @@
     },
     "1463963157": {
       "usage": 0,
-      "referrals": 0,
+      "referrals": 1,
       "first_seen": "2026-04-11 09:10:21",
       "username": "YYSH77202",
       "first_name": "• 𝐷𝑒𝑣: 𝑦𝑎𝑠𝑠𝑖𝑛 • ⁨",
       "streak": 1,
-      "last_login_date": "2026-05-05"
+      "last_login_date": "2026-05-05",
+      "balance": 0.1
     },
     "8532713954": {
       "usage": 0,
@@ -6993,6 +6994,16 @@
       "balance": 0.5,
       "streak": 1,
       "last_login_date": "2026-05-24"
+    },
+    "319209180": {
+      "usage": 0,
+      "referrals": 0,
+      "first_seen": "2026-05-25 01:49:31",
+      "username": "amqrsi",
+      "first_name": "ابو محمد",
+      "balance": 0.5,
+      "streak": 1,
+      "last_login_date": "2026-05-25"
     }
   },
   "premium": {
