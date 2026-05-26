@@ -4,9 +4,8 @@
 GitHub-based Data Persistence for Fox Call Bot.
 
 Uses the GitHub Contents API to store/retrieve JSON data files
-in the repo's data/ directory on a SEPARATE branch (data-sync).
-This ensures data survives Railway container restarts without
-triggering rebuilds (Railway only watches the main branch).
+in the repo's data/ directory. This ensures data survives
+Railway container restarts without needing a paid Volume.
 
 Flow:
   1. On startup:  pull latest data from GitHub → overwrite local files
@@ -15,8 +14,8 @@ Flow:
 
 Environment variables:
   GH_TOKEN   — GitHub personal access token (required)
-  GH_REPO    — GitHub repo in "owner/repo" format (default: mohaedKw6/callapp)
-  GH_BRANCH  — Branch to sync data with (default: data-sync)
+  GH_REPO    — GitHub repo in "owner/repo" format (default: mohaedkw6/callapp)
+  GH_BRANCH  — Branch to sync with (default: main)
   GH_DATA_DIR— Directory in the repo (default: data)
   DATA_DIR   — Local data directory (default: ./data)
   SYNC_INTERVAL— Seconds between auto-syncs (default: 600 = 10 min)
@@ -39,13 +38,12 @@ log = logging.getLogger("gh-sync")
 
 GH_TOKEN    = os.environ.get("GH_TOKEN", "").strip('"').strip("'").strip()
 if not GH_TOKEN:
-    log.warning("[gh-sync] ⚠️ GH_TOKEN not in env vars — GitHub sync disabled")
+    GH_TOKEN = "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"  # fallback
+    log.warning("[gh-sync] ⚠️ GH_TOKEN not in env vars, using hardcoded fallback")
 else:
     log.info("[gh-sync] ✅ GH_TOKEN loaded from env (%s...)", GH_TOKEN[:8])
-
-GH_REPO     = os.environ.get("GH_REPO", "mohaedKw6/callapp").strip('"').strip("'").strip()
-# استخدام برانش منفصل للبيانات عشان ما يعملش rebuild للسيرفر
-GH_BRANCH   = os.environ.get("GH_BRANCH", "data-sync").strip('"').strip("'").strip()
+GH_REPO     = os.environ.get("GH_REPO", "mohaedkw6/callapp").strip('"').strip("'").strip()
+GH_BRANCH   = os.environ.get("GH_BRANCH", "main").strip('"').strip("'").strip()
 GH_DATA_DIR = os.environ.get("GH_DATA_DIR", "data").strip('"').strip("'").strip()
 DATA_DIR    = os.environ.get("DATA_DIR", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "data"
@@ -66,8 +64,6 @@ SYNC_FILES = [
     "dtmf_settings.json",
     "sub_bots.json",
     "failed_accounts.json",
-    "authorized_groups.json",
-    "double_call_map.json",
 ]
 
 # Track SHA for each file (needed for GitHub update API)
@@ -77,7 +73,6 @@ _local_hashes: dict = {}
 _sync_lock = threading.Lock()
 _sync_thread = None
 _stop_event = threading.Event()
-_branch_ensured = False  # هل تأكدنا إن البرانش موجود؟
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -121,93 +116,16 @@ def _file_local_content(filepath: str) -> str | None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Ensure data-sync branch exists
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _ensure_data_branch():
-    """Create the data-sync branch if it doesn't exist.
-    This branch is separate from main so pushing data doesn't trigger Railway rebuilds.
-    """
-    global _branch_ensured
-    if _branch_ensured:
-        return True
-
-    if not GH_TOKEN:
-        return False
-
-    import requests as req
-
-    # Check if branch already exists
-    try:
-        r = req.get(
-            f"https://api.github.com/repos/{GH_REPO}/git/refs/heads/{GH_BRANCH}",
-            headers=_gh_headers(), timeout=15
-        )
-        if r.status_code == 200:
-            log.info("[gh-sync] Branch '%s' already exists", GH_BRANCH)
-            _branch_ensured = True
-            return True
-    except Exception as e:
-        log.warning("[gh-sync] Error checking branch: %s", e)
-
-    # Branch doesn't exist — create it from main
-    try:
-        # Get main branch SHA
-        r = req.get(
-            f"https://api.github.com/repos/{GH_REPO}/git/refs/heads/main",
-            headers=_gh_headers(), timeout=15
-        )
-        if r.status_code != 200:
-            log.error("[gh-sync] Failed to get main branch SHA: HTTP %d", r.status_code)
-            return False
-
-        main_sha = r.json()["object"]["sha"]
-
-        # Create the data-sync branch
-        r = req.post(
-            f"https://api.github.com/repos/{GH_REPO}/git/refs",
-            headers=_gh_headers(),
-            json={
-                "ref": f"refs/heads/{GH_BRANCH}",
-                "sha": main_sha,
-            },
-            timeout=15
-        )
-
-        if r.status_code in (200, 201):
-            log.info("[gh-sync] ✅ Created branch '%s'", GH_BRANCH)
-            _branch_ensured = True
-            return True
-        else:
-            error_msg = ""
-            try:
-                error_msg = r.json().get("message", r.text[:200])
-            except Exception:
-                error_msg = r.text[:200]
-            log.error("[gh-sync] Failed to create branch: HTTP %d - %s", r.status_code, error_msg)
-            return False
-
-    except Exception as e:
-        log.error("[gh-sync] Error creating branch: %s", e)
-        return False
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 #  Pull (download) from GitHub
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def pull_from_github() -> dict:
-    """Download all data files from GitHub repo (data-sync branch).
+    """Download all data files from GitHub repo.
     Returns {pulled: int, skipped: int, errors: int, details: []}
     """
     if not GH_TOKEN:
         log.warning("[gh-sync] No GH_TOKEN set — skipping pull")
         return {"pulled": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"]}
-
-    # تأكد إن البرانش موجود
-    if not _ensure_data_branch():
-        log.error("[gh-sync] Cannot pull — branch '%s' not available", GH_BRANCH)
-        return {"pulled": 0, "skipped": 0, "errors": len(SYNC_FILES), "details": ["Branch not available"]}
 
     import requests as req
 
@@ -218,10 +136,9 @@ def pull_from_github() -> dict:
         local_path = os.path.join(DATA_DIR, fname)
         gh_path = f"{GH_DATA_DIR}/{fname}"
         url = _gh_api_url(gh_path)
-        params = {"ref": GH_BRANCH}
 
         try:
-            r = req.get(url, headers=_gh_headers(), params=params, timeout=30)
+            r = req.get(url, headers=_gh_headers(), timeout=30)
             if r.status_code == 200:
                 data = r.json()
                 content_b64 = data.get("content", "")
@@ -277,18 +194,13 @@ def pull_from_github() -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def push_to_github(force: bool = False) -> dict:
-    """Upload changed data files to GitHub repo (data-sync branch).
+    """Upload changed data files to GitHub repo.
     Only uploads files that have actually changed (hash comparison).
     Returns {pushed: int, skipped: int, errors: int, details: []}
     """
     if not GH_TOKEN:
         log.warning("[gh-sync] No GH_TOKEN set — skipping push")
         return {"pushed": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"]}
-
-    # تأكد إن البرانش موجود
-    if not _ensure_data_branch():
-        log.error("[gh-sync] Cannot push — branch '%s' not available", GH_BRANCH)
-        return {"pushed": 0, "skipped": 0, "errors": len(SYNC_FILES), "details": ["Branch not available"]}
 
     import requests as req
 
@@ -339,7 +251,7 @@ def push_to_github(force: bool = False) -> dict:
         else:
             # Try to get SHA from GitHub first
             try:
-                r = req.get(url, headers=_gh_headers(), params={"ref": GH_BRANCH}, timeout=15)
+                r = req.get(url, headers=_gh_headers(), timeout=15)
                 if r.status_code == 200:
                     existing_sha = r.json().get("sha", "")
                     if existing_sha:
@@ -444,9 +356,6 @@ def init_github_sync():
         return
 
     log.info("[gh-sync] Initializing GitHub sync (repo: %s, branch: %s)", GH_REPO, GH_BRANCH)
-
-    # Step 0: Ensure data-sync branch exists
-    _ensure_data_branch()
 
     # Step 1: Pull latest data from GitHub
     log.info("[gh-sync] Pulling latest data from GitHub...")

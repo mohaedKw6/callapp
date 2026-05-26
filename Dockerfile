@@ -1,4 +1,4 @@
-# v4.1.0 — robust message deletion with retry + HTTP fallback, fix 401 polling
+# v4.3.0 — fix: COPY data/ directory so accounts/tokens are available at startup
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -13,7 +13,12 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY bot.py callv2.py foxapp_api.py github_sync.py translations.py /app/
 
-# Create data directory (files will be pulled from GitHub data-sync branch on startup)
+# Copy default data files into /app/data/ — these serve as templates.
+# The github_sync module will pull latest data from GitHub on startup,
+# overwriting these defaults. This ensures data persists across restarts.
+COPY data/ /app/data/
+
+# Create recordings directory
 RUN mkdir -p /app/data/recordings
 
 # DATA_DIR: where local JSON data files are stored.
