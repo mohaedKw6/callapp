@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.5.0"
+BOT_VERSION = "5.6.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -586,6 +586,12 @@ def mark_email_used(email: str):
         data["used_accounts"].append(email)
     save_bot_data(data)
 
+    # 🐘 PostgreSQL — تحديث جدول dan_accounts
+    try:
+        from db_manager import dan_mark_used
+        dan_mark_used(email)
+    except: pass
+
     # تحقق لو خلصت الحسابات كلها
     registered = set(data.get("registered_accounts", []))
     used = set(data["used_accounts"])
@@ -674,6 +680,14 @@ def process_dan_file(file_bytes: bytes) -> dict:
         global accounts
         accounts = existing
 
+        # 🐘 PostgreSQL — حفظ الحسابات الجديدة في dan_accounts
+        try:
+            from db_manager import dan_add_accounts
+            added = dan_add_accounts(to_add)
+            print(f"[dan_file] 🐘 PostgreSQL: {added} new accounts added to dan_accounts")
+        except Exception as _dbe:
+            print(f"[dan_file] ⚠️ PostgreSQL add failed: {_dbe}")
+
         # 🚀 تشغيل الحسابات في الخلفية للحصول على التوكنات
         threading.Thread(target=_init_tokens_background, args=(to_add,), daemon=True).start()
 
@@ -760,6 +774,11 @@ def _init_tokens_background(accounts_to_init: list):
                 print(f"[init_tokens] ❌ Failed after 3 attempts: {email} -> marking as used")
                 failed_emails.append(email)
                 mark_email_used(email)  # نحطه في قائمة المستعملين
+                # 🐘 PostgreSQL — تحديث جدول dan_accounts
+                try:
+                    from db_manager import dan_mark_failed
+                    dan_mark_failed(email)
+                except: pass
                 
             # انتظار قصير بين كل حساب
             time.sleep(0.3)
@@ -771,6 +790,11 @@ def _init_tokens_background(accounts_to_init: list):
             if email:
                 failed_emails.append(email)
                 mark_email_used(email)
+                # 🐘 PostgreSQL — تحديث جدول dan_accounts
+                try:
+                    from db_manager import dan_mark_failed
+                    dan_mark_failed(email)
+                except: pass
     
     # نحفظ الفاشلين في ملف
     if failed_emails:
@@ -1418,6 +1442,16 @@ def get_ready_token() -> dict:
 def pop_ready_token() -> dict:
     """أخذ توكن جاهز وحذفه من القائمة — آمن للخيوط المتزامنة"""
     with _token_lock:
+        # 🐘 PostgreSQL — أخذ التوكن مباشرة من قاعدة البيانات
+        try:
+            from db_manager import token_get_ready, token_remove
+            ready = token_get_ready(limit=1)
+            if ready:
+                token_data = ready[0]
+                token_remove(token_data.get("email", ""))
+                return token_data
+        except: pass
+        # 📄 Fallback — JSON cache
         cache = load_tokens_cache()
         ready_tokens = cache.get("ready_tokens", [])
         if ready_tokens:
@@ -2290,11 +2324,35 @@ def clear():
 
 def load_accounts():
     global accounts
+    # 🐘 PostgreSQL — المخزن الأساسي (أولوية قصوى)
+    try:
+        from db_manager import dan_get_unused, dan_count_remaining
+        remaining = dan_count_remaining()
+        if remaining > 0:
+            unused = dan_get_unused(limit=remaining)
+            if unused:
+                accounts = unused
+                print(f"[load_accounts] 🐘 Loaded {len(accounts)} unused accounts from PostgreSQL")
+                # حفظ نسخة محلية مشفرة
+                try:
+                    _save_accounts_encrypted()
+                except: pass
+                return len(accounts)
+    except Exception as e:
+        print(f"[load_accounts] ⚠️ PostgreSQL load failed: {e}")
+    # 📄 Fallback — ملف JSON محلي
     if os.path.exists(ACCOUNTS_FILE):
         try:
             # حاول فك التشفير أولاً
             decrypted = _decrypt_accounts(ACCOUNTS_FILE)
             accounts  = json.loads(decrypted)
+            # 🐘 استيراد لـ PostgreSQL لو مش موجودة
+            try:
+                from db_manager import dan_add_accounts, dan_count_total
+                if dan_count_total() == 0 and accounts:
+                    dan_add_accounts(accounts)
+                    print(f"[load_accounts] 🐘 Imported {len(accounts)} accounts from local file to PostgreSQL")
+            except: pass
             return len(accounts)
         except:
             try:
@@ -2303,6 +2361,12 @@ def load_accounts():
                     accounts = json.load(f)
                 # احفظه مشفر فوراً
                 _save_accounts_encrypted()
+                # 🐘 استيراد لـ PostgreSQL
+                try:
+                    from db_manager import dan_add_accounts, dan_count_total
+                    if dan_count_total() == 0 and accounts:
+                        dan_add_accounts(accounts)
+                except: pass
                 return len(accounts)
             except:
                 pass
@@ -2316,8 +2380,14 @@ def _save_accounts_encrypted():
         f.write(encrypted)
 
 def save_account(email, device, tok):
-    accounts.append({"email": email, "x-client-device-id": device, "x-token": tok, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+    acc = {"email": email, "x-client-device-id": device, "x-token": tok, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    accounts.append(acc)
     _save_accounts_encrypted()
+    # 🐘 PostgreSQL — حفظ الحساب في dan_accounts
+    try:
+        from db_manager import dan_add_accounts
+        dan_add_accounts([acc])
+    except: pass
 
 # دوال إنشاء البريد المؤقت (مخفية تماماً)
 def create_mob2_mail():
@@ -2493,8 +2563,8 @@ def get_proxy_call_request(phone):
             email_used = ready_token.get("email", "")
         elif accounts:
             acc = accounts[-1]
-            call_token = acc.get('x-token')
-            call_device_id = acc.get('x-client-device-id')
+            call_token = acc.get('x-token') or acc.get('token')
+            call_device_id = acc.get('x-client-device-id') or acc.get('device_id')
             email_used = acc.get('email', '')
         else:
             return None
@@ -2639,6 +2709,11 @@ def _remove_account_by_email(email: str):
                 _save_accounts_encrypted()
             except Exception:
                 pass
+            # 🐘 PostgreSQL — تحديث جدول dan_accounts
+            try:
+                from db_manager import dan_mark_used
+                dan_mark_used(email)
+            except: pass
             print(f"[start_call] 🗑️ Removed {removed} account(s) for {email} from list")
 
 
@@ -2668,8 +2743,8 @@ def start_call(phone, max_retries=3):
         elif accounts:
             with _token_lock:
                 acc = accounts[-1]
-                call_token = acc.get('x-token')
-                call_device_id = acc.get('x-client-device-id')
+                call_token = acc.get('x-token') or acc.get('token')
+                call_device_id = acc.get('x-client-device-id') or acc.get('device_id')
                 email_used = acc.get('email', '')
             print(f"[start_call] 📂 Attempt {attempt+1}/{max_retries}: account file {email_used}")
         else:
@@ -3267,12 +3342,13 @@ def make_call(phone, dur=60, auto_create=True, max_retries=5, min_answered_durat
 
         # لو الرصيد خلص → احذف الحساب وجرب الحساب التالي
         if info == 'no_balance' or info is None:
-            if accounts:
+            if email_used_for_call:
+                _remove_account_by_email(email_used_for_call)
+                mark_email_used(email_used_for_call)
+            elif accounts:
                 bad = accounts[-1]
                 bad_email = bad.get("email", "") if isinstance(bad, dict) else ""
-                accounts.pop()
-                try: _save_accounts_encrypted()
-                except: pass
+                _remove_account_by_email(bad_email)
                 if bad_email:
                     mark_email_used(bad_email)
             continue  # يرجع للحلقة ويجيب حساب جديد لو الـ list فاضي
@@ -3293,20 +3369,15 @@ def make_call(phone, dur=60, auto_create=True, max_retries=5, min_answered_durat
                 log_call(user_id, phone, call_from, success=True, duration=dur)
             
             # احذف من accounts لو موجود
-            if accounts:
-                accounts.pop()
-                try: _save_accounts_encrypted()
-                except: pass
+            if email_used_for_call:
+                _remove_account_by_email(email_used_for_call)
             return True, call_from, rec_data
 
         elif result == 'answered_short':
             # رد وقطع بسرعة → احذف الحساب وسجله كمستعمل
             if email_used_for_call:
                 mark_email_used(email_used_for_call)
-            if accounts:
-                accounts.pop()
-                try: _save_accounts_encrypted()
-                except: pass
+                _remove_account_by_email(email_used_for_call)
             continue
 
         elif result in ('no_answer', 'no_ring', 'failed', 'not_found'):
@@ -3370,13 +3441,15 @@ def make_call_fast(phone, dur=60, user_id=None, display_phone=None):
         elif accounts:
             # مفيش توكن جاهز — نستخدم حساب من القائمة
             info = start_call(phone)
+            email_used_fast = info.get('email_used', '') if isinstance(info, dict) else ''
             if info == 'no_balance' or info is None:
-                if accounts:
+                if email_used_fast:
+                    _remove_account_by_email(email_used_fast)
+                    mark_email_used(email_used_fast)
+                elif accounts:
                     bad = accounts[-1]
                     bad_email = bad.get("email", "") if isinstance(bad, dict) else ""
-                    accounts.pop()
-                    try: _save_accounts_encrypted()
-                    except: pass
+                    _remove_account_by_email(bad_email)
                     if bad_email:
                         mark_email_used(bad_email)
                 continue
@@ -3402,19 +3475,14 @@ def make_call_fast(phone, dur=60, user_id=None, display_phone=None):
             if user_id:
                 log_call(user_id, phone, call_from, success=True, duration=dur)
             # احذف من accounts
-            if accounts:
-                accounts.pop()
-                try: _save_accounts_encrypted()
-                except: pass
+            if email_used_for_call:
+                _remove_account_by_email(email_used_for_call)
             return True, call_from, rec_data
 
         elif result == 'answered_short':
             if email_used_for_call:
                 mark_email_used(email_used_for_call)
-            if accounts:
-                accounts.pop()
-                try: _save_accounts_encrypted()
-                except: pass
+                _remove_account_by_email(email_used_for_call)
             continue
 
         elif result in ('no_answer', 'no_ring', 'failed', 'not_found'):
@@ -3636,12 +3704,13 @@ def multi_call(phone, attempts=5, dur=60, voice_pcm=None, dtmf_cb=None, status_c
         email_used_for_call = info.get('email_used', '') if isinstance(info, dict) else ''
 
         if info == 'no_balance' or info is None:
-            if accounts:
+            if email_used_for_call:
+                _remove_account_by_email(email_used_for_call)
+                mark_email_used(email_used_for_call)
+            elif accounts:
                 bad = accounts[-1]
                 bad_email = bad.get("email", "") if isinstance(bad, dict) else ""
-                accounts.pop()
-                try: _save_accounts_encrypted()
-                except: pass
+                _remove_account_by_email(bad_email)
                 if bad_email:
                     mark_email_used(bad_email)
             if i < attempts:
@@ -3664,10 +3733,8 @@ def multi_call(phone, attempts=5, dur=60, voice_pcm=None, dtmf_cb=None, status_c
             if user_id:
                 log_call(user_id, phone, call_from, success=True, duration=dur)
 
-            if accounts:
-                accounts.pop()
-                try: _save_accounts_encrypted()
-                except: pass
+            if email_used_for_call:
+                _remove_account_by_email(email_used_for_call)
 
             rec_data = res[1] if isinstance(res, tuple) and len(res) > 1 else b''
             return (True, rec_data, call_from)
@@ -3676,10 +3743,7 @@ def multi_call(phone, attempts=5, dur=60, voice_pcm=None, dtmf_cb=None, status_c
             # رد وقطع بسرعة → سجل الحساب كمستعمل
             if email_used_for_call:
                 mark_email_used(email_used_for_call)
-            if accounts:
-                accounts.pop()
-                try: _save_accounts_encrypted()
-                except: pass
+                _remove_account_by_email(email_used_for_call)
 
         elif result == 'declined':
             # 📵 مشغول - يقفل فوراً من غير إعادة المحاولة
@@ -7523,20 +7587,29 @@ def run_bot(token_override: str = ""):
                 # تنظيف
                 try: os.unlink(tmp_zip.name)
                 except: pass
-                # 🔄 إعادة تحميل الحسابات من الملفات الجديدة
-                try:
-                    load_accounts()
-                    print(f"[data_push] ✅ Reloaded accounts: {len(accounts)}")
-                except Exception as _re:
-                    print(f"[data_push] ⚠️ Failed to reload accounts: {_re}")
-                # 🐘 استيراد البيانات الجديدة لـ PostgreSQL
+                # 🐘 استيراد البيانات الجديدة لـ PostgreSQL (قبل load_accounts)
                 db_msg = ""
                 try:
                     from db_manager import import_from_json
                     db_result = import_from_json(DATA_DIR)
                     db_msg = f"\n🐘 PostgreSQL: {db_result['imported']} ملف تم استيراده"
+                    if db_result.get('details'):
+                        for d in db_result.get('details', {}).get('details', []):
+                            if 'account' in d.lower() or 'token' in d.lower():
+                                db_msg += f"\n  {d}"
                 except Exception as _dbe:
                     db_msg = f"\n⚠️ PostgreSQL استيراد فشل: {_dbe}"
+                # 🔄 إعادة تحميل الحسابات من PostgreSQL (بعد الاستيراد)
+                try:
+                    load_accounts()
+                    print(f"[data_push] ✅ Reloaded accounts: {len(accounts)}")
+                except Exception as _re:
+                    print(f"[data_push] ⚠️ Failed to reload accounts: {_re}")
+                # 🚀 تهيئة التوكنات من الحسابات الجديدة
+                if accounts:
+                    try:
+                        threading.Thread(target=_init_tokens_background, args=(accounts,), daemon=True).start()
+                    except: pass
                 # ☁️ رفع على GitHub (نسخ احتياطي)
                 gh_msg = ""
                 if replaced:
@@ -8773,6 +8846,7 @@ if __name__ == "__main__":
             print(f"[startup] ⚠️ GitHub backup init failed: {_ghe}")
 
         load_accounts()
+        print(f"[startup] 📞 Accounts loaded: {len(accounts)} available")
 
         # 🧹 تنظيف التوكنات المستعملة من الكاش
         cleanup_used_tokens_from_cache()
