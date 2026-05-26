@@ -1349,9 +1349,19 @@ ref = None
 G, R, Y, B, P, C, W, E = '', '', '', '', '', '', '', ''
 
 DOMAINS = [
-    "daouse.com", "bltiwd.com", "rommiui.com", "mrotzis.com", 
-    "mkzaso.com", "illubd.com", "wnbaldwy.com", "xkxkud.com", 
-    "yzcalo.com", "ozsaip.com", "bwmyga.com", "ruutukf.com", "inovic.com"
+    # ── المجموعة الأصلية (13) ──
+    "daouse.com", "bltiwd.com", "rommiui.com", "mrotzis.com",
+    "mkzaso.com", "illubd.com", "wnbaldwy.com", "xkxkud.com",
+    "yzcalo.com", "ozsaip.com", "bwmyga.com", "ruutukf.com", "inovic.com",
+    # ── المجموعة الجديدة (32) ──
+    "vmani.com", "dpptd.com", "moflix.com", "fanclub.com",
+    "nqmo.com", "hostaldelrio.com", "sjgpne.com", "lfatj.com",
+    "kzlcl.com", "vbaif.com", "yarbfi.com", "rcedem.com",
+    "mkgt.com", "fexbox.org", "bheps.com", "lgbtq.page",
+    "triots.com", "kalmlom.com", "khreb.com", "okhfb.com",
+    "adrianou.com", "psnator.com", "rigle.com", "plonker.com",
+    "9me1.com", "maulve.com", "txcct.com", "chitthuri.com",
+    "digiway.com", "freps.click", "pirol.com", "retre.org",
 ]
 
 # ============================================================================
