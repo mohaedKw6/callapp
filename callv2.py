@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.6.0"
+BOT_VERSION = "5.7.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -704,8 +704,10 @@ def process_dan_file(file_bytes: bytes) -> dict:
 def _init_tokens_background(accounts_to_init: list):
     """
     يشغل الحسابات في الخلفية ويجيب التوكنات ويحفظها
-    علشان تكون جاهزة للاستخدام السريع
+    علماً تكون جاهزة للاستخدام السريع
     الحسابات الفاشلة تتحط في قائمة "used_accounts"
+    
+    ⚠️ دايماً يعمل init session جديد — التوكنات القديمة ممكن تكون منتهية
     """
     print(f"[init_tokens] 🚀 بدء تهيئة {len(accounts_to_init)} حساب...")
     
@@ -715,15 +717,8 @@ def _init_tokens_background(accounts_to_init: list):
         try:
             email = acc.get("email", "")
             device_id = acc.get("device_id") or acc.get("x-client-device-id", "")
-            acc_token = acc.get("token") or acc.get("x-token", "")
             
-            # لو الحساب عنده توكن خالص نضيفه مباشرة
-            if acc_token and device_id:
-                add_ready_token(email, device_id, acc_token)
-                print(f"[init_tokens] ✅ Token exists for {email}")
-                continue
-            
-            # لو مفيش توكن، نعمل init session
+            # ⚠️ دايماً نعمل init session جديد — التوكنات القديمة ممكن تكون منتهية
             if not device_id:
                 device_id = ''.join(random.choices('0123456789abcdef', k=16))
             
@@ -1501,6 +1496,25 @@ def cleanup_used_tokens_from_cache():
         save_tokens_cache(cache)
         print(f"[tokens_cache] 🧹 Cleaned up {removed} used tokens from cache ({before} → {len(ready_tokens)})")
     return removed
+
+def clear_all_ready_tokens():
+    """يمسح كل التوكنات الجاهزة — يستخدم عند البداية لو التوكنات قديمة/منتهية"""
+    try:
+        from db_manager import token_count, token_get_ready, token_remove
+        count = token_count()
+        if count > 0:
+            # حذف كل التوكنات
+            tokens = token_get_ready(limit=100000)
+            for t in tokens:
+                token_remove(t.get("email", ""))
+            print(f"[tokens_cache] 🧹 Cleared ALL {count} ready tokens (they were expired)")
+    except: pass
+    # مسح JSON cache
+    cache = {"ready_tokens": [], "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    try:
+        with open(TOKENS_CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+    except: pass
 
 # ============================================================================
 #                  نظام تسجيل المكالمات والمستخدمين
@@ -2685,6 +2699,10 @@ def _try_telicall_call(phone, call_token, call_device_id, email_used=""):
             else:
                 print(f"[start_call] ❌ Telicall 400: {r.text[:200]}")
                 return {'error': f"call_400"}
+        elif r.status_code == 401:
+            # ⚠️ التوكن منتهي — نحتاج حساب جديد
+            print(f"[start_call] ❌ Token expired for {email_used}")
+            return 'token_expired'
         elif r.status_code == 404:
             print(f"[start_call] ❌ API 404 for {email_used}")
             return {'error': 'call_404'}
@@ -2785,6 +2803,15 @@ def start_call(phone, max_retries=3):
                 continue
             # خطأ تاني - ارجع النتيجة
             return result
+        
+        if result == 'token_expired':
+            # ⚠️ التوكن منتهي — سجله كمستعمل وجرب الحساب التالي
+            print(f"[start_call] ⚠️ Token expired for {email_used} — marking as used and trying next")
+            if email_used:
+                _remove_account_by_email(email_used)
+                mark_email_used(email_used)
+                last_failed_email = email_used
+            continue
 
         # نجاح!
         return result
@@ -3402,10 +3429,10 @@ def make_call_fast(phone, dur=60, user_id=None, display_phone=None):
     ⚡ تستخدم توكن جاهز فوراً (بدون تأخير)
     🔄 لو التوكن فشل، ينتقل للحساب التاني فوراً
     🗑️ يحذف الحسابات الفاشلة ويجيب غيرها بسرعة
-    ❌ مفيش time.sleep بين المحاولات — سرعة قصوى
+    🔧 لو كل التوكنات منتهية → create_account() حساب جديد
     """
     os.makedirs(RECORDINGS_DIR, exist_ok=True)
-    max_fast_retries = 5
+    max_fast_retries = 8  # زيادة المحاولات عشان create_account
 
     for attempt in range(max_fast_retries):
         # ⚡ حاول توكن جاهز أولاً
@@ -3422,6 +3449,13 @@ def make_call_fast(phone, dur=60, user_id=None, display_phone=None):
                 if result and isinstance(result, dict) and "error" not in result:
                     info = result
                     print(f"[make_call_fast] ⚡ Attempt {attempt+1}: ready token for {email_used} ✅")
+                elif result == 'token_expired':
+                    # ⚠️ التوكن منتهي — سجله كمستعمل وجرب التالي
+                    print(f"[make_call_fast] ⚠️ Token expired for {email_used}")
+                    if email_used:
+                        _remove_account_by_email(email_used)
+                        mark_email_used(email_used)
+                    continue
                 else:
                     # التوكن فشل — نحذفه وننتقل فوراً
                     err = result.get("error", "") if isinstance(result, dict) else ""
@@ -3442,7 +3476,7 @@ def make_call_fast(phone, dur=60, user_id=None, display_phone=None):
             # مفيش توكن جاهز — نستخدم حساب من القائمة
             info = start_call(phone)
             email_used_fast = info.get('email_used', '') if isinstance(info, dict) else ''
-            if info == 'no_balance' or info is None:
+            if info == 'no_balance' or info is None or info == 'token_expired':
                 if email_used_fast:
                     _remove_account_by_email(email_used_fast)
                     mark_email_used(email_used_fast)
@@ -3454,9 +3488,16 @@ def make_call_fast(phone, dur=60, user_id=None, display_phone=None):
                         mark_email_used(bad_email)
                 continue
         else:
-            # مفيش حسابات خالص
-            print(f"[make_call_fast] ❌ No accounts or ready tokens available")
-            return False, None, b''
+            # 🔧 مفيش حسابات خالص — أنشئ واحد جديد
+            print(f"[make_call_fast] 🔧 No accounts — creating new one (attempt {attempt+1})...")
+            created = create_account()
+            if created:
+                # الحساب الجديد اتضاف لـ accounts واتحفظ — جرب تاني
+                load_accounts()
+                continue
+            else:
+                print(f"[make_call_fast] ❌ Failed to create account")
+                return False, None, b''
 
         if not info:
             continue
@@ -8848,8 +8889,12 @@ if __name__ == "__main__":
         load_accounts()
         print(f"[startup] 📞 Accounts loaded: {len(accounts)} available")
 
-        # 🧹 تنظيف التوكنات المستعملة من الكاش
+        # 🧹 تنظيف التوكنات المستعملة + مسح التوكنات المنتهية
         cleanup_used_tokens_from_cache()
+        # ⚠️ مسح كل التوكنات القديمة لأنها منتهية الصلاحية (Telicall token lifetime ~30 days)
+        # بعد المسح، البوت هيعمل create_account() أو init_tokens_background() لو فيه حسابات
+        clear_all_ready_tokens()
+        print(f"[startup] 🧹 Cleared old ready tokens — will create fresh ones")
 
         # 🚀 تهيئة التوكنات من الحسابات المحفوظة عند البدء
         if accounts:
