@@ -1,30 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GitHub-based Data Persistence for Fox Call Bot.
+GitHub-based Daily Backup for Fox Call Bot (v5.5.0).
 
-Uses the GitHub Contents API to store/retrieve JSON data files
-in the repo's data/ directory. This ensures data survives
-Railway container restarts without needing a paid Volume.
+🐘 PostgreSQL is now the PRIMARY data store (persistent).
+☁️ GitHub is the BACKUP only — syncs once per day.
 
 Flow:
-  1. On startup:  pull latest data from GitHub → overwrite local files
-  2. Every 10 seconds: push local data to GitHub (only if changed)
-  3. On shutdown: final push to GitHub
+  1. On startup: if PostgreSQL is empty → pull from GitHub → import to DB
+  2. Every 24 hours: export from PostgreSQL → push to GitHub (daily backup)
+  3. On manual data upload: immediate push to GitHub
   4. On critical changes (group auth, subs, sub-bots): immediate push
 
-🔒 Data Protection (v5.4.5):
-  Before pushing, compare local Dan.json account count vs GitHub.
-  If local count >= GitHub count → push (data is safe)
-  If local count < GitHub count → pull from GitHub instead (data was lost)
+🔒 Data Protection:
+  Before pushing, compare PostgreSQL Dan.json account count vs GitHub.
+  - If DB >= GitHub → push (data is safe)
+  - If DB < GitHub → pull from GitHub instead (data was lost)
 
 Environment variables:
   GH_TOKEN   — GitHub personal access token (required)
-  GH_REPO    — GitHub repo in "owner/repo" format (default: MohamedQM/callapp)
+  GH_REPO    — GitHub repo in "owner/repo" format (default: mohaedKw6/callapp)
   GH_BRANCH  — Branch to sync with (default: main)
   GH_DATA_DIR— Directory in the repo (default: data)
   DATA_DIR   — Local data directory (default: ./data)
-  SYNC_INTERVAL— Seconds between auto-syncs (default: 10)
+  SYNC_INTERVAL— Seconds between auto-syncs (default: 86400 = 24 hours)
 """
 
 import os
@@ -44,18 +43,18 @@ log = logging.getLogger("gh-sync")
 
 GH_TOKEN    = os.environ.get("GH_TOKEN", "").strip('"').strip("'").strip()
 if not GH_TOKEN:
-    GH_TOKEN = "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"  # fallback
+    GH_TOKEN = "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"  # fallback
     log.warning("[gh-sync] ⚠️ GH_TOKEN not in env vars, using hardcoded fallback")
 else:
     log.info("[gh-sync] ✅ GH_TOKEN loaded from env (%s...)", GH_TOKEN[:8])
-GH_REPO     = os.environ.get("GH_REPO", "MohamedQM/callapp").strip('"').strip("'").strip()
+GH_REPO     = os.environ.get("GH_REPO", "mohaedKw6/callapp").strip('"').strip("'").strip()
 GH_BRANCH   = os.environ.get("GH_BRANCH", "main").strip('"').strip("'").strip()
 GH_DATA_DIR = os.environ.get("GH_DATA_DIR", "data").strip('"').strip("'").strip()
 DATA_DIR    = os.environ.get("DATA_DIR", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "data"
 ))
-# 🔁 تزامن كل 10 ثواني — عشان الداتا ما تضيعش أبداً
-SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL", "10"))
+# 🐘🔄 نسخ احتياطي يومي — كل 24 ساعة (86400 ثانية) بدل كل 10 ثواني
+SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL", "86400"))
 
 # Files to sync — match the list in callv2._init_data_dir()
 SYNC_FILES = [
@@ -90,7 +89,7 @@ _stop_event = threading.Event()
 # Counter for sync cycles
 _sync_cycle_count = 0
 _last_push_time = 0.0
-
+_last_backup_date = ""  # تاريخ آخر نسخة احتياطية (YYYY-MM-DD)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -129,7 +128,6 @@ def _file_local_content(filepath: str, is_encrypted: bool = False) -> str | None
         return None
     try:
         if is_encrypted:
-            # قراءة الملف المشفر كـ binary وتحويله لنص
             with open(filepath, "rb") as f:
                 raw = f.read()
             return raw.decode("latin-1")  # يحافظ على كل البايتات
@@ -140,14 +138,20 @@ def _file_local_content(filepath: str, is_encrypted: bool = False) -> str | None
         return None
 
 
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Dan.json Account Count — حماية البيانات
+#  🔒 Dan.json Account Count — حماية البيانات (من PostgreSQL)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _get_local_dan_count() -> int:
-    """عدد حسابات Dan.json المحلية (registered_accounts في bot_data.json)"""
+    """عدد حسابات Dan.json (من PostgreSQL الأول، ثم JSON)"""
+    # 🐘 PostgreSQL — المصدر الأساسي
+    try:
+        from db_manager import dan_count_total
+        count = dan_count_total()
+        if count > 0:
+            return count
+    except: pass
+    # 📄 Fallback — bot_data.json
     bot_data_path = os.path.join(DATA_DIR, "bot_data.json")
     if not os.path.exists(bot_data_path):
         return 0
@@ -251,7 +255,6 @@ def pull_from_github() -> dict:
                     log.info("[gh-sync] Pulled %s", fname)
 
             elif r.status_code == 404:
-                # File doesn't exist on GitHub yet — that's fine
                 result["skipped"] += 1
                 result["details"].append(f"{fname}: not on GitHub yet")
             else:
@@ -287,11 +290,10 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
 
     # Build commit message
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    commit_msg = f"auto-sync: update {fname} [{ts}]"
+    commit_msg = f"daily-backup: update {fname} [{ts}]"
 
     # Encode content as base64
     if is_encrypted:
-        # ملف مشفر — المحتوى متقرأ كـ latin-1، نحوله لبايتات ثم base64
         content_b64 = base64.b64encode(content.encode("latin-1")).decode("ascii")
     else:
         content_b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
@@ -341,7 +343,7 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
                         if new_sha:
                             body["sha"] = new_sha
                             _file_shas[fname] = new_sha
-                            continue  # إعادة المحاولة بالـ SHA الجديد
+                            continue
                 except Exception:
                     pass
 
@@ -351,7 +353,6 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
             except Exception:
                 error_msg = r.text[:200]
 
-            # لو مش التعارض، نحاول تاني بعد انتظار
             if attempt < 2:
                 time.sleep(1 * (attempt + 1))
                 continue
@@ -368,27 +369,34 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
 
 
 def push_to_github(force: bool = False) -> dict:
-    """Upload changed data files to GitHub repo.
+    """Upload changed data files to GitHub repo (daily backup).
     Only uploads files that have actually changed (hash comparison).
 
-    🔒 Data Protection (v5.4.5): Based on Dan.json account count
-    Before pushing, compare local registered_accounts count vs GitHub's.
-    - If local >= GitHub → push (data is safe, no accounts lost)
-    - If local < GitHub → pull from GitHub instead (data was lost on restart)
+    🔒 Data Protection: Based on Dan.json account count
+    Before pushing, compare DB registered_accounts count vs GitHub's.
+    - If DB >= GitHub → push (data is safe, no accounts lost)
+    - If DB < GitHub → pull from GitHub instead (data was lost)
 
     Args:
         force: Force push even if hashes match
 
     Returns {pushed: int, skipped: int, errors: int, details: []}
     """
-    global _sync_cycle_count, _last_push_time
+    global _sync_cycle_count, _last_push_time, _last_backup_date
 
     if not GH_TOKEN:
         log.warning("[gh-sync] No GH_TOKEN set — skipping push")
         return {"pushed": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"]}
 
+    # 🐘 قبل الرفع — نحدث ملفات JSON من PostgreSQL
+    try:
+        from db_manager import export_to_json
+        export_result = export_to_json(DATA_DIR)
+        log.info("[gh-sync] 🐘 Exported from DB to JSON: %d files", export_result.get("exported", 0))
+    except Exception as e:
+        log.warning("[gh-sync] ⚠️ DB export failed, using local JSON: %s", e)
+
     # ═══ 🔒 حماية بناءً على عدد حسابات Dan.json ═══
-    # لو عدد الحسابات المحلية أقل من GitHub → الداتا ضاعت، نسحب من GitHub
     if not force:
         local_count = _get_local_dan_count()
         github_count = _get_github_dan_count()
@@ -402,8 +410,11 @@ def push_to_github(force: bool = False) -> dict:
             )
             try:
                 pull_result = pull_from_github()
-                log.info("[gh-sync] Recovery pull: %d pulled, %d skipped, %d errors",
-                         pull_result["pulled"], pull_result["skipped"], pull_result["errors"])
+                # 🐘 بعد السحب — استيراد لـ PostgreSQL
+                try:
+                    from db_manager import import_from_json
+                    import_from_json(DATA_DIR)
+                except: pass
                 return {
                     "pushed": 0, "skipped": 0, "errors": 0,
                     "details": [
@@ -457,30 +468,28 @@ def push_to_github(force: bool = False) -> dict:
             log.warning("[gh-sync] Failed to push %s: %s", fname, push_result["detail"])
 
     _last_push_time = time.time()
+    _last_backup_date = datetime.now().strftime("%Y-%m-%d")
 
     if result["pushed"] > 0 or result["errors"] > 0:
-        log.info("[gh-sync] Push #%d complete: %d pushed, %d skipped, %d errors",
+        log.info("[gh-sync] Backup #%d complete: %d pushed, %d skipped, %d errors",
                  _sync_cycle_count, result["pushed"], result["skipped"], result["errors"])
     return result
 
 
-
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Auto-sync background thread — كل 10 ثواني
+#  Auto-sync background thread — نسخ احتياطي يومي (كل 24 ساعة)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _sync_loop():
-    """Background thread that periodically pushes data to GitHub."""
-    log.info("[gh-sync] Auto-sync started (interval: %ds)", SYNC_INTERVAL)
+    """Background thread that pushes data to GitHub once per day."""
+    log.info("[gh-sync] Daily backup started (interval: %ds = %d hours)", SYNC_INTERVAL, SYNC_INTERVAL // 3600)
 
     while not _stop_event.is_set():
         # Wait for the interval, but check stop_event frequently
         waited = 0
         while waited < SYNC_INTERVAL and not _stop_event.is_set():
-            time.sleep(min(2, SYNC_INTERVAL - waited))
-            waited += 2
+            time.sleep(min(30, SYNC_INTERVAL - waited))
+            waited += 30
 
         if _stop_event.is_set():
             break
@@ -489,13 +498,13 @@ def _sync_loop():
             with _sync_lock:
                 push_to_github()
         except Exception as e:
-            log.error("[gh-sync] Auto-sync error: %s", e)
+            log.error("[gh-sync] Daily backup error: %s", e)
 
-    log.info("[gh-sync] Auto-sync stopped")
+    log.info("[gh-sync] Daily backup stopped")
 
 
 def start_auto_sync():
-    """Start the background auto-sync thread."""
+    """Start the background daily backup thread."""
     global _sync_thread
     if _sync_thread is not None and _sync_thread.is_alive():
         return  # Already running
@@ -503,11 +512,11 @@ def start_auto_sync():
     _stop_event.clear()
     _sync_thread = threading.Thread(target=_sync_loop, daemon=True, name="gh-sync")
     _sync_thread.start()
-    log.info("[gh-sync] Auto-sync thread launched")
+    log.info("[gh-sync] Daily backup thread launched (every %d hours)", SYNC_INTERVAL // 3600)
 
 
 def stop_auto_sync():
-    """Stop the background auto-sync thread and do a final push."""
+    """Stop the background daily backup thread and do a final push."""
     _stop_event.set()
     # Final push before shutdown
     try:
@@ -519,7 +528,7 @@ def stop_auto_sync():
 
 def push_now():
     """Immediate push to GitHub — call this after critical data changes
-    (group authorization, subscription, sub-bot registration, etc.)
+    (group authorization, subscription, sub-bot registration, manual upload, etc.)
     Runs in a background thread to avoid blocking the caller.
     """
     def _do_push():
@@ -537,24 +546,42 @@ def push_now():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def init_github_sync():
-    """Full initialization: pull from GitHub, then start auto-sync.
+    """Full initialization: pull from GitHub if PostgreSQL is empty, then start daily backup.
     Call this AFTER _init_data_dir() so defaults exist locally.
     This ensures all .json data is loaded BEFORE the bot starts processing messages.
     """
     if not GH_TOKEN:
-        log.warning("[gh-sync] No GH_TOKEN — GitHub sync disabled")
-        log.warning("[gh-sync] Set GH_TOKEN env var to enable persistent storage")
+        log.warning("[gh-sync] No GH_TOKEN — GitHub backup disabled")
+        log.warning("[gh-sync] Set GH_TOKEN env var to enable daily backup")
         return
 
-    log.info("[gh-sync] Initializing GitHub sync (repo: %s, branch: %s)", GH_REPO, GH_BRANCH)
+    log.info("[gh-sync] Initializing GitHub backup (repo: %s, branch: %s)", GH_REPO, GH_BRANCH)
 
-    # Step 1: Pull latest data from GitHub (BLOCKING — must complete before bot starts)
-    log.info("[gh-sync] Pulling latest data from GitHub...")
-    result = pull_from_github()
-    log.info("[gh-sync] Pull result: %d pulled, %d skipped, %d errors",
-             result["pulled"], result["skipped"], result["errors"])
+    # Step 1: Check if PostgreSQL has data
+    try:
+        from db_manager import db_is_empty
+        if db_is_empty():
+            # PostgreSQL empty → pull from GitHub
+            log.info("[gh-sync] 📥 PostgreSQL is empty — pulling from GitHub...")
+            result = pull_from_github()
+            log.info("[gh-sync] Pull result: %d pulled, %d skipped, %d errors",
+                     result["pulled"], result["skipped"], result["errors"])
+            # Import pulled data into PostgreSQL
+            try:
+                from db_manager import import_from_json
+                import_result = import_from_json(DATA_DIR)
+                log.info("[gh-sync] 🐘 Imported to PostgreSQL: %d files", import_result.get("imported", 0))
+            except Exception as e:
+                log.error("[gh-sync] Import to PostgreSQL failed: %s", e)
+        else:
+            log.info("[gh-sync] ✅ PostgreSQL has data — skipping GitHub pull")
+    except Exception as e:
+        log.warning("[gh-sync] Cannot check PostgreSQL, pulling from GitHub: %s", e)
+        result = pull_from_github()
+        log.info("[gh-sync] Pull result: %d pulled, %d skipped, %d errors",
+                 result["pulled"], result["skipped"], result["errors"])
 
-    # Step 2: Start auto-sync thread (every 10 seconds)
+    # Step 2: Start daily backup thread
     start_auto_sync()
 
-    log.info("[gh-sync] Ready — data will auto-sync every %d seconds", SYNC_INTERVAL)
+    log.info("[gh-sync] Ready — daily backup every %d hours", SYNC_INTERVAL // 3600)

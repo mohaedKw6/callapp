@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.4.5"
+BOT_VERSION = "5.5.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -4940,8 +4940,9 @@ def _stats_text():
     accounts_count = len(bot_data.get("registered_accounts", []))
     used_count     = len(bot_data.get("used_accounts", []))
     # 🐘 PostgreSQL — استخدم أعداد من DB لو متاحة
+    pg_status = ""
     try:
-        from db_manager import dan_count_total, dan_count_remaining, dan_count_used
+        from db_manager import dan_count_total, dan_count_remaining, dan_count_used, db_health, token_count
         pg_total = dan_count_total()
         if pg_total > 0:
             accounts_count = pg_total
@@ -4949,8 +4950,15 @@ def _stats_text():
             remaining = dan_count_remaining()
         else:
             remaining = max(0, accounts_count - used_count)
+        health = db_health()
+        tokens_ready = token_count()
+        if health.get('connected'):
+            pg_status = f"\n🐘 *PostgreSQL:* ✅ متصل | {tokens_ready} توكن جاهز"
+        else:
+            pg_status = f"\n🐘 *PostgreSQL:* ❌ غير متصل"
     except:
         remaining = max(0, accounts_count - used_count)
+        pg_status = f"\n🐘 *PostgreSQL:* ⚠️ غير متاح"
 
     # Count calls made through the app (Flask API)
     api_call_count = 0
@@ -4991,7 +4999,8 @@ def _stats_text():
         f"📂 *حسابات Dan.json:* `{accounts_count}` إجمالي\n"
         f"✅ *متبقية للاستخدام:* `{remaining}`\n"
         f"🔴 *مستعملة:* `{used_count}`\n"
-        f"📞 *مكالمات التطبيق:* `{api_call_count}`\n\n"
+        f"📞 *مكالمات التطبيق:* `{api_call_count}`"
+        f"{pg_status}\n\n"
         f"📅 *آخر تحديث:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         f"{used_preview}"
     )
@@ -7403,7 +7412,25 @@ def run_bot(token_override: str = ""):
                     dest = os.path.join(DATA_DIR, base_name)
                     with open(dest, 'wb') as f:
                         f.write(file_bytes)
-                    # رفع على GitHub فوراً
+                    # 🐘 استيراد لـ PostgreSQL
+                    db_msg = ""
+                    try:
+                        from db_manager import db_set, import_from_json
+                        if base_name in {"telicall_accounts.json"}:
+                            # ملف مشفر — استيراد كامل
+                            import_result = import_from_json(DATA_DIR)
+                            db_msg = f"\n🐘 PostgreSQL: {import_result['imported']} ملف تم استيراده"
+                        else:
+                            # ملف JSON عادي — استيراد مباشر
+                            key = base_name.replace('.json', '')
+                            try:
+                                data = json.loads(file_bytes.decode('utf-8'))
+                                db_set(key, data)
+                                db_msg = f"\n🐘 PostgreSQL: تم استيراد {base_name}"
+                            except: pass
+                    except Exception as _dbe:
+                        db_msg = f"\n⚠️ PostgreSQL استيراد فشل: {_dbe}"
+                    # ☁️ رفع على GitHub (نسخ احتياطي)
                     gh_msg = ""
                     try:
                         from github_sync import push_to_github
@@ -7413,7 +7440,7 @@ def run_bot(token_override: str = ""):
                     except Exception as _ghe:
                         gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
                     bot.edit_message_text(
-                        f"✅ تم رفع الملف بنجاح\n📄 {base_name}{gh_msg}",
+                        f"✅ تم رفع الملف بنجاح\n📄 {base_name}{db_msg}{gh_msg}",
                         cid, m.message_id)
                 except Exception as e:
                     try: bot.edit_message_text(f"❌ خطأ في رفع الملف: {e}", cid, m.message_id)
@@ -7502,7 +7529,15 @@ def run_bot(token_override: str = ""):
                     print(f"[data_push] ✅ Reloaded accounts: {len(accounts)}")
                 except Exception as _re:
                     print(f"[data_push] ⚠️ Failed to reload accounts: {_re}")
-                # رفع على GitHub فوراً
+                # 🐘 استيراد البيانات الجديدة لـ PostgreSQL
+                db_msg = ""
+                try:
+                    from db_manager import import_from_json
+                    db_result = import_from_json(DATA_DIR)
+                    db_msg = f"\n🐘 PostgreSQL: {db_result['imported']} ملف تم استيراده"
+                except Exception as _dbe:
+                    db_msg = f"\n⚠️ PostgreSQL استيراد فشل: {_dbe}"
+                # ☁️ رفع على GitHub (نسخ احتياطي)
                 gh_msg = ""
                 if replaced:
                     try:
@@ -7521,6 +7556,7 @@ def run_bot(token_override: str = ""):
                         result_lines.append(f"\n❌ أخطاء ({len(errors)}):")
                         for err in errors:
                             result_lines.append(f"  ❌ {err}")
+                    result_lines.append(db_msg)
                     result_lines.append(gh_msg)
                     try:
                         bot.edit_message_text("\n".join(result_lines), cid, m.message_id)
@@ -8729,29 +8765,12 @@ if __name__ == "__main__":
         except Exception as _dbe:
             print(f"[startup] ⚠️ PostgreSQL init failed: {_dbe}")
 
-        # 🌐 Step 3: Pull latest data from GitHub (only if PostgreSQL empty)
+        # ☁️ Step 3: GitHub — نسخ احتياطي يومي (لو PostgreSQL فاضي → سحب من GitHub)
         try:
-            from db_manager import db_is_empty
-            if db_is_empty():
-                print("[startup] 📥 PostgreSQL is empty — pulling from GitHub...")
-                from github_sync import init_github_sync
-                init_github_sync()
-                # Re-import after GitHub pull
-                try:
-                    from db_manager import import_from_json
-                    import_from_json(DATA_DIR)
-                except: pass
-            else:
-                print("[startup] ✅ PostgreSQL has data — skipping GitHub pull")
-                # Still start auto-sync for backup purposes
-                from github_sync import start_auto_sync
-                start_auto_sync()
+            from github_sync import init_github_sync
+            init_github_sync()
         except Exception as _ghe:
-            print(f"[startup] ⚠️ GitHub sync init failed: {_ghe}")
-            try:
-                from github_sync import init_github_sync
-                init_github_sync()
-            except: pass
+            print(f"[startup] ⚠️ GitHub backup init failed: {_ghe}")
 
         load_accounts()
 
