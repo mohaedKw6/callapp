@@ -30,6 +30,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
+from filelock import FileLock
+import csv
 
 # ─── Load .env file FIRST ────────────────────────────────────────────────────
 try:
@@ -45,6 +47,174 @@ _file_lock    = threading.Lock()          # قفل الكتابة في المل�
 _call_sem     = threading.Semaphore(500)  # حد أقصى 500 مكالمة في وقت واحد
 _call_executor = ThreadPoolExecutor(max_workers=500, thread_name_prefix="call_worker")
 
+# ─── نظام البروكسي (من t.py) ──────────────────────────────────────────────────
+PROXY_FILE      = os.environ.get("PROXY_FILE", os.path.join(os.path.dirname(os.path.abspath(__file__)), "alive_proxies.txt"))
+DEAD_PROXY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dead_proxies.txt")
+
+_proxy_lock    = threading.Lock()
+_dead_proxies  = set()
+_dead_file_lock = threading.Lock()
+_proxy_list    = []
+_reload_warning_shown = False
+
+def _save_dead_proxy(url: str):
+    try:
+        with _dead_file_lock:
+            with open(DEAD_PROXY_FILE, "a", encoding="utf-8") as f:
+                f.write(url + "\n")
+    except Exception:
+        pass
+
+def _extract_host_port(proxy_url: str) -> str:
+    if '://' in proxy_url:
+        return proxy_url.split('://', 1)[1]
+    return proxy_url
+
+def _remove_proxy_from_file(proxy_url: str):
+    if not os.path.exists(PROXY_FILE):
+        return
+    target = _extract_host_port(proxy_url)
+    lock = FileLock(PROXY_FILE + ".lock", timeout=10)
+    try:
+        with lock:
+            with open(PROXY_FILE, encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+            new_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if stripped == proxy_url or _extract_host_port(stripped) == target:
+                    continue
+                if '://' not in stripped and stripped == target:
+                    continue
+                new_lines.append(line)
+            with open(PROXY_FILE, 'w', encoding='utf-8') as f:
+                f.writelines(new_lines)
+    except Exception:
+        pass
+
+def _load_proxies_from_file() -> list:
+    proxies = []
+    if not os.path.exists(PROXY_FILE):
+        print(f"[proxy] ⚠️ ملف البروكسيات مش موجود: {PROXY_FILE}", flush=True)
+        return proxies
+    try:
+        with open(PROXY_FILE, encoding='utf-8', errors='ignore') as f:
+            lines = [l.strip() for l in f.readlines()]
+        non_empty = [l for l in lines if l]
+        if not non_empty:
+            return proxies
+        PROTOCOLS = {'http', 'https', 'socks4', 'socks5'}
+        first = non_empty[0]
+        has_full_url   = any('://' in l for l in non_empty)
+        has_proto_only = any(l.lower() in PROTOCOLS and '://' not in l for l in non_empty)
+        is_csv         = ',' in first and '://' not in first and ':' not in first.split(',')[0]
+        if is_csv:
+            import io as _io
+            reader = csv.DictReader(_io.StringIO('\n'.join(lines)))
+            for row in reader:
+                url = row.get('proxy', '').strip()
+                if url and '://' in url:
+                    proxies.append(url)
+        elif has_proto_only:
+            current_proto = 'http'
+            for line in non_empty:
+                l = line.lower()
+                if l in PROTOCOLS:
+                    current_proto = l
+                elif ':' in line and '.' in line and '://' not in line:
+                    proxies.append(f"{current_proto}://{line}")
+                elif '://' in line:
+                    proxies.append(line)
+        elif has_full_url:
+            for line in non_empty:
+                if '://' in line:
+                    proxies.append(line)
+        else:
+            for line in non_empty:
+                if ':' in line and '.' in line:
+                    proxies.append(f"http://{line}")
+    except Exception as e:
+        print(f"[proxy] ⚠️ خطأ في قراية ملف البروكسيات: {e}", flush=True)
+    random.shuffle(proxies)
+    return proxies
+
+def init_proxy_manager():
+    global _proxy_list, _reload_warning_shown
+    _proxy_list = _load_proxies_from_file()
+    _reload_warning_shown = False
+    if _proxy_list:
+        types = {}
+        for p in _proxy_list:
+            t = p.split('://')[0]
+            types[t] = types.get(t, 0) + 1
+        breakdown = ' | '.join(f"{k}={v}" for k,v in sorted(types.items()))
+        print(f"[proxy] 🌐 تم تحميل {len(_proxy_list)} بروكسي ({breakdown})")
+    else:
+        print("[proxy] ⚠️ مفيش بروكسيات — هيشتغل بدون proxy")
+
+def _mark_dead(proxy_url: str):
+    with _proxy_lock:
+        if proxy_url in _dead_proxies:
+            return
+        _dead_proxies.add(proxy_url)
+    _save_dead_proxy(proxy_url)
+    _remove_proxy_from_file(proxy_url)
+
+def get_proxy() -> dict | None:
+    """يرجع dict للـ requests.proxies أو None"""
+    if not _proxy_list:
+        return None
+    with _proxy_lock:
+        alive = [p for p in _proxy_list if p not in _dead_proxies]
+    if alive:
+        p = random.choice(alive)
+        return {"http": p, "https": p}
+    _reload_proxies()
+    with _proxy_lock:
+        alive = [p for p in _proxy_list if p not in _dead_proxies]
+    if not alive:
+        return None
+    p = random.choice(alive)
+    return {"http": p, "https": p}
+
+def _reload_proxies():
+    global _proxy_list, _dead_proxies, _reload_warning_shown
+    fresh = _load_proxies_from_file()
+    if not fresh:
+        if not _reload_warning_shown:
+            print("[proxy] ⛔ كل البروكسيات ماتوا — أضف بروكسيات جديدة", flush=True)
+            _reload_warning_shown = True
+        return
+    with _proxy_lock:
+        new_ones = [p for p in fresh if p not in _dead_proxies]
+        added = len(new_ones)
+        _proxy_list = list(set(_proxy_list) | set(fresh))
+    if added:
+        print(f"[proxy] ♻️ تم إعادة تحميل {added} بروكسي جديد", flush=True)
+        _reload_warning_shown = False
+    else:
+        if not _reload_warning_shown:
+            print("[proxy] ⛔ كل البروكسيات ماتوا — أضف بروكسيات جديدة", flush=True)
+            _reload_warning_shown = True
+
+def get_proxy_and_mark_dead(last_proxy_url: str | None) -> dict | None:
+    """يعلم البروكسي القديم كميت ويرجع بروكسي جديد"""
+    if last_proxy_url:
+        _mark_dead(last_proxy_url)
+        with _proxy_lock:
+            alive_count = len([p for p in _proxy_list if p not in _dead_proxies])
+        if alive_count % 50 == 0:
+            print(f"[proxy] ⚠️ بروكسيات حية متبقية: {alive_count}", flush=True)
+    return get_proxy()
+
+def get_current_proxy_url(proxy_dict: dict | None) -> str | None:
+    """يستخرج رابط البروكسي من dict"""
+    if not proxy_dict:
+        return None
+    return proxy_dict.get("http") or proxy_dict.get("https")
+
 # ─── خطط الاشتراك الشهري ─────────────────────────────────────────────────────
 MONTHLY_PLANS = {
     "basic":     {"name": "أساسي",    "emoji": "🥉", "calls": 30,     "price": 3.00},
@@ -58,7 +228,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.9.0"
+BOT_VERSION = "6.0.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -648,8 +818,9 @@ def _init_tokens_background(accounts_to_init: list):
     الحسابات الفاشلة تتحط في قائمة "used_accounts"
     
     ⚠️ دايماً يعمل init session جديد — التوكنات القديمة ممكن تكون منتهية
+    🌐 يستخدم بروكسي لكل طلب
     """
-    print(f"[init_tokens] 🚀 بدء تهيئة {len(accounts_to_init)} حساب...")
+    print(f"[init_tokens] 🚀 بدء تهيئة {len(accounts_to_init)} حساب (مع بروكسي)...")
     
     failed_emails = []  # الحسابات الفاشلة
     
@@ -687,21 +858,30 @@ def _init_tokens_background(accounts_to_init: list):
                 "localizationKey": ""
             }
             
-            # 🔄 نحاول 3 مرات للحساب الواحد
+            # 🔄 نحاول 3 مرات للحساب الواحد — مع بروكسي مختلف كل مرة
             success = False
+            last_proxy_url = None
             for attempt in range(3):
                 try:
-                    r = requests.post(f"{API_URL}/init", json=body, headers=h, timeout=15)
+                    proxy_dict = get_proxy_and_mark_dead(last_proxy_url) if attempt > 0 else get_proxy()
+                    last_proxy_url = get_current_proxy_url(proxy_dict)
+                    h["x-request-id"] = str(uuid.uuid4())
+                    h["x-req-timestamp"] = str(int(time.time() * 1000))
+                    r = requests.post(f"{API_URL}/init", json=body, headers=h, proxies=proxy_dict, timeout=15)
                     if r.status_code == 200 and r.json().get('result', {}).get('token'):
                         new_token = r.json()['result']['token']
                         add_ready_token(email, device_id, new_token)
-                        print(f"[init_tokens] ✅ Got token for {email}")
+                        print(f"[init_tokens] ✅ Got token for {email} (proxy: {last_proxy_url or 'none'})")
                         success = True
                         break
                     else:
                         print(f"[init_tokens] ⚠️ Attempt {attempt+1}/3 failed for {email}: {r.status_code}")
+                        # لو الرد غريب، نحاول نغير البروكسي
+                        if r.status_code in (403, 429):
+                            last_proxy_url = get_current_proxy_url(proxy_dict)
                 except Exception as e:
                     print(f"[init_tokens] ⚠️ Attempt {attempt+1}/3 error for {email}: {e}")
+                    last_proxy_url = get_current_proxy_url(proxy_dict) if proxy_dict else None
                 time.sleep(1)
             
             # ❌ لو فشل بعد 3 محاولات -> نعتبره مستعمل
@@ -1529,10 +1709,13 @@ ref = None
 G, R, Y, B, P, C, W, E = '', '', '', '', '', '', '', ''
 
 # ⚠️ تم تحديث النطاقات — النطاقات القديمة اتحظرت (blocklisted) من Telicall
-# النطاقات الجديدة من mob2.temp-mail.org بتتغير كل فترة
+# النطاقات الجديدة من temp-mail.io — بتتغير كل فترة
 DOMAINS = [
+    "daouse.com", "bltiwd.com", "rommiui.com", "mrotzis.com",
+    "mkzaso.com", "illubd.com", "wnbaldwy.com", "xkxkud.com",
+    "yzcalo.com", "ozsaip.com", "bwmyga.com", "ruutukf.com", "inovic.com",
     "web5h.com", "savdz.com", "westecom.com", "seolaner.com",
-    "rommiui.com", "chitthi.com", "1box.app",
+    "chitthi.com", "1box.app",
 ]
 
 # ============================================================================
@@ -2152,8 +2335,9 @@ def save_account(email, device, tok):
 def create_mob2_mail():
     url = "https://mob2.temp-mail.org/mailbox"
     headers = {'Accept': 'application/json', 'User-Agent': '3.49', 'Accept-Encoding': 'gzip'}
+    proxy_dict = get_proxy()
     try:
-        response = requests.post(url, headers=headers, timeout=10)
+        response = requests.post(url, headers=headers, proxies=proxy_dict, timeout=10)
         if response.status_code == 200:
             data = response.json()
             email = data.get('mailbox')
@@ -2178,8 +2362,9 @@ def create_io_mail(domain=None, name=None):
         'User-Agent': 'Mozilla/5.0'
     }
     payload = {"domain": domain, "name": name}
+    proxy_dict = get_proxy()
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(url, json=payload, headers=headers, proxies=proxy_dict, timeout=10)
         if response.status_code == 200:
             data = response.json()
             email = data.get('email')
@@ -2210,8 +2395,9 @@ def create_email_with_retry(max_retries=3):
 def check_mob2_inbox(tkn):
     url = "https://mob2.temp-mail.org/messages"
     headers = {'Accept': 'application/json', 'User-Agent': '3.49', 'Authorization': tkn}
+    proxy_dict = get_proxy()
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, proxies=proxy_dict, timeout=10)
         if response.status_code == 200:
             return response.json().get('messages', [])
     except: pass
@@ -2219,8 +2405,9 @@ def check_mob2_inbox(tkn):
 
 def check_io_inbox(email):
     url = f"https://api.internal.temp-mail.io/api/v3/email/{email}/messages"
+    proxy_dict = get_proxy()
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, proxies=proxy_dict, timeout=10)
         if response.status_code == 200:
             return response.json()
     except: pass
@@ -2255,31 +2442,37 @@ def get_headers(_token=None, _device_id=None):
             "x-client-device-id": _d, "x-lang": "en", "x-os": "android", "x-os-version": "11",
             "x-req-timestamp": str(int(time.time() * 1000)), "x-req-signature": "-1", "content-type": "application/json", "x-token": _t or ""}
 
-def init_session():
+def init_session(proxy_dict=None):
     global token
+    if proxy_dict is None:
+        proxy_dict = get_proxy()
     h = get_headers(); h["x-token"] = ""
     body = {"countryCode": "eg", "deviceName": "Infinix X698", "notificationToken": "", "oldToken": "", "peerKey": str(random.randint(100, 999)), "timeZone": "Africa/Cairo", "localizationKey": ""}
     try:
-        r = requests.post(f"{API_URL}/init", json=body, headers=h, timeout=15)
+        r = requests.post(f"{API_URL}/init", json=body, headers=h, proxies=proxy_dict, timeout=15)
         if r.status_code == 200 and r.json().get('result', {}).get('token'):
             token = r.json()['result']['token']
             return True
     except: pass
     return False
 
-def send_verify(email):
+def send_verify(email, proxy_dict=None):
     global ref
+    if proxy_dict is None:
+        proxy_dict = get_proxy()
     try:
-        r = requests.post(f"{API_URL}/auth/send-email", json={'email': email}, headers=get_headers(), timeout=15)
+        r = requests.post(f"{API_URL}/auth/send-email", json={'email': email}, headers=get_headers(), proxies=proxy_dict, timeout=15)
         if r.status_code == 200 and r.json().get('result', {}).get('reference'):
             ref = r.json()['result']['reference']
             return True
     except: pass
     return False
 
-def verify_otp(code):
+def verify_otp(code, proxy_dict=None):
+    if proxy_dict is None:
+        proxy_dict = get_proxy()
     try:
-        r = requests.post(f"{API_URL}/auth/verify-identity", json={'reference': ref, 'code': str(code)}, headers=get_headers(), timeout=15)
+        r = requests.post(f"{API_URL}/auth/verify-identity", json={'reference': ref, 'code': str(code)}, headers=get_headers(), proxies=proxy_dict, timeout=15)
         if r.status_code == 200 and r.json().get('result', {}).get('user'):
             return r.json()['result']['user']
     except: pass
@@ -2357,7 +2550,8 @@ def check_accounts_batch(bot_obj, chat_id, msg_id):
         # نختبر التوكن عبر API
         try:
             h = get_headers(_token=call_token, _device_id=call_device_id)
-            r = requests.post(f"{API_URL}/balance", json={}, headers=h, timeout=10)
+            proxy_dict = get_proxy()
+            r = requests.post(f"{API_URL}/balance", json={}, headers=h, proxies=proxy_dict, timeout=10)
             
             if r.status_code == 401:
                 # ❌ التوكن منتهي / الحساب مش موجود
@@ -2461,22 +2655,89 @@ def clean_used_from_accounts():
 
 
 def create_account():
+    """إنشاء حساب جديد — يستخدم بروكسي لكل الخطوات"""
     global token, device_id, temp_email, temp_token, temp_api_type, ref
     token = device_id = temp_email = temp_token = temp_api_type = ref = None
     
-    if not create_email_with_retry(max_retries=3):
+    # 🌐 نختار بروكسي واحد لكل عملية إنشاء الحساب
+    session_proxy = get_proxy()
+    proxy_url = get_current_proxy_url(session_proxy)
+    
+    # إنشاء البريد والجلسة بالتوازي (زي t.py)
+    mail_result = [None]
+    session_result = [None, None]
+    
+    def _get_mail():
+        try:
+            # حاول mob2 أولاً ثم io
+            for api_func in [create_mob2_mail, lambda: create_io_mail(random.choice(DOMAINS))]:
+                r = api_func()
+                if r and r.get('success'):
+                    mail_result[0] = r
+                    return
+        except: pass
+    
+    def _get_session():
+        try:
+            _d = ''.join(random.choices('0123456789abcdef', k=16))
+            h = get_headers(_token="", _device_id=_d)
+            h["x-token"] = ""
+            body = {"countryCode": "eg", "deviceName": "Infinix X698", "notificationToken": "", "oldToken": "", "peerKey": str(random.randint(100, 999)), "timeZone": "Africa/Cairo", "localizationKey": ""}
+            r = requests.post(f"{API_URL}/init", json=body, headers=h, proxies=session_proxy, timeout=15)
+            if r.status_code == 200 and r.json().get('result', {}).get('token'):
+                session_result[0] = r.json()['result']['token']
+                session_result[1] = _d
+        except: pass
+    
+    # شغّل الاتنين بالتوازي
+    t1 = threading.Thread(target=_get_mail)
+    t2 = threading.Thread(target=_get_session)
+    t1.start(); t2.start()
+    t1.join(timeout=10); t2.join(timeout=15)
+    
+    mail = mail_result[0]
+    if not mail:
+        print("[create_account] ❌ فشل إنشاء البريد", flush=True)
         return False
-    if not init_session():
+    
+    temp_email = mail['email']
+    temp_token = mail['token']
+    temp_api_type = mail['api_type']
+    print(f"[create_account] 📧 {temp_email}", flush=True)
+    
+    _token = session_result[0]
+    _device = session_result[1]
+    if not _token:
+        print("[create_account] 🚫 init_session فشل", flush=True)
+        if proxy_url:
+            _mark_dead(proxy_url)
         return False
-    if not send_verify(temp_email):
+    
+    token = _token
+    device_id = _device
+    print(f"[create_account] 🔑 Session OK", flush=True)
+    
+    # إرسال التحقق
+    if not send_verify(temp_email, session_proxy):
+        print("[create_account] 🚫 send_verify فشل", flush=True)
+        if proxy_url:
+            _mark_dead(proxy_url)
         return False
+    
+    # استلام OTP
     otp = get_otp()
     if not otp:
+        print("[create_account] ⏰ OTP timeout", flush=True)
         return False
-    user = verify_otp(otp)
+    print(f"[create_account] 🔢 OTP: {otp}", flush=True)
+    
+    # التحقق من OTP
+    user = verify_otp(otp, session_proxy)
     if user:
         save_account(temp_email, device_id, token)
+        print(f"[create_account] ✅ Account created: {temp_email}", flush=True)
         return True
+    print("[create_account] ❌ verify فشل", flush=True)
     return False
 
 def get_proxy_call_request(phone):
@@ -2590,12 +2851,13 @@ def get_proxy_account_creation_requests():
 
 
 def _try_telicall_call(phone, call_token, call_device_id, email_used=""):
-    """محاولة مكالمة واحدة باستخدام توكن محدد"""
+    """محاولة مكالمة واحدة باستخدام توكن محدد — مع بروكسي"""
     if not phone.startswith('+'): phone = '+' + phone
     headers = get_headers(_token=call_token, _device_id=call_device_id)
+    proxy_dict = get_proxy()
     
     try:
-        r = requests.post(f"{API_URL}/call/outbound/start", json={'to': phone, 'source': 'numpad'}, headers=headers, timeout=8)
+        r = requests.post(f"{API_URL}/call/outbound/start", json={'to': phone, 'source': 'numpad'}, headers=headers, proxies=proxy_dict, timeout=8)
         print(f"[start_call] 📡 Telicall API response: {r.status_code} (account: {email_used})")
         if r.status_code == 200 and r.json().get('result'):
             sip = r.json()['result'].get('sip', {})
@@ -8661,20 +8923,41 @@ if __name__ == "__main__":
         # 🗂️ Step 1: Initialize data directory (create defaults if missing)
         _init_data_dir()
 
+        # 🌐 Step 2: Initialize proxy manager (from alive_proxies.txt)
+        init_proxy_manager()
+
+        # 🗑️ Step 3: Clear ALL old accounts and tokens — start fresh with new ones
+        print(f"[startup] 🗑️ Clearing old accounts and tokens for fresh start...")
+        accounts = []
+        # Clear the encrypted accounts file
+        try:
+            if os.path.exists(ACCOUNTS_FILE):
+                os.remove(ACCOUNTS_FILE)
+                print(f"[startup] 🗑️ Removed old accounts file")
+        except: pass
+        # Clear registered and used accounts from bot_data
+        bd = load_bot_data()
+        old_reg = len(bd.get("registered_accounts", []))
+        old_used = len(bd.get("used_accounts", []))
+        bd["registered_accounts"] = []
+        bd["used_accounts"] = []
+        save_bot_data(bd)
+        print(f"[startup] 🗑️ Cleared {old_reg} registered + {old_used} used accounts")
+
+        # 🧹 تنظيف التوكنات المستعملة + مسح كل التوكنات
+        cleanup_used_tokens_from_cache()
+        clear_all_ready_tokens()
+        print(f"[startup] 🧹 Cleared all ready tokens — will create fresh ones with proxy")
+
         load_accounts()
         print(f"[startup] 📞 Accounts loaded: {len(accounts)} available")
 
-        # 🧹 تنظيف التوكنات المستعملة + مسح التوكنات المنتهية
-        cleanup_used_tokens_from_cache()
-        # ⚠️ مسح كل التوكنات القديمة لأنها منتهية الصلاحية (Telicall token lifetime ~30 days)
-        # بعد المسح، البوت هيعمل create_account() أو init_tokens_background() لو فيه حسابات
-        clear_all_ready_tokens()
-        print(f"[startup] 🧹 Cleared old ready tokens — will create fresh ones")
-
         # 🚀 تهيئة التوكنات من الحسابات المحفوظة عند البدء
         if accounts:
-            print(f"[startup] 🔄 تهيئة {len(accounts)} حساب محفوظ...")
+            print(f"[startup] 🔄 تهيئة {len(accounts)} حساب محفوظ (مع بروكسي)...")
             threading.Thread(target=_init_tokens_background, args=(accounts,), daemon=True).start()
+        else:
+            print(f"[startup] 📝 No saved accounts — will create new ones on demand with proxy")
 
         # 🔄 تشغيل خلفية التعبئة — يضمن 3 حسابات جاهزة دايماً
         start_token_refill()
