@@ -1,4 +1,11 @@
 {
-  "ready_tokens": [],
-  "last_updated": "2026-05-26 09:20:37"
+  "ready_tokens": [
+    {
+      "email": "rewahog106@wetuns.com",
+      "device_id": "ec10214b970bf117",
+      "token": "02Itv3NAL0EoUL8zNLr1xtuk0pAJpxez02JPHqfcfOhBan-aEPknoXNnXbEPCUvJ",
+      "created": "2026-05-26 09:20:38"
+    }
+  ],
+  "last_updated": "2026-05-26 09:20:41"
 }
