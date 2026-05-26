@@ -1,4 +1,4 @@
-# v4.0.2 — fix group commands (commands=), fix language (answer_callback_query), force rebuild
+# v4.1.0 — robust message deletion with retry + HTTP fallback, fix 401 polling
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -11,19 +11,15 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
 
-COPY bot.py callv2.py foxapp_api.py github_sync.py /app/
+COPY bot.py callv2.py foxapp_api.py github_sync.py translations.py /app/
 
-# Copy default data files into /app/data/ — these serve as templates.
-# The github_sync module will pull latest data from GitHub on startup,
-# overwriting these defaults. This ensures data persists across restarts.
-COPY data/ /app/data/
-
-# Create recordings directory
+# Create data directory (files will be pulled from GitHub data-sync branch on startup)
 RUN mkdir -p /app/data/recordings
 
 # DATA_DIR: where local JSON data files are stored.
 # GH_TOKEN: GitHub token for persistent storage via GitHub API.
-# GH_REPO:  GitHub repo for data storage (default: MohamedQM/callapp).
+# GH_REPO:  GitHub repo for data storage (default: mohaedKw6/callapp).
+# GH_BRANCH: Branch for data sync (default: data-sync — separate from main to avoid rebuilds).
 # SYNC_INTERVAL: seconds between auto-sync to GitHub (default: 600).
 ENV DATA_DIR=/app/data
 ENV PYTHONUNBUFFERED=1

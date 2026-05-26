@@ -1,5 +1,17 @@
 [
   {
+    "token": "7762423532:AAHdLo3rFVRtlxS0G461ZtlNKqniFO1IwFc",
+    "owner_id": 962731079,
+    "username": "Call_foxbot",
+    "created_at": "2026-04-20 20:14:23"
+  },
+  {
+    "token": "8316515014:AAFN4LLlS8DVBqdUbxinNEqEmreZltom3jA",
+    "owner_id": 962731079,
+    "username": "Sjxijsjszijbot",
+    "created_at": "2026-04-20 20:15:11"
+  },
+  {
     "token": "8760889016:AAHz67lW628Vi0VYA6LFcZiN8s8YF6tiB_M",
     "owner_id": 5948484530,
     "username": "Azxnndjdhdbbot",
@@ -196,18 +208,5 @@
     "owner_id": 8698869482,
     "username": "csrfchbot",
     "created_at": "2026-05-21 17:51:13"
-  },
-  {
-    "token": "8889883856:AAG67ZdF79MQy_dCvc7UtddrWjlO750KE-4",
-    "owner_id": 8732546124,
-    "username": "Tonyhfd49BOT",
-    "created_at": "2026-05-25 08:06:27"
-  },
-  {
-    "token": "8815736822:AAEh45hQgAl8Rfa78TyeLQ_thdQo_ttuU3M",
-    "owner_id": 8259436935,
-    "username": "hfzbgbot",
-    "created_at": "2026-05-25 23:12:18",
-    "last_checked_members": 1
   }
 ]

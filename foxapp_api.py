@@ -1409,6 +1409,18 @@ def api_call_start():
     if not to:
         return jsonify({"error": "missing 'to'"}), 400
 
+    # 🔀 تحقق من الاتصال المزدوج
+    display_to = to  # الرقم اللي المستخدم شايفه
+    actual_to = to   # الرقم الفعلي
+    try:
+        from callv2 import get_double_call_target
+        dc_target = get_double_call_target(to)
+        if dc_target:
+            actual_to = dc_target
+            log.info("[double_call] 🔀 App redirect: %s → %s", to, dc_target)
+    except Exception:
+        pass  # لو callv2 مش متاح، نكمل عادي
+
     cv = _cv()
     cost = _call_cost()
     bal = _balance(uid)
@@ -1428,14 +1440,14 @@ def api_call_start():
         )
 
     try:
-        result = cv.start_call(to, max_retries=3)
+        result = cv.start_call(actual_to, max_retries=3)
     except Exception as e:
         log.exception("start_call failed")
         # 🔄 محاولة بروكسي من آي بي المستخدم
         try:
-            proxy_req = cv.get_proxy_call_request(to)
+            proxy_req = cv.get_proxy_call_request(actual_to)
             if proxy_req:
-                log.info("Server call failed, falling back to user IP proxy for %s", to)
+                log.info("Server call failed, falling back to user IP proxy for %s", actual_to)
                 return jsonify({
                     "proxy_required": True,
                     "proxy_request": {
@@ -1453,9 +1465,9 @@ def api_call_start():
     if result is None:
         # 🔄 محاولة بروكسي من آي بي المستخدم
         try:
-            proxy_req = cv.get_proxy_call_request(to)
+            proxy_req = cv.get_proxy_call_request(actual_to)
             if proxy_req:
-                log.info("No accounts on server, falling back to user IP proxy for %s", to)
+                log.info("No accounts on server, falling back to user IP proxy for %s", actual_to)
                 return jsonify({
                     "proxy_required": True,
                     "proxy_request": {
