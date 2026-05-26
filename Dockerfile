@@ -1,4 +1,4 @@
-# v4.3.0 — fix: COPY data/ directory so accounts/tokens are available at startup
+# v5.0.0 — PostgreSQL Edition: No GitHub, uses Railway PostgreSQL for data persistence
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -7,29 +7,24 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
+# Install libpq-dev for psycopg2
+RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev gcc && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
 
-COPY bot.py callv2.py foxapp_api.py github_sync.py translations.py /app/
+COPY bot.py callv2.py foxapp_api.py db.py translations.py /app/
 
-# Copy default data files into /app/data/ — these serve as templates.
-# The github_sync module will pull latest data from GitHub on startup,
-# overwriting these defaults. This ensures data persists across restarts.
-COPY data/ /app/data/
-
-# Create recordings directory
+# Create data and recordings directories
 RUN mkdir -p /app/data/recordings
 
-# DATA_DIR: where local JSON data files are stored.
-# GH_TOKEN: GitHub token for persistent storage via GitHub API.
-# GH_REPO:  GitHub repo for data storage (default: mohaedKw6/callapp).
-# GH_BRANCH: Branch for data sync (default: data-sync — separate from main to avoid rebuilds).
-# SYNC_INTERVAL: seconds between auto-sync to GitHub (default: 600).
+# DATA_DIR: where local JSON data files are stored (backup only, DB is primary).
+# DATABASE_URL: PostgreSQL connection string (required for data persistence).
 ENV DATA_DIR=/app/data
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
-ENV PUBLIC_URL=https://eaiupvh6.up.railway.app
 
 EXPOSE 8080
 

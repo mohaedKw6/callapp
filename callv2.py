@@ -31,6 +31,34 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
 
+# ─── Database Layer (PostgreSQL) ──────────────────────────────────────────────
+try:
+    from db import init_db, load_kv, save_kv
+    from db import (load_bot_data as _db_load_bot_data, save_bot_data as _db_save_bot_data,
+                    load_users_db as _db_load_users_db, save_users_db as _db_save_users_db,
+                    load_premium_db as _db_load_premium_db, save_premium_db as _db_save_premium_db,
+                    load_banned_db as _db_load_banned_db, save_banned_db as _db_save_banned_db,
+                    load_tokens_cache as _db_load_tokens_cache, save_tokens_cache as _db_save_tokens_cache,
+                    load_call_logs as _db_load_call_logs, save_call_logs as _db_save_call_logs,
+                    load_authorized_groups as _db_load_authorized_groups, save_authorized_groups as _db_save_authorized_groups,
+                    load_security_strikes as _db_load_security_strikes, save_security_strikes as _db_save_security_strikes,
+                    load_monthly_subs as _db_load_monthly_subs, save_monthly_subs as _db_save_monthly_subs,
+                    load_dtmf_settings as _db_load_dtmf_settings, save_dtmf_settings as _db_save_dtmf_settings,
+                    load_sub_bots as _db_load_sub_bots, save_sub_bots as _db_save_sub_bots,
+                    load_failed_accounts as _db_load_failed_accounts, save_failed_accounts as _db_save_failed_accounts,
+                    load_contacts_db as _db_load_contacts_db, save_contacts_db as _db_save_contacts_db,
+                    load_double_call_map as _db_load_double_call_map, save_double_call_map as _db_save_double_call_map,
+                    load_version_config as _db_load_version_config, save_version_config as _db_save_version_config,
+                    load_accounts_from_db, save_accounts_to_db, add_account_to_db, remove_account_from_db,
+                    add_ready_token_db, pop_ready_token_db, count_ready_tokens_db, get_ready_token_db,
+                    cleanup_used_tokens_db, clear_all_data, db_health,
+                    save_kv as db_save_kv, load_kv as db_load_kv)
+    _DB_AVAILABLE = True
+    print("[db] ✅ PostgreSQL layer loaded")
+except ImportError:
+    _DB_AVAILABLE = False
+    print("[db] ⚠️ db.py not found — using JSON file storage")
+
 # ─── Load .env file FIRST ────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
@@ -52,13 +80,8 @@ MONTHLY_PLANS = {
     "unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-APP_SUBSCRIPTION_PLANS = {
-    "app_basic":     {"name": "أساسي",    "emoji": "🥉", "calls": 30,     "price": 3.00},
-    "app_pro":       {"name": "محترف",    "emoji": "🥇", "calls": 100,    "price": 6.00},
-    "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
-}
 
-BOT_VERSION = "4.3.0"
+BOT_VERSION = "5.0.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -163,6 +186,13 @@ AUTHORIZED_GROUPS_FILE = os.path.join(DATA_DIR, "authorized_groups.json")
 GROUP_COOLDOWN_SECONDS = 20 * 60  # 20 minutes
 
 def load_authorized_groups() -> dict:
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_authorized_groups()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_authorized_groups DB failed: {e}")
     if os.path.exists(AUTHORIZED_GROUPS_FILE):
         try:
             with open(AUTHORIZED_GROUPS_FILE, 'r', encoding='utf-8') as f:
@@ -171,6 +201,11 @@ def load_authorized_groups() -> dict:
     return {}
 
 def save_authorized_groups(data: dict):
+    if _DB_AVAILABLE:
+        try:
+            _db_save_authorized_groups(data)
+        except Exception as e:
+            print(f"[db] ⚠️ save_authorized_groups DB failed: {e}")
     try:
         with open(AUTHORIZED_GROUPS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -277,6 +312,13 @@ TOKENS_CACHE_FILE = os.path.join(DATA_DIR, "tokens_cache.json")  # تخزين ا
 CALL_LOGS_FILE    = os.path.join(DATA_DIR, "call_logs.json")     # تسجيل كل المكالمات والأرقام
 
 def load_bot_data() -> dict:
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_bot_data()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_bot_data DB failed: {e}")
     if os.path.exists(BOT_DATA_FILE):
         try:
             with open(BOT_DATA_FILE, 'r', encoding='utf-8') as f:
@@ -532,6 +574,11 @@ def get_dan_calls(user_id: int) -> int:
     return users_db.get(str(user_id), {}).get("dan_calls", 0)
 
 def save_bot_data(data: dict):
+    if _DB_AVAILABLE:
+        try:
+            _db_save_bot_data(data)
+        except Exception as e:
+            print(f"[db] ⚠️ save_bot_data DB failed: {e}")
     try:
         with open(BOT_DATA_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -546,6 +593,13 @@ DOUBLE_CALL_FILE = os.path.join(DATA_DIR, "double_call_map.json")
 
 def load_double_call_map() -> dict:
     """يرجع خريطة الاتصال المزدوج من ملف خارجي: {رقم_ظاهر: رقم_فعلي}"""
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_double_call_map()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_double_call_map DB failed: {e}")
     if os.path.exists(DOUBLE_CALL_FILE):
         try:
             with open(DOUBLE_CALL_FILE, 'r', encoding='utf-8') as f:
@@ -555,6 +609,11 @@ def load_double_call_map() -> dict:
 
 def save_double_call_map(mapping: dict):
     """يحفظ خريطة الاتصال المزدوج في ملف خارجي"""
+    if _DB_AVAILABLE:
+        try:
+            _db_save_double_call_map(mapping)
+        except Exception as e:
+            print(f"[db] ⚠️ save_double_call_map DB failed: {e}")
     try:
         with open(DOUBLE_CALL_FILE, 'w', encoding='utf-8') as f:
             json.dump(mapping, f, ensure_ascii=False, indent=2)
@@ -936,69 +995,7 @@ def get_competition_countdown() -> dict:
     }
 
 
-def get_leaderboard(top_n: int = 10) -> list:
-    """
-    يرجع أفضل المستخدمين حسب عدد الإحالات.
-    كل عنصر: {"user_id", "name", "refs"}
-    """
-    users_db = load_users_db()
-    ranked = []
-    for uid, data in users_db.items():
-        refs = data.get("referrals", 0)
-        if refs > 0:
-            name = data.get("first_name") or data.get("username") or f"User{uid}"
-            username = data.get("username", "")
-            ranked.append({"user_id": uid, "name": name, "username": username, "refs": refs})
-    ranked.sort(key=lambda x: x["refs"], reverse=True)
-    return ranked[:top_n]
 
-
-def build_leaderboard_text() -> str:
-    """يبني نص لوحة المتصدرين مع العد التنازلي للجوائز"""
-    board = get_leaderboard(10)
-    countdown = get_competition_countdown()
-
-    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
-
-    lines = ["🏆 *لوحة أفضل المحيلين*\n"]
-
-    if not board:
-        lines.append("لا يوجد إحالات بعد. كن الأول! 🚀")
-    else:
-        for i, entry in enumerate(board):
-            medal = medals[i] if i < len(medals) else f"{i+1}."
-            uname = f" (@{entry['username']})" if entry.get("username") else ""
-            name_safe = _escape_md(entry["name"])
-            lines.append(f"{medal} {name_safe}{_escape_md(uname)} — *{entry['refs']}* إحالة")
-
-    lines.append("")
-
-    if countdown["ended"]:
-        lines.append("🎉 *انتهت المسابقة!*")
-        lines.append("تم توزيع الجوائز على المتصدرين.")
-    else:
-        lines.append(f"⏳ *الوقت المتبقي للجوائز:* `{countdown['days_left']}` يوم")
-        lines.append(f"📅 تنتهي المسابقة: `{countdown['end_date']}`")
-        lines.append("")
-        lines.append("🎁 *الجوائز:*")
-        lines.append("🥇 المركز الأول — رصيد إضافي خاص")
-        lines.append("🥈 المركز الثاني — رصيد مكافأة")
-        lines.append("🥉 المركز الثالث — رصيد مكافأة")
-
-    lines.append("")
-    lines.append("💡 كل إحالة = رصيد فوري + مكانة في اللوحة!")
-
-    return "\n".join(lines)
-
-
-def reset_competition(admin_id=None):
-    """يعيد تعيين المسابقة من الصفر (للأدمن فقط)"""
-    bd = load_bot_data()
-    bd["competition"] = {
-        "start_date": datetime.now().strftime("%Y-%m-%d"),
-        "duration_days": 30
-    }
-    save_bot_data(bd)
 
 
 # ============================================================================
@@ -1083,31 +1080,6 @@ def list_promo_codes() -> list:
         })
     return result
 
-def convert_balance_to_code(user_id, num_people: int) -> dict:
-    """يحول كامل رصيد المستخدم لكود مقسم على عدد الأشخاص"""
-    balance = get_user_balance(user_id)
-    if balance <= 0:
-        return {"ok": False, "message": "❌ رصيدك صفر، لا يمكن التحويل"}
-    if num_people <= 0:
-        return {"ok": False, "message": "❌ عدد الأشخاص يجب أن يكون أكبر من صفر"}
-    per_person = round(balance / num_people, 2)
-    if per_person < 0.01:
-        return {"ok": False, "message": "❌ القيمة لكل شخص أقل من الحد الأدنى (0.01$)"}
-    if not deduct_balance(user_id, balance):
-        return {"ok": False, "message": "❌ فشل خصم الرصيد"}
-    code = create_promo_code(per_person, num_people, user_id)
-    return {
-        "ok": True, "code": code,
-        "per_person": per_person, "num_people": num_people, "total": balance,
-        "message": (
-            f"✅ تم تحويل رصيدك بنجاح\\!\n\n"
-            f"💰 الإجمالي: `{balance:.2f}$`\n"
-            f"👥 عدد الأشخاص: `{num_people}`\n"
-            f"💵 قيمة كل استخدام: `{per_person:.2f}$`\n\n"
-            f"🎟️ الكود:\n`{code}`\n\n"
-            f"أرسله لأصدقائك، يستخدمونه بـ `/PMC {code}`"
-        )
-    }
 
 # ============================================================================
 #                  نظام التخزين المسبق للتوكنات (للسرعة)
@@ -1115,6 +1087,13 @@ def convert_balance_to_code(user_id, num_people: int) -> dict:
 
 def load_tokens_cache() -> dict:
     """تحميل التوكنات المحملة مسبقاً"""
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_tokens_cache()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_tokens_cache DB failed: {e}")
     if os.path.exists(TOKENS_CACHE_FILE):
         try:
             with open(TOKENS_CACHE_FILE, 'r', encoding='utf-8') as f:
@@ -1124,6 +1103,11 @@ def load_tokens_cache() -> dict:
 
 def save_tokens_cache(data: dict):
     """حفظ التوكنات المحملة"""
+    if _DB_AVAILABLE:
+        try:
+            _db_save_tokens_cache(data)
+        except Exception as e:
+            print(f"[db] ⚠️ save_tokens_cache DB failed: {e}")
     try:
         data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(TOKENS_CACHE_FILE, 'w', encoding='utf-8') as f:
@@ -1202,6 +1186,13 @@ def cleanup_used_tokens_from_cache():
 
 def load_call_logs() -> dict:
     """تحميل سجل المكالمات"""
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_call_logs()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_call_logs DB failed: {e}")
     if os.path.exists(CALL_LOGS_FILE):
         try:
             with open(CALL_LOGS_FILE, 'r', encoding='utf-8') as f:
@@ -1215,6 +1206,11 @@ def load_call_logs() -> dict:
 
 def save_call_logs(data: dict):
     """حفظ سجل المكالمات"""
+    if _DB_AVAILABLE:
+        try:
+            _db_save_call_logs(data)
+        except Exception as e:
+            print(f"[db] ⚠️ save_call_logs DB failed: {e}")
     try:
         with open(CALL_LOGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -1288,6 +1284,13 @@ _DEFAULT_DTMF_ACTIONS = {
 
 def load_dtmf_settings() -> dict:
     """إعدادات DTMF العامة (للأدمن / legacy)"""
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_dtmf_settings()
+            if data is not None and data:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_dtmf_settings DB failed: {e}")
     data = load_bot_data()
     stored = data.get("dtmf", {})
     if stored:
@@ -1300,6 +1303,11 @@ def load_dtmf_settings() -> dict:
     return dict(_DEFAULT_DTMF_ACTIONS)
 
 def save_dtmf_settings(settings: dict):
+    if _DB_AVAILABLE:
+        try:
+            _db_save_dtmf_settings(settings)
+        except Exception as e:
+            print(f"[db] ⚠️ save_dtmf_settings DB failed: {e}")
     data = load_bot_data()
     data["dtmf"] = settings
     save_bot_data(data)
@@ -1370,6 +1378,13 @@ DOMAINS = [
 
 def load_users_db():
     """تحميل قاعدة بيانات المستخدمين"""
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_users_db()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_users_db DB failed: {e}")
     if os.path.exists(USERS_DB_FILE):
         try:
             with open(USERS_DB_FILE, 'r') as f:
@@ -1380,11 +1395,23 @@ def load_users_db():
 
 def save_users_db(users_db):
     """حفظ قاعدة بيانات المستخدمين"""
+    if _DB_AVAILABLE:
+        try:
+            _db_save_users_db(users_db)
+        except Exception as e:
+            print(f"[db] ⚠️ save_users_db DB failed: {e}")
     with open(USERS_DB_FILE, 'w') as f:
         json.dump(users_db, f, indent=2)
 
 def load_premium_db():
     """تحميل قاعدة بيانات المميزين"""
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_premium_db()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_premium_db DB failed: {e}")
     if os.path.exists(PREMIUM_DB_FILE):
         try:
             with open(PREMIUM_DB_FILE, 'r') as f:
@@ -1395,11 +1422,23 @@ def load_premium_db():
 
 def save_premium_db(premium_db):
     """حفظ قاعدة بيانات المميزين"""
+    if _DB_AVAILABLE:
+        try:
+            _db_save_premium_db(premium_db)
+        except Exception as e:
+            print(f"[db] ⚠️ save_premium_db DB failed: {e}")
     with open(PREMIUM_DB_FILE, 'w') as f:
         json.dump(premium_db, f, indent=2)
 
 def load_banned_db():
     """تحميل قاعدة بيانات المحظورين"""
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_banned_db()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_banned_db DB failed: {e}")
     if os.path.exists(BANNED_DB_FILE):
         try:
             with open(BANNED_DB_FILE, 'r') as f:
@@ -1410,6 +1449,11 @@ def load_banned_db():
 
 def save_banned_db(banned_db):
     """حفظ قاعدة بيانات المحظورين"""
+    if _DB_AVAILABLE:
+        try:
+            _db_save_banned_db(banned_db)
+        except Exception as e:
+            print(f"[db] ⚠️ save_banned_db DB failed: {e}")
     with open(BANNED_DB_FILE, 'w') as f:
         json.dump(banned_db, f, indent=2)
 
@@ -1564,6 +1608,13 @@ def _monthly_db_path():
     return os.path.join(DATA_DIR, "monthly_subs.json")
 
 def load_monthly_subs() -> dict:
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_monthly_subs()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_monthly_subs DB failed: {e}")
     path = _monthly_db_path()
     if os.path.exists(path):
         try:
@@ -1573,6 +1624,11 @@ def load_monthly_subs() -> dict:
     return {}
 
 def save_monthly_subs(data: dict):
+    if _DB_AVAILABLE:
+        try:
+            _db_save_monthly_subs(data)
+        except Exception as e:
+            print(f"[db] ⚠️ save_monthly_subs DB failed: {e}")
     try:
         with open(_monthly_db_path(), 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -1651,89 +1707,15 @@ def buy_monthly_sub_with_balance(user_id, plan_key: str) -> dict:
     sellers_text = "\n".join([f"• {s['username']}" for s in SUBSCRIPTION_SELLERS])
     return {"ok": False, "msg": f"❌ يجب الاشتراك بهذه الميزة عند الأشخاص التاليين:\n\n{sellers_text}\n\n💰 سعر الخطة {plan['emoji']} {plan['name']}: `{price:.2f}$`"}
 
-# ─── نظام اشتراك التطبيق ─────────────────────────────────────────────────────
-APP_SUBS_FILE = os.path.join(DATA_DIR, "app_subs.json")
+# ─── نظام اشتراك التطبيق تم إزالته ─────────────────────────────────────────
 
-def load_app_subs() -> dict:
-    if os.path.exists(APP_SUBS_FILE):
-        try:
-            with open(APP_SUBS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except: pass
-    return {}
-
-def save_app_subs(data: dict):
-    try:
-        with open(APP_SUBS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except: pass
-
-def get_app_sub(user_id) -> dict | None:
-    subs = load_app_subs()
-    rec = subs.get(str(user_id))
-    if not rec:
-        return None
-    expires = datetime.strptime(rec["expires"], "%Y-%m-%d")
-    if datetime.now() > expires:
-        subs.pop(str(user_id), None)
-        save_app_subs(subs)
-        return None
-    return rec
-
-def is_app_subscriber(user_id) -> bool:
-    return get_app_sub(user_id) is not None
-
-def get_app_calls_left(user_id) -> int:
-    rec = get_app_sub(user_id)
-    if not rec:
-        return 0
-    plan = APP_SUBSCRIPTION_PLANS.get(rec["plan"], {})
-    total = plan.get("calls", 0)
-    used = rec.get("calls_used", 0)
-    return max(0, total - used)
-
-def use_app_call(user_id) -> bool:
-    subs = load_app_subs()
-    uid = str(user_id)
-    rec = subs.get(uid)
-    if not rec:
-        return False
-    expires = datetime.strptime(rec["expires"], "%Y-%m-%d")
-    if datetime.now() > expires:
-        subs.pop(uid, None)
-        save_app_subs(subs)
-        return False
-    plan = APP_SUBSCRIPTION_PLANS.get(rec["plan"], {})
-    total = plan.get("calls", 0)
-    used = rec.get("calls_used", 0)
-    if total == 999999 or used < total:
-        subs[uid]["calls_used"] = used + 1
-        save_app_subs(subs)
-        return True
-    return False
-
-def add_app_sub(user_id, plan_key: str, granted_by=None) -> bool:
-    if plan_key not in APP_SUBSCRIPTION_PLANS:
-        return False
-    subs = load_app_subs()
-    uid = str(user_id)
-    expires = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
-    subs[uid] = {
-        "plan": plan_key,
-        "granted_by": granted_by,
-        "started": datetime.now().strftime("%Y-%m-%d"),
-        "expires": expires,
-        "calls_used": 0,
-    }
-    save_app_subs(subs)
-    return True
-
-def remove_app_sub(user_id) -> bool:
-    subs = load_app_subs()
+def remove_monthly_sub(user_id) -> bool:
+    """يزيل اشتراك شهري لمستخدم"""
+    subs = load_monthly_subs()
     uid = str(user_id)
     if uid in subs:
         del subs[uid]
-        save_app_subs(subs)
+        save_monthly_subs(subs)
         return True
     return False
 
@@ -1822,16 +1804,20 @@ def check_user_access(user_id):
         return False, (
             f"💰 رصيدك: `{balance:.2f}$`\n"
             f"سعر المكالمة: `{cost:.2f}$`\n\n"
-            f"للحصول على مكافأة `{bonus:.2f}$` يومياً تحتاج {required - refs} إحالة أخرى\n"
-            f"أو اشترِ اشتراكاً شهرياً من *📅 اشتراك شهري*\n"
-            f"أو استخدم كود شحن بـ /PMC"
+            f"طرق الحصول على رصيد:\n"
+            f"1️⃣ الإحالات — تحتاج {required - refs} إحالة أخرى\n"
+            f"2️⃣ مشاهدة الإعلانات — 🔧 تحت الصيانه\n"
+            f"3️⃣ شراء اشتراك شهري من *📅 اشتراك شهري*\n"
+            f"4️⃣ استخدام كود شحن بـ /PMC"
         )
     else:
         return False, (
             f"💰 رصيدك: `{balance:.2f}$` (تحتاج `{cost:.2f}$`)\n\n"
-            f"ستحصل على `{bonus:.2f}$` يومياً تلقائياً\n"
-            f"أو اشترِ اشتراكاً شهرياً من *📅 اشتراك شهري*\n"
-            f"أو استخدم كود شحن بـ /PMC"
+            f"طرق الحصول على رصيد:\n"
+            f"1️⃣ ستحصل على `{bonus:.2f}$` يومياً تلقائياً\n"
+            f"2️⃣ مشاهدة الإعلانات — 🔧 تحت الصيانه\n"
+            f"3️⃣ شراء اشتراك شهري من *📅 اشتراك شهري*\n"
+            f"4️⃣ استخدام كود شحن بـ /PMC"
         )
 
 def log_user_entry(user_id, username, first_name, referred_by=None):
@@ -3232,6 +3218,13 @@ def get_bot_instance():
     return _main_bot_instance
 
 def load_sub_bots() -> list:
+    if _DB_AVAILABLE:
+        try:
+            data = _db_load_sub_bots()
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[db] ⚠️ load_sub_bots DB failed: {e}")
     if os.path.exists(SUB_BOTS_FILE):
         try:
             with open(SUB_BOTS_FILE, 'r', encoding='utf-8') as f:
@@ -3240,6 +3233,11 @@ def load_sub_bots() -> list:
     return []
 
 def save_sub_bots(bots_list: list):
+    if _DB_AVAILABLE:
+        try:
+            _db_save_sub_bots(bots_list)
+        except Exception as e:
+            print(f"[db] ⚠️ save_sub_bots DB failed: {e}")
     try:
         with open(SUB_BOTS_FILE, 'w', encoding='utf-8') as f:
             json.dump(bots_list, f, ensure_ascii=False, indent=2)
@@ -3297,9 +3295,7 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                    InlineKeyboardButton("📅 اشتراك شهري", callback_data="sub_monthly"))
             kb.row(InlineKeyboardButton("💰 رصيدي", callback_data="sub_balance"),
                    InlineKeyboardButton("🏅 رتبتي", callback_data="sub_rank"))
-            kb.row(InlineKeyboardButton("💱 تحويل رصيد لكود", callback_data="sub_bal2code"))
             kb.row(InlineKeyboardButton("🤖 أنشئ بوتاً خاصاً", callback_data="sub_create_bot"))
-            kb.row(InlineKeyboardButton("🏆 لوحة المتصدرين", callback_data="sub_leaderboard"))
             kb.row(InlineKeyboardButton("💬 الدعم", url=f"https://t.me/{SUPPORT_USER.replace('@','')}"))
             return kb
 
@@ -3509,20 +3505,6 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                     parse_mode='Markdown'
                 )
 
-            elif data == "sub_bal2code":
-                balance = get_user_balance(cid)
-                if balance <= 0:
-                    sub.send_message(cid, "❌ رصيدك صفر، لا يمكن التحويل")
-                    return
-                sub_user_state[cid] = {"action": "sub_balance_to_code_count"}
-                sub.send_message(
-                    cid,
-                    f"💱 تحويل الرصيد لكود\n\n"
-                    f"💰 رصيدك الحالي: {balance:.2f}$\n\n"
-                    f"كم شخص تريد أن يستخدم الكود؟\nمثال: 5\n\n"
-                    f"سيُنشأ كود واحد قيمته {balance:.2f}$ مقسمة على العدد"
-                )
-
             elif data == "sub_dtmf":
                 kb = _dtmf_panel_kb(cid, False)
                 try:
@@ -3530,24 +3512,6 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                                           call.message.message_id, reply_markup=kb)
                 except:
                     sub.send_message(cid, "⚙️ إعدادات DTMF:", reply_markup=kb)
-
-            elif data == "sub_leaderboard":
-                text = build_leaderboard_text()
-                streak = get_user_streak(cid)
-                refs = get_referral_count(cid)
-                bonus = get_daily_bonus_by_refs(refs)
-                streak_bar = "🔥" * min(streak, 7) + f" ({streak} يوم متتالي)"
-                text += f"\n\n─────────────────\n"
-                text += f"📊 *حالتك:*\n"
-                text += f"🔥 حلقاتك: {streak_bar}\n"
-                text += f"👥 إحالاتك: {refs}\n"
-                if streak >= 3:
-                    text += f"✅ مؤهل للمكافأة اليومية: `{bonus:.2f}$`"
-                else:
-                    text += f"⏳ تحتاج {3 - streak} يوم إضافي للمكافأة اليومية"
-                kb_back = InlineKeyboardMarkup()
-                kb_back.row(InlineKeyboardButton("🔙 رجوع", callback_data="sub_go_start"))
-                sub.send_message(cid, text, parse_mode='Markdown', reply_markup=kb_back)
 
             # ==================== رتبتي VIP (فرعي) ====================
             elif data == "sub_rank":
@@ -3799,18 +3763,6 @@ def launch_sub_bot(token: str, owner_id: int) -> bool:
                         )
                 return
 
-            if action == "sub_balance_to_code_count":
-                sub_user_state.pop(cid)
-                try:
-                    n = int(text)
-                    if n <= 0: raise ValueError
-                except:
-                    sub.reply_to(msg, "❌ أرسل رقم صحيح أكبر من صفر")
-                    return
-                res = convert_balance_to_code(cid, n)
-                sub.reply_to(msg, res["message"], parse_mode='Markdown')
-                return
-
             if action == "dtmf_rename":
                 sub_user_state.pop(cid)
                 digit = st.get("digit", "")
@@ -4015,10 +3967,8 @@ def _main_kb(is_admin=False, user_id=None):
            InlineKeyboardButton(t("btn_monthly", user_id=user_id), callback_data="monthly_sub"))
     kb.row(InlineKeyboardButton(t("btn_balance", user_id=user_id), callback_data="user_balance"),
            InlineKeyboardButton(t("btn_rank", user_id=user_id), callback_data="my_rank"))
-    kb.row(InlineKeyboardButton(t("btn_convert", user_id=user_id), callback_data="balance_to_code"))
     kb.row(InlineKeyboardButton(t("btn_mybot", user_id=user_id), callback_data="my_bots"),
            InlineKeyboardButton(t("btn_create_bot", user_id=user_id), callback_data="create_sub_bot"))
-    kb.row(InlineKeyboardButton(t("btn_leaderboard", user_id=user_id), callback_data="show_leaderboard"))
     kb.row(InlineKeyboardButton(t("btn_token", user_id=user_id), callback_data="create_token"))
     kb.row(InlineKeyboardButton(t("btn_support", user_id=user_id), url=f"https://t.me/{SUPPORT_USER.replace('@', '')}"))
 
@@ -4117,22 +4067,11 @@ def _admin_panel():
         InlineKeyboardButton("🔍 تتبع شخص", callback_data="admin_track")
     )
     kb.add(
-        InlineKeyboardButton("📱 مستخدمي التطبيق", callback_data="admin_app_users")
-    )
-    kb.add(
         InlineKeyboardButton("📦 سحب الداتا", callback_data="admin_data_pull"),
         InlineKeyboardButton("📤 رفع الداتا", callback_data="admin_data_push")
     )
     kb.add(
-        InlineKeyboardButton("☁️ مزامنة GitHub", callback_data="admin_gh_sync"),
-        InlineKeyboardButton("📥 تحميل من GitHub", callback_data="admin_gh_pull")
-    )
-    kb.add(
-        InlineKeyboardButton("📱 منح اشتراك تطبيق", callback_data="admin_grant_app_sub"),
-        InlineKeyboardButton("📱 إلغاء اشتراك تطبيق", callback_data="admin_cancel_app_sub")
-    )
-    kb.add(
-        InlineKeyboardButton("📱 مشتركي التطبيق", callback_data="admin_app_subs_list"),
+        InlineKeyboardButton("📅 إلغاء اشتراك شهري", callback_data="admin_cancel_monthly"),
         InlineKeyboardButton("📅 مشتركي الشهري", callback_data="admin_monthly_subs_list")
     )
     kb.add(
@@ -4961,42 +4900,14 @@ def run_bot(token_override: str = ""):
         if not data.startswith("set_lang_"):
             bot.answer_callback_query(call.id)
 
-        # ─── أدمن: منح اشتراك تطبيق ─────────────────────────────────
-        if data == "admin_grant_app_sub":
+        # ─── أدمن: إلغاء اشتراك شهري ─────────────────────────────────
+        elif data == "admin_cancel_monthly":
             if cid not in ADMIN_IDS:
                 return
-            user_state[cid] = {"action": "admin_grant_app_sub"}
-            plans_text = "\n".join([f"• {pk}: {pv['emoji']} {pv['name']} — {pv['calls']} مكالمة — {pv['price']}$" for pk, pv in APP_SUBSCRIPTION_PLANS.items()])
+            user_state[cid] = {"action": "admin_cancel_monthly"}
             bot.send_message(cid,
-                f"📱 *منح اشتراك تطبيق*\n\n"
-                f"أرسل معرف المستخدم والخطة:\n"
-                f"`123456789 app_basic`\n`123456789 app_pro`\n`123456789 app_unlimited`\n\n"
-                f"الخطط:\n{plans_text}",
+                "📅 *إلغاء اشتراك شهري*\n\nأرسل معرف المستخدم:\n`123456789`",
                 parse_mode='Markdown')
-
-        # ─── أدمن: إلغاء اشتراك تطبيق ─────────────────────────────────
-        elif data == "admin_cancel_app_sub":
-            if cid not in ADMIN_IDS:
-                return
-            user_state[cid] = {"action": "admin_cancel_app_sub"}
-            bot.send_message(cid,
-                "📱 *إلغاء اشتراك تطبيق*\n\nأرسل معرف المستخدم:\n`123456789`",
-                parse_mode='Markdown')
-
-        # ─── أدمن: قائمة مشتركي التطبيق ─────────────────────────────────
-        elif data == "admin_app_subs_list":
-            if cid not in ADMIN_IDS:
-                return
-            subs = load_app_subs()
-            if not subs:
-                bot.edit_message_text("📱 لا يوجد مشتركي تطبيق", cid, call.message.message_id, reply_markup=_admin_panel())
-                return
-            lines = ["📱 *مشتركو التطبيق:*\n"]
-            for uid, info in subs.items():
-                plan_info = APP_SUBSCRIPTION_PLANS.get(info.get("plan", ""), {})
-                left = "∞" if plan_info.get("calls", 0) == 999999 else str(plan_info.get("calls", 0) - info.get("calls_used", 0))
-                lines.append(f"• `{uid}` — {plan_info.get('emoji','')} {plan_info.get('name','')} ({left} متبقية) — ينتهي: {info.get('expires','')}")
-            bot.edit_message_text("\n".join(lines), cid, call.message.message_id, parse_mode='Markdown', reply_markup=_admin_panel())
 
         # ─── أدمن: قائمة مشتركي الشهري ─────────────────────────────────
         elif data == "admin_monthly_subs_list":
@@ -5227,40 +5138,6 @@ def run_bot(token_override: str = ""):
                 f"{t('ref_link', user_id=cid)}\n`{ref_link}`",
                 parse_mode='Markdown'
             )
-
-        # ==================== تحويل رصيد لكود ====================
-        elif data == "balance_to_code":
-            balance = get_user_balance(cid)
-            if balance <= 0:
-                bot.answer_callback_query(call.id, t("balance_zero", user_id=cid))
-                return
-            user_state[cid] = {"action": "balance_to_code_count"}
-            bot.send_message(
-                cid,
-                f"{t('balance_to_code', user_id=cid)}\n\n"
-                f"{t('balance_current', user_id=cid)} `{balance:.2f}$`\n\n"
-                f"{t('how_many_people', user_id=cid)}",
-                parse_mode='Markdown'
-            )
-
-        # ==================== لوحة المتصدرين ====================
-        elif data == "show_leaderboard":
-            text = build_leaderboard_text()
-            streak = get_user_streak(cid)
-            refs = get_referral_count(cid)
-            bonus = get_daily_bonus_by_refs(refs)
-            streak_bar = "🔥" * min(streak, 7) + f" ({t('consecutive', user_id=cid, n=streak)})"
-            text += f"\n\n─────────────────\n"
-            text += f"{t('your_status', user_id=cid)}\n"
-            text += f"{t('streak_label', user_id=cid)} {streak_bar}\n"
-            text += f"{t('refs_your', user_id=cid)} {refs}\n"
-            if streak >= 3:
-                text += f"{t('eligible_bonus', user_id=cid)} `{bonus:.2f}$`"
-            else:
-                text += t("need_more_days", user_id=cid, n=3 - streak)
-            kb_back = InlineKeyboardMarkup()
-            kb_back.row(InlineKeyboardButton(t("back_menu_btn", user_id=cid), callback_data="go_start"))
-            bot.send_message(cid, text, parse_mode='Markdown', reply_markup=kb_back)
 
         # ==================== بوتي الخاص ====================
         elif data == "my_bots":
@@ -5993,7 +5870,7 @@ def run_bot(token_override: str = ""):
             try:
                 import zipfile
                 import tempfile
-                # الملفات المطلوبة (موافقة لـ github_sync.py SYNC_FILES)
+                # الملفات المطلوبة
                 data_files = [
                     "bot_data.json",
                     "telicall_accounts.json",
@@ -6054,64 +5931,6 @@ def run_bot(token_override: str = ""):
             )
 
         # ══════════════════════════════════════════════════════════════
-        # ☁️ مزامنة GitHub — Push all data to GitHub now
-        # ══════════════════════════════════════════════════════════════
-        elif data == "admin_gh_sync":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id, "☁️ جاري المزامنة...")
-            try:
-                from github_sync import push_to_github
-                result = push_to_github(force=True)
-                pushed = result.get('pushed', 0)
-                skipped = result.get('skipped', 0)
-                errors = result.get('errors', 0)
-                msg_text = (
-                    f"☁️ *مزامنة GitHub*\n\n"
-                    f"✅ مرفوع: {pushed}\n"
-                    f"⏭️ تم تخطيه: {skipped}\n"
-                    f"❌ أخطاء: {errors}"
-                )
-                bot.send_message(cid, msg_text, parse_mode='Markdown', reply_markup=_admin_panel())
-            except Exception as e:
-                bot.send_message(cid, f"❌ فشل المزامنة: {e}", reply_markup=_admin_panel())
-
-        # ══════════════════════════════════════════════════════════════
-        # 📥 تحميل من GitHub — Pull all data from GitHub now
-        # ══════════════════════════════════════════════════════════════
-        elif data == "admin_gh_pull":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id, "📥 جاري التحميل من GitHub...")
-            try:
-                from github_sync import pull_from_github
-                result = pull_from_github()
-                pulled = result.get('pulled', 0)
-                skipped = result.get('skipped', 0)
-                errors = result.get('errors', 0)
-                details = result.get('details', [])
-                msg_text = (
-                    f"📥 *تحميل من GitHub*\n\n"
-                    f"✅ تم تحميل: {pulled}\n"
-                    f"⏭️ تم تخطيه: {skipped}\n"
-                    f"❌ أخطاء: {errors}"
-                )
-                if details:
-                    msg_text += "\n\n📋 التفاصيل:"
-                    for d in details[:10]:
-                        msg_text += f"\n  • {d}"
-                bot.send_message(cid, msg_text, parse_mode='Markdown', reply_markup=_admin_panel())
-                # إعادة تحميل الحسابات بعد التحميل
-                if pulled > 0:
-                    load_accounts()
-                    bd = load_bot_data()
-                    saved_accounts = bd.get("accounts", [])
-                    if saved_accounts:
-                        bot.send_message(cid, f"🔄 تم إعادة تحميل {len(saved_accounts)} حساب")
-            except Exception as e:
-                bot.send_message(cid, f"❌ فشل التحميل: {e}", reply_markup=_admin_panel())
-
-        # ══════════════════════════════════════════════════════════════
         # 🔑 إنشاء توكن — Create Fox Token
         # ══════════════════════════════════════════════════════════════
         elif data == "create_token":
@@ -6152,64 +5971,6 @@ def run_bot(token_override: str = ""):
                     bot.send_message(cid, f"❌ فشل إنشاء التوكن: {e}")
                 except:
                     pass
-
-        # ══════════════════════════════════════════════════════════════
-        # 📱 مستخدمي التطبيق — App Users
-        # ══════════════════════════════════════════════════════════════
-        elif data == "admin_app_users":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id, "⏳ جاري التحميل...")
-            try:
-                users_db = load_users_db()
-                # Find users who logged in via the app (have last_ip or last_login)
-                app_users = {}
-                for uid, data_rec in users_db.items():
-                    has_ip = bool(data_rec.get("last_ip"))
-                    has_login = bool(data_rec.get("last_login"))
-                    has_refresh = bool(data_rec.get("refresh_token_hash"))
-                    if has_ip or has_login or has_refresh:
-                        app_users[uid] = {
-                            "ip": data_rec.get("last_ip", ""),
-                            "last_login": data_rec.get("last_login", ""),
-                            "last_seen": data_rec.get("last_seen", ""),
-                            "balance": data_rec.get("balance", 0),
-                            "first_name": data_rec.get("first_name", ""),
-                            "username": data_rec.get("username", ""),
-                        }
-                
-                if not app_users:
-                    bot.edit_message_text(
-                        "📱 لا يوجد مستخدمين مسجلين عبر التطبيق حتى الآن",
-                        cid, call.message.message_id,
-                        reply_markup=_admin_panel()
-                    )
-                    return
-                
-                lines = [f"📱 *مستخدمي التطبيق ({len(app_users)})*\n\n"]
-                for uid, info in app_users.items():
-                    name = info.get("first_name") or info.get("username") or uid
-                    ip = info.get("ip", "—")
-                    last = info.get("last_login") or info.get("last_seen") or "—"
-                    bal = info.get("balance", 0)
-                    lines.append(f"👤 `{uid}` | {name}")
-                    lines.append(f"   💰 `{bal:.2f}$` | 🌐 `{ip}`")
-                    lines.append(f"   🕐 {last}\n")
-                
-                text = "\n".join(lines)
-                # Split if too long
-                if len(text) > 4000:
-                    text = text[:3990] + "\n..."
-                
-                kb_au = InlineKeyboardMarkup()
-                kb_au.row(InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
-                try:
-                    bot.edit_message_text(text, cid, call.message.message_id,
-                                          parse_mode='Markdown', reply_markup=kb_au)
-                except:
-                    bot.send_message(cid, text, parse_mode='Markdown', reply_markup=kb_au)
-            except Exception as e:
-                bot.answer_callback_query(call.id, f"❌ خطأ: {e}")
 
         # ══════════════════════════════════════════════════════════════
         # ⚙️ زرار الإعدادات — DTMF Actions
@@ -6597,7 +6358,7 @@ def run_bot(token_override: str = ""):
         state = user_state.get(cid, {})
         if state.get("action") == "admin_data_push_input" and cid in ADMIN_IDS:
             user_state.pop(cid, None)
-            # قائمة الملفات المسموحة (موافقة لـ github_sync.py SYNC_FILES)
+            # قائمة الملفات المسموحة
             allowed_data_files = [
                 "bot_data.json",
                 "telicall_accounts.json",
@@ -6636,17 +6397,8 @@ def run_bot(token_override: str = ""):
                     dest = os.path.join(DATA_DIR, base_name)
                     with open(dest, 'wb') as f:
                         f.write(file_bytes)
-                    # رفع على GitHub فوراً
-                    gh_msg = ""
-                    try:
-                        from github_sync import push_to_github
-                        gh_result = push_to_github(force=True)
-                        gh_pushed = gh_result.get('pushed', 0)
-                        gh_msg = f"\n☁️ GitHub: {gh_pushed} ملف تم رفعه"
-                    except Exception as _ghe:
-                        gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
                     bot.edit_message_text(
-                        f"✅ تم رفع الملف بنجاح\n📄 {base_name}{gh_msg}",
+                        f"✅ تم رفع الملف بنجاح\n📄 {base_name}",
                         cid, m.message_id)
                 except Exception as e:
                     try: bot.edit_message_text(f"❌ خطأ في رفع الملف: {e}", cid, m.message_id)
@@ -6720,16 +6472,6 @@ def run_bot(token_override: str = ""):
                 # تنظيف
                 try: os.unlink(tmp_zip.name)
                 except: pass
-                # رفع على GitHub فوراً
-                gh_msg = ""
-                if replaced:
-                    try:
-                        from github_sync import push_to_github
-                        gh_result = push_to_github(force=True)
-                        gh_pushed = gh_result.get('pushed', 0)
-                        gh_msg = f"\n☁️ GitHub: {gh_pushed} ملف تم رفعه"
-                    except Exception as _ghe:
-                        gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
                 # نتيجة
                 if replaced:
                     result_lines = [f"✅ تم رفع الداتا بنجاح", f"", f"📁 الملفات المستبدلة ({len(replaced)}):"]
@@ -6739,7 +6481,6 @@ def run_bot(token_override: str = ""):
                         result_lines.append(f"\n❌ أخطاء ({len(errors)}):")
                         for err in errors:
                             result_lines.append(f"  ❌ {err}")
-                    result_lines.append(gh_msg)
                     try:
                         bot.edit_message_text("\n".join(result_lines), cid, m.message_id)
                     except Exception:
@@ -7098,51 +6839,20 @@ def run_bot(token_override: str = ""):
                 parse_mode='Markdown')
             return
 
-        # ── أدمن: منح اشتراك تطبيق ──────────────────────────────────
-        if action == "admin_grant_app_sub":
-            user_state.pop(cid, None)
-            parts_app = text.strip().split()
-            if len(parts_app) != 2:
-                bot.reply_to(msg, "❌ الصيغة: `معرف_المستخدم اسم_الخطة`\nمثال: `123456789 app_pro`", parse_mode='Markdown')
-                return
-            try:
-                target_id = int(parts_app[0])
-                plan_key_app = parts_app[1].lower()
-            except:
-                bot.reply_to(msg, "❌ معرف غير صحيح")
-                return
-            if plan_key_app not in APP_SUBSCRIPTION_PLANS:
-                plans_list = ", ".join(APP_SUBSCRIPTION_PLANS.keys())
-                bot.reply_to(msg, f"❌ خطة غير موجودة\nالخطط المتاحة: `{plans_list}`", parse_mode='Markdown')
-                return
-            add_app_sub(target_id, plan_key_app, granted_by=cid)
-            plan_app = APP_SUBSCRIPTION_PLANS[plan_key_app]
-            calls_app = "∞" if plan_app["calls"] == 999999 else str(plan_app["calls"])
-            bot.reply_to(msg,
-                f"✅ *تم منح اشتراك تطبيق*\n\n"
-                f"المستخدم: `{target_id}`\n"
-                f"الخطة: {plan_app['emoji']} *{plan_app['name']}* ({calls_app} مكالمة)\n"
-                f"ينتهي بعد 30 يوم",
-                parse_mode='Markdown')
-            try:
-                bot.send_message(target_id,
-                    f"🎁 *تم تفعيل اشتراك التطبيق!*\n\n"
-                    f"{plan_app['emoji']} *{plan_app['name']}* — {calls_app} مكالمة\n"
-                    f"📆 صالح لمدة 30 يوم\n\n"
-                    f"استمتع بمكالماتك! 🎉",
-                    parse_mode='Markdown')
-            except: pass
-            return
-
-        # ── أدمن: إلغاء اشتراك تطبيق ──────────────────────────────────
-        if action == "admin_cancel_app_sub":
+        # ── أدمن: إلغاء اشتراك شهري ──────────────────────────────────
+        if action == "admin_cancel_monthly":
             user_state.pop(cid, None)
             try:
                 target_id = int(text.strip())
-                if remove_app_sub(target_id):
-                    bot.reply_to(msg, f"✅ تم إلغاء اشتراك التطبيق لـ `{target_id}`", parse_mode='Markdown')
+                if remove_monthly_sub(target_id):
+                    bot.reply_to(msg, f"✅ تم إلغاء الاشتراك الشهري لـ `{target_id}`", parse_mode='Markdown')
+                    try:
+                        bot.send_message(target_id,
+                            "📅 *تم إلغاء اشتراكك الشهري*\n\nللاشتراك مجدداً تواصل مع الدعم.",
+                            parse_mode='Markdown')
+                    except: pass
                 else:
-                    bot.reply_to(msg, f"❌ `{target_id}` ليس مشتركاً في التطبيق", parse_mode='Markdown')
+                    bot.reply_to(msg, f"❌ `{target_id}` ليس مشتركاً شهرياً", parse_mode='Markdown')
             except:
                 bot.reply_to(msg, "❌ معرف غير صحيح")
             return
@@ -7333,19 +7043,6 @@ def run_bot(token_override: str = ""):
                 bot.reply_to(msg, "✅ تم إرسال التسجيل", reply_markup=_admin_panel())
             except Exception as e:
                 bot.reply_to(msg, f"❌ خطأ في إرسال التسجيل: {e}", reply_markup=_admin_panel())
-            return
-
-        # ── تحويل الرصيد لكود — عدد الأشخاص ──────────────────────────
-        if action == "balance_to_code_count":
-            user_state.pop(cid)
-            try:
-                n = int(text.strip())
-                if n <= 0: raise ValueError
-            except:
-                bot.reply_to(msg, "❌ أرسل رقم صحيح أكبر من صفر، مثال: 5")
-                return
-            res = convert_balance_to_code(cid, n)
-            bot.reply_to(msg, res["message"], parse_mode='Markdown')
             return
 
         # ── تسجيل بوت فرعي جديد من المستخدم ──────────────────────
@@ -7955,12 +7652,13 @@ if __name__ == "__main__":
         # 🗂️ Step 1: Initialize data directory (create defaults if missing)
         _init_data_dir()
 
-        # 🌐 Step 2: Pull latest data from GitHub (overwrites local with remote)
-        try:
-            from github_sync import init_github_sync
-            init_github_sync()
-        except Exception as _ghe:
-            print(f"[startup] ⚠️ GitHub sync init failed: {_ghe}")
+        # 🗄️ Step 2: Initialize PostgreSQL database
+        if _DB_AVAILABLE:
+            try:
+                init_db()
+                print("[startup] ✅ PostgreSQL database initialized")
+            except Exception as _dbe:
+                print(f"[startup] ⚠️ Database init failed: {_dbe}")
 
         load_accounts()
 
@@ -7977,10 +7675,4 @@ if __name__ == "__main__":
 
         run_bot()
     except KeyboardInterrupt:
-        # 🌐 Final push to GitHub before shutdown
-        try:
-            from github_sync import stop_auto_sync
-            stop_auto_sync()
-        except Exception:
-            pass
         print("\nتم الإيقاف")
