@@ -1,35 +1,4 @@
 {
-  "ready_tokens": [
-    {
-      "email": "yelos19524@uswaid.com",
-      "device_id": "32e634b086d12ce8",
-      "token": "2kv6lfGJZubloaGtW8FIVFrIuLfnMsMhLGWq5yrtZSK0l46lJ222iizlqTLJFkBd",
-      "created": "2026-05-26 09:20:42"
-    },
-    {
-      "email": "wekem35166@uswaid.com",
-      "device_id": "84d4db2a0979aa25",
-      "token": "ucSWi8k0Rj3e8wfEhInr7tSvjfVRgMR1GVYo2wbU355X8yrk71JId-95BpbtuKqY",
-      "created": "2026-05-26 09:20:43"
-    },
-    {
-      "email": "kosega8895@zizvy.com",
-      "device_id": "bf028ad9000c842b",
-      "token": "VPdQb2J18cyQTZ4s_1VtFhm90VzPM5fCQYwbV8juvXhrKakR6KFD7EEQaD7NDVJ9",
-      "created": "2026-05-26 09:20:48"
-    },
-    {
-      "email": "koyogoc131@wetuns.com",
-      "device_id": "1263bdf6c3d905c9",
-      "token": "v5zJ7GF8f8U3epL2oJcG0CbW3Xc5Ib0sQ33Wz5EDzGFr0NkmSP8idoi3EtAZCUfk",
-      "created": "2026-05-26 09:20:48"
-    },
-    {
-      "email": "mokare3809@theaumos.com",
-      "device_id": "6df922d8b6722560",
-      "token": "wOYsAZKvPcShchBp6tr8Rryl7jHjAReSjbUerFwsnIduGHHDWI5sP_VBJBbNhtU7",
-      "created": "2026-05-26 09:20:49"
-    }
-  ],
-  "last_updated": "2026-05-26 09:20:49"
+  "ready_tokens": [],
+  "last_updated": "2026-05-26 09:20:59"
 }
