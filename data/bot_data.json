@@ -6671,7 +6671,39 @@
       "balance": 0.4,
       "streak": 1,
       "last_login_date": "2026-05-26",
-      "last_use": "2026-05-26 01:56:39"
+      "last_use": "2026-05-26 01:56:39",
+      "dtmf": {
+        "0": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "1": {
+          "action": "confirm",
+          "label": "✅ موافق",
+          "enabled": true
+        },
+        "2": {
+          "action": "reject",
+          "label": "❌ رافض",
+          "enabled": true
+        },
+        "9": {
+          "action": "hangup",
+          "label": "📴 قطع المكالمة",
+          "enabled": true
+        },
+        "*": {
+          "action": "notify",
+          "label": "⭐ نجمة",
+          "enabled": true
+        },
+        "#": {
+          "action": "notify",
+          "label": "# هاش",
+          "enabled": true
+        }
+      }
     },
     "1789205060": {
       "usage": 0,
