@@ -228,7 +228,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "6.0.0"
+BOT_VERSION = "6.1.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -699,8 +699,11 @@ def get_used_emails() -> set:
     data = load_bot_data()
     return set(data.get("used_accounts", []))
 
+_last_accounts_notify = 0  # آخر مرة أُرسل فيها إشعار الحسابات
+
 def mark_email_used(email: str):
     """يحفظ الإيميل كمستعمل ويتحقق لو خلصت الحسابات"""
+    global _last_accounts_notify
     if not email:
         return
     data = load_bot_data()
@@ -710,12 +713,14 @@ def mark_email_used(email: str):
         data["used_accounts"].append(email)
     save_bot_data(data)
 
-    # تحقق لو خلصت الحسابات كلها
+    # تحقق لو خلصت الحسابات كلها — لكن إرسال إشعار مرة كل 30 دقيقة فقط
     registered = set(data.get("registered_accounts", []))
     used = set(data["used_accounts"])
     if registered and registered <= used:
-        # كل الحسابات اتستعملت — نبلغ الأدمن
-        _notify_admins_accounts_finished()
+        now = time.time()
+        if now - _last_accounts_notify > 1800:  # 30 دقيقة
+            _last_accounts_notify = now
+            _notify_admins_accounts_finished()
 
 def _notify_admins_accounts_finished():
     """يبلغ كل الأدمن إن الحسابات خلصت"""
@@ -2264,14 +2269,13 @@ def log_user_entry(user_id, username, first_name, referred_by=None):
         for admin_id in ADMIN_IDS:
             try:
                 _bot = telebot.TeleBot(BOT_TOKEN)
-                bonus_info = f"\n🎁 رصيد ترحيبي: `{welcome_amount:.2f}$`" if welcome_amount > 0 else ""
                 _bot.send_message(
                     admin_id,
                     f"🆕 مستخدم جديد!\n\n"
                     f"👤 المعرف: `{user_id}`\n"
                     f"📝 اليوزر: {uname_display}\n"
                     f"🏷️ الاسم: {fname_display}\n"
-                    f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{bonus_info}",
+                    f"📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                     parse_mode='Markdown'
                 )
             except:
@@ -3606,7 +3610,7 @@ def make_call_fast(phone, dur=60, user_id=None, display_phone=None):
     ⚡ تستخدم توكن جاهز فوراً (بدون تأخير)
     🔄 لو التوكن فشل، ينتقل للحساب التاني فوراً
     🗑️ يحذف الحسابات الفاشلة ويجيب غيرها بسرعة
-    🔧 لو كل التوكنات منتهية → create_account() حساب جديد
+    🔧 لو مفيش حسابات → create_account() حساب جديد
     """
     os.makedirs(RECORDINGS_DIR, exist_ok=True)
     max_fast_retries = 8  # زيادة المحاولات عشان create_account
@@ -3671,6 +3675,14 @@ def make_call_fast(phone, dur=60, user_id=None, display_phone=None):
             if created:
                 # الحساب الجديد اتضاف لـ accounts واتحفظ — جرب تاني
                 load_accounts()
+                # كمان نضيفه كتوكن جاهز
+                if accounts:
+                    acc = accounts[-1]
+                    _token = acc.get('x-token') or acc.get('token')
+                    _device = acc.get('x-client-device-id') or acc.get('device_id')
+                    _email = acc.get('email', '')
+                    if _token and _device:
+                        add_ready_token(_email, _device, _token)
                 continue
             else:
                 print(f"[make_call_fast] ❌ Failed to create account")
@@ -8926,30 +8938,13 @@ if __name__ == "__main__":
         # 🌐 Step 2: Initialize proxy manager (from alive_proxies.txt)
         init_proxy_manager()
 
-        # 🗑️ Step 3: Clear ALL old accounts and tokens — start fresh with new ones
-        print(f"[startup] 🗑️ Clearing old accounts and tokens for fresh start...")
-        accounts = []
-        # Clear the encrypted accounts file
-        try:
-            if os.path.exists(ACCOUNTS_FILE):
-                os.remove(ACCOUNTS_FILE)
-                print(f"[startup] 🗑️ Removed old accounts file")
-        except: pass
-        # Clear registered and used accounts from bot_data
-        bd = load_bot_data()
-        old_reg = len(bd.get("registered_accounts", []))
-        old_used = len(bd.get("used_accounts", []))
-        bd["registered_accounts"] = []
-        bd["used_accounts"] = []
-        save_bot_data(bd)
-        print(f"[startup] 🗑️ Cleared {old_reg} registered + {old_used} used accounts")
+        load_accounts()
 
-        # 🧹 تنظيف التوكنات المستعملة + مسح كل التوكنات
+        # 🧹 تنظيف التوكنات المستعملة من الكاش + مسح التوكنات القديمة
         cleanup_used_tokens_from_cache()
         clear_all_ready_tokens()
-        print(f"[startup] 🧹 Cleared all ready tokens — will create fresh ones with proxy")
+        print(f"[startup] 🧹 Cleared old ready tokens — will create fresh ones with proxy")
 
-        load_accounts()
         print(f"[startup] 📞 Accounts loaded: {len(accounts)} available")
 
         # 🚀 تهيئة التوكنات من الحسابات المحفوظة عند البدء
@@ -8961,6 +8956,11 @@ if __name__ == "__main__":
 
         # 🔄 تشغيل خلفية التعبئة — يضمن 3 حسابات جاهزة دايماً
         start_token_refill()
+
+        # 📦 تشغيل خلفية النسخ الاحتياطي التلقائي — كل 5 ساعات
+        try:
+            _start_auto_backup()
+        except: pass
 
         # 🤖 تشغيل البوتات الفرعية المحفوظة
         threading.Thread(target=start_all_sub_bots, daemon=True).start()
