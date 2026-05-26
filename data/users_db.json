@@ -6660,5 +6660,22 @@
     "streak": 1,
     "last_login_date": "2026-05-25",
     "bot_source": "sub_@hfzbgbot"
+  },
+  "8227154970": {
+    "usage": 0,
+    "referrals": 0,
+    "first_seen": "2026-05-26 08:54:56",
+    "username": "SVJJ12",
+    "first_name": "\u0671\ufedf\u0642\u0640\u0631\u20dd\u0635\u0640\u0671\u0646 \u0671\ufedf\ufef3\ufee3\u0671\ufee7\ufef1\u2280\ud83c\uddfe\ud83c\uddea\ud80c\udda9\u2079\u2079\u2079\ud80c\uddaa\ud80c\udc86",
+    "balance": 0.45,
+    "streak": 1,
+    "last_login_date": "2026-05-26",
+    "last_use": "2026-05-26 08:56:23",
+    "active_fox_token_hash": "a8b787dc32b8cf6dae8016cbd23d92879d6d4a5ead3eff5bd5396ad0e6ae2666",
+    "active_device_id": "",
+    "active_token_set_at": "2026-05-26 08:57:39",
+    "refresh_token_hash": "",
+    "session_invalidated_at": 1779785859,
+    "language": "ar"
   }
 }
