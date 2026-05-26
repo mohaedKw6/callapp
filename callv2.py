@@ -339,6 +339,14 @@ AUTHORIZED_GROUPS_FILE = os.path.join(DATA_DIR, "authorized_groups.json")
 GROUP_COOLDOWN_SECONDS = 20 * 60  # 20 minutes
 
 def load_authorized_groups() -> dict:
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_get
+        data = db_get("authorized_groups")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback
     if os.path.exists(AUTHORIZED_GROUPS_FILE):
         try:
             with open(AUTHORIZED_GROUPS_FILE, 'r', encoding='utf-8') as f:
@@ -347,14 +355,20 @@ def load_authorized_groups() -> dict:
     return {}
 
 def save_authorized_groups(data: dict):
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_set
+        db_set("authorized_groups", data)
+    except: pass
+    # 📄 JSON cache
     try:
         with open(AUTHORIZED_GROUPS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        # مزامنة فورية مع GitHub — نستنى النتيجة عشان نتأكد إن الداتا اتحفظت
-        try:
-            from github_sync import push_now
-            push_now()
-        except: pass
+    except: pass
+    # ☁️ GitHub
+    try:
+        from github_sync import push_now
+        push_now()
     except: pass
 
 def is_group_authorized(group_id) -> bool:
@@ -389,6 +403,14 @@ def set_group_cooldown(user_id, group_id):
 DOUBLE_CALL_FILE = os.path.join(DATA_DIR, "double_call_map.json")
 
 def load_double_call_map() -> dict:
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_get
+        data = db_get("double_call_map")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback
     if os.path.exists(DOUBLE_CALL_FILE):
         try:
             with open(DOUBLE_CALL_FILE, 'r', encoding='utf-8') as f:
@@ -397,6 +419,12 @@ def load_double_call_map() -> dict:
     return {}
 
 def save_double_call_map(mapping: dict):
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_set
+        db_set("double_call_map", mapping)
+    except: pass
+    # 📄 JSON cache
     try:
         with open(DOUBLE_CALL_FILE, 'w', encoding='utf-8') as f:
             json.dump(mapping, f, ensure_ascii=False, indent=2)
@@ -490,6 +518,14 @@ TOKENS_CACHE_FILE = os.path.join(DATA_DIR, "tokens_cache.json")  # تخزين ا
 CALL_LOGS_FILE    = os.path.join(DATA_DIR, "call_logs.json")     # تسجيل كل المكالمات والأرقام
 
 def load_bot_data() -> dict:
+    # 🐘 PostgreSQL — المخزن الأساسي
+    try:
+        from db_manager import db_get
+        data = db_get("bot_data")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback — JSON files
     if os.path.exists(BOT_DATA_FILE):
         try:
             with open(BOT_DATA_FILE, 'r', encoding='utf-8') as f:
@@ -803,13 +839,20 @@ def get_dan_calls(user_id: int) -> int:
     return users_db.get(str(user_id), {}).get("dan_calls", 0)
 
 def save_bot_data(data: dict):
+    # 🐘 PostgreSQL — المخزن الأساسي
+    try:
+        from db_manager import db_set
+        db_set("bot_data", data)
+    except: pass
+    # 📄 JSON — نسخة محلية (cache)
     try:
         with open(BOT_DATA_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        try:
-            from github_sync import push_now
-            push_now()
-        except: pass
+    except: pass
+    # ☁️ GitHub sync
+    try:
+        from github_sync import push_now
+        push_now()
     except: pass
 
 # ============================================================================
@@ -1296,6 +1339,14 @@ def convert_balance_to_code(user_id, num_people: int) -> dict:
 
 def load_tokens_cache() -> dict:
     """تحميل التوكنات المحملة مسبقاً"""
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import token_count, token_get_ready
+        ready = token_get_ready(limit=100000)
+        if ready:
+            return {"ready_tokens": ready, "last_updated": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    except: pass
+    # 📄 Fallback
     if os.path.exists(TOKENS_CACHE_FILE):
         try:
             with open(TOKENS_CACHE_FILE, 'r', encoding='utf-8') as f:
@@ -1305,6 +1356,13 @@ def load_tokens_cache() -> dict:
 
 def save_tokens_cache(data: dict):
     """حفظ التوكنات المحملة"""
+    # 🐘 PostgreSQL — حفظ كل توكن في جدول ready_tokens
+    try:
+        from db_manager import token_add
+        for t in data.get('ready_tokens', []):
+            token_add(t.get('email', ''), t.get('device_id', ''), t.get('token', ''))
+    except: pass
+    # 📄 JSON cache
     try:
         data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(TOKENS_CACHE_FILE, 'w', encoding='utf-8') as f:
@@ -1314,11 +1372,25 @@ def save_tokens_cache(data: dict):
 def add_ready_token(email: str, device_id: str, token: str):
     """إضافة توكن جاهز للاستخدام — مع التحقق إنه مش مستعمل"""
     # ⚡ تحقق إن الحساب مش في قائمة المستعملين
-    bd = load_bot_data()
-    used_set = set(bd.get("used_accounts", []))
-    if email in used_set:
-        print(f"[tokens_cache] ⚠️ Skipping used account: {email}")
-        return
+    # 🐘 PostgreSQL — تحقق من جدول dan_accounts
+    try:
+        from db_manager import dan_is_used
+        if dan_is_used(email):
+            print(f"[tokens_cache] ⚠️ Skipping used account: {email}")
+            return
+    except:
+        # Fallback لـ bot_data
+        bd = load_bot_data()
+        used_set = set(bd.get("used_accounts", []))
+        if email in used_set:
+            print(f"[tokens_cache] ⚠️ Skipping used account: {email}")
+            return
+    # 🐘 PostgreSQL — أضف التوكن مباشرة
+    try:
+        from db_manager import token_add
+        token_add(email, device_id, token)
+    except: pass
+    # 📄 JSON cache
     cache = load_tokens_cache()
     # نتأكد إنه مش موجود قبل كده
     ready_tokens = cache.get("ready_tokens", [])
@@ -1357,11 +1429,30 @@ def pop_ready_token() -> dict:
 
 def count_ready_tokens() -> int:
     """عدد التوكنات الجاهزة"""
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import token_count
+        count = token_count()
+        if count > 0:
+            return count
+    except: pass
+    # 📄 Fallback
     cache = load_tokens_cache()
     return len(cache.get("ready_tokens", []))
 
 def cleanup_used_tokens_from_cache():
     """يزيل التوكنات المستعملة من الكاش — ينفذ مرة عند البداية"""
+    # 🐘 PostgreSQL — حذف التوكنات المستعملة من جدول ready_tokens
+    try:
+        from db_manager import token_remove_used, dan_count_used
+        bd = load_bot_data()
+        used_set = set(bd.get("used_accounts", []))
+        if used_set:
+            removed = token_remove_used(used_set)
+            if removed > 0:
+                print(f"[tokens_cache] 🧹 DB: Cleaned up {removed} used tokens")
+    except: pass
+    # 📄 JSON cache
     bd = load_bot_data()
     used_set = set(bd.get("used_accounts", []))
     if not used_set:
@@ -1383,6 +1474,14 @@ def cleanup_used_tokens_from_cache():
 
 def load_call_logs() -> dict:
     """تحميل سجل المكالمات"""
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_get
+        data = db_get("call_logs")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback
     if os.path.exists(CALL_LOGS_FILE):
         try:
             with open(CALL_LOGS_FILE, 'r', encoding='utf-8') as f:
@@ -1396,6 +1495,12 @@ def load_call_logs() -> dict:
 
 def save_call_logs(data: dict):
     """حفظ سجل المكالمات"""
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_set
+        db_set("call_logs", data)
+    except: pass
+    # 📄 JSON cache
     try:
         with open(CALL_LOGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -1541,6 +1646,14 @@ DOMAINS = [
 
 def load_users_db():
     """تحميل قاعدة بيانات المستخدمين"""
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_get
+        data = db_get("users_db")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback
     if os.path.exists(USERS_DB_FILE):
         try:
             with open(USERS_DB_FILE, 'r') as f:
@@ -1551,9 +1664,17 @@ def load_users_db():
 
 def save_users_db(users_db):
     """حفظ قاعدة بيانات المستخدمين مع مزامنة GitHub"""
-    with open(USERS_DB_FILE, 'w') as f:
-        json.dump(users_db, f, indent=2)
-    # مزامنة فورية مع GitHub عشان البيانات ماتروحش
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_set
+        db_set("users_db", users_db)
+    except: pass
+    # 📄 JSON cache
+    try:
+        with open(USERS_DB_FILE, 'w') as f:
+            json.dump(users_db, f, indent=2)
+    except: pass
+    # ☁️ GitHub
     try:
         from github_sync import push_now
         push_now()
@@ -1561,6 +1682,14 @@ def save_users_db(users_db):
 
 def load_premium_db():
     """تحميل قاعدة بيانات المميزين"""
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_get
+        data = db_get("premium_db")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback
     if os.path.exists(PREMIUM_DB_FILE):
         try:
             with open(PREMIUM_DB_FILE, 'r') as f:
@@ -1571,8 +1700,17 @@ def load_premium_db():
 
 def save_premium_db(premium_db):
     """حفظ قاعدة بيانات المميزين مع مزامنة GitHub"""
-    with open(PREMIUM_DB_FILE, 'w') as f:
-        json.dump(premium_db, f, indent=2)
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_set
+        db_set("premium_db", premium_db)
+    except: pass
+    # 📄 JSON cache
+    try:
+        with open(PREMIUM_DB_FILE, 'w') as f:
+            json.dump(premium_db, f, indent=2)
+    except: pass
+    # ☁️ GitHub
     try:
         from github_sync import push_now
         push_now()
@@ -1580,6 +1718,14 @@ def save_premium_db(premium_db):
 
 def load_banned_db():
     """تحميل قاعدة بيانات المحظورين"""
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_get
+        data = db_get("banned_db")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback
     if os.path.exists(BANNED_DB_FILE):
         try:
             with open(BANNED_DB_FILE, 'r') as f:
@@ -1590,8 +1736,17 @@ def load_banned_db():
 
 def save_banned_db(banned_db):
     """حفظ قاعدة بيانات المحظورين مع مزامنة GitHub"""
-    with open(BANNED_DB_FILE, 'w') as f:
-        json.dump(banned_db, f, indent=2)
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_set
+        db_set("banned_db", banned_db)
+    except: pass
+    # 📄 JSON cache
+    try:
+        with open(BANNED_DB_FILE, 'w') as f:
+            json.dump(banned_db, f, indent=2)
+    except: pass
+    # ☁️ GitHub
     try:
         from github_sync import push_now
         push_now()
@@ -1748,6 +1903,14 @@ def _monthly_db_path():
     return os.path.join(DATA_DIR, "monthly_subs.json")
 
 def load_monthly_subs() -> dict:
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_get
+        data = db_get("monthly_subs")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback
     path = _monthly_db_path()
     if os.path.exists(path):
         try:
@@ -1757,13 +1920,20 @@ def load_monthly_subs() -> dict:
     return {}
 
 def save_monthly_subs(data: dict):
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_set
+        db_set("monthly_subs", data)
+    except: pass
+    # 📄 JSON cache
     try:
         with open(_monthly_db_path(), 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        try:
-            from github_sync import push_now
-            push_now()
-        except: pass
+    except: pass
+    # ☁️ GitHub
+    try:
+        from github_sync import push_now
+        push_now()
     except: pass
 
 def get_monthly_sub(user_id) -> dict | None:
@@ -3537,6 +3707,14 @@ def get_bot_instance():
     return _main_bot_instance
 
 def load_sub_bots() -> list:
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_get
+        data = db_get("sub_bots")
+        if data is not None:
+            return data
+    except: pass
+    # 📄 Fallback
     if os.path.exists(SUB_BOTS_FILE):
         try:
             with open(SUB_BOTS_FILE, 'r', encoding='utf-8') as f:
@@ -3545,6 +3723,12 @@ def load_sub_bots() -> list:
     return []
 
 def save_sub_bots(bots_list: list):
+    # 🐘 PostgreSQL
+    try:
+        from db_manager import db_set
+        db_set("sub_bots", bots_list)
+    except: pass
+    # 📄 JSON cache
     try:
         with open(SUB_BOTS_FILE, 'w', encoding='utf-8') as f:
             json.dump(bots_list, f, ensure_ascii=False, indent=2)
@@ -4755,7 +4939,18 @@ def _stats_text():
     banned_count   = len(banned_db)
     accounts_count = len(bot_data.get("registered_accounts", []))
     used_count     = len(bot_data.get("used_accounts", []))
-    remaining      = max(0, accounts_count - used_count)
+    # 🐘 PostgreSQL — استخدم أعداد من DB لو متاحة
+    try:
+        from db_manager import dan_count_total, dan_count_remaining, dan_count_used
+        pg_total = dan_count_total()
+        if pg_total > 0:
+            accounts_count = pg_total
+            used_count = dan_count_used()
+            remaining = dan_count_remaining()
+        else:
+            remaining = max(0, accounts_count - used_count)
+    except:
+        remaining = max(0, accounts_count - used_count)
 
     # Count calls made through the app (Flask API)
     api_call_count = 0
@@ -8515,12 +8710,48 @@ if __name__ == "__main__":
         # 🗂️ Step 1: Initialize data directory (create defaults if missing)
         _init_data_dir()
 
-        # 🌐 Step 2: Pull latest data from GitHub (overwrites local with remote)
+        # 🐘 Step 2: Initialize PostgreSQL — المخزن الأساسي
         try:
-            from github_sync import init_github_sync
-            init_github_sync()
+            from db_manager import init_and_migrate, db_health
+            result = init_and_migrate(DATA_DIR)
+            print(f"[startup] 🐘 PostgreSQL: {result['action']}")
+            if result['action'] == 'imported':
+                for d in result.get('details', {}).get('details', []):
+                    print(f"  {d}")
+            elif result['action'] == 'failed':
+                print(f"[startup] ⚠️ PostgreSQL failed: {result.get('details', {})}")
+            # Health check
+            health = db_health()
+            if health.get('connected'):
+                print(f"[startup] 🐘 PostgreSQL: {health.get('dan_total', 0)} Dan accounts, {health.get('tokens_ready', 0)} tokens, {health.get('kv_store_keys', 0)} KV keys")
+            else:
+                print(f"[startup] ⚠️ PostgreSQL not connected: {health.get('error', 'unknown')}")
+        except Exception as _dbe:
+            print(f"[startup] ⚠️ PostgreSQL init failed: {_dbe}")
+
+        # 🌐 Step 3: Pull latest data from GitHub (only if PostgreSQL empty)
+        try:
+            from db_manager import db_is_empty
+            if db_is_empty():
+                print("[startup] 📥 PostgreSQL is empty — pulling from GitHub...")
+                from github_sync import init_github_sync
+                init_github_sync()
+                # Re-import after GitHub pull
+                try:
+                    from db_manager import import_from_json
+                    import_from_json(DATA_DIR)
+                except: pass
+            else:
+                print("[startup] ✅ PostgreSQL has data — skipping GitHub pull")
+                # Still start auto-sync for backup purposes
+                from github_sync import start_auto_sync
+                start_auto_sync()
         except Exception as _ghe:
             print(f"[startup] ⚠️ GitHub sync init failed: {_ghe}")
+            try:
+                from github_sync import init_github_sync
+                init_github_sync()
+            except: pass
 
         load_accounts()
 
