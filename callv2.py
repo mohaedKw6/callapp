@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.7.0"
+BOT_VERSION = "5.8.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -339,14 +339,7 @@ AUTHORIZED_GROUPS_FILE = os.path.join(DATA_DIR, "authorized_groups.json")
 GROUP_COOLDOWN_SECONDS = 20 * 60  # 20 minutes
 
 def load_authorized_groups() -> dict:
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_get
-        data = db_get("authorized_groups")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     if os.path.exists(AUTHORIZED_GROUPS_FILE):
         try:
             with open(AUTHORIZED_GROUPS_FILE, 'r', encoding='utf-8') as f:
@@ -355,20 +348,10 @@ def load_authorized_groups() -> dict:
     return {}
 
 def save_authorized_groups(data: dict):
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_set
-        db_set("authorized_groups", data)
-    except: pass
-    # 📄 JSON cache
+    # 📄 Local JSON
     try:
         with open(AUTHORIZED_GROUPS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-    except: pass
-    # ☁️ GitHub
-    try:
-        from github_sync import push_now
-        push_now()
     except: pass
 
 def is_group_authorized(group_id) -> bool:
@@ -403,14 +386,7 @@ def set_group_cooldown(user_id, group_id):
 DOUBLE_CALL_FILE = os.path.join(DATA_DIR, "double_call_map.json")
 
 def load_double_call_map() -> dict:
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_get
-        data = db_get("double_call_map")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     if os.path.exists(DOUBLE_CALL_FILE):
         try:
             with open(DOUBLE_CALL_FILE, 'r', encoding='utf-8') as f:
@@ -419,12 +395,7 @@ def load_double_call_map() -> dict:
     return {}
 
 def save_double_call_map(mapping: dict):
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_set
-        db_set("double_call_map", mapping)
-    except: pass
-    # 📄 JSON cache
+    # 📄 Local JSON
     try:
         with open(DOUBLE_CALL_FILE, 'w', encoding='utf-8') as f:
             json.dump(mapping, f, ensure_ascii=False, indent=2)
@@ -441,22 +412,12 @@ def add_double_call(display_number: str, actual_number: str):
     clean_display = display_number.replace('+', '').strip()
     mapping[clean_display] = actual_number.replace('+', '').strip()
     set_double_call_map(mapping)
-    # مزامنة فورية مع GitHub
-    try:
-        from github_sync import push_now
-        push_now()
-    except: pass
 
 def remove_double_call(display_number: str):
     mapping = get_double_call_map()
     clean_display = display_number.replace('+', '').strip()
     mapping.pop(clean_display, None)
     set_double_call_map(mapping)
-    # مزامنة فورية مع GitHub
-    try:
-        from github_sync import push_now
-        push_now()
-    except: pass
 
 def get_double_call_target(phone: str) -> str | None:
     """لو الرقم موجود في خريطة الاتصال المزدوج، يرجع الرقم الفعلي. None لو مش موجود."""
@@ -518,14 +479,7 @@ TOKENS_CACHE_FILE = os.path.join(DATA_DIR, "tokens_cache.json")  # تخزين ا
 CALL_LOGS_FILE    = os.path.join(DATA_DIR, "call_logs.json")     # تسجيل كل المكالمات والأرقام
 
 def load_bot_data() -> dict:
-    # 🐘 PostgreSQL — المخزن الأساسي
-    try:
-        from db_manager import db_get
-        data = db_get("bot_data")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback — JSON files
+    # 📄 Local JSON
     if os.path.exists(BOT_DATA_FILE):
         try:
             with open(BOT_DATA_FILE, 'r', encoding='utf-8') as f:
@@ -585,12 +539,6 @@ def mark_email_used(email: str):
     if email not in data["used_accounts"]:
         data["used_accounts"].append(email)
     save_bot_data(data)
-
-    # 🐘 PostgreSQL — تحديث جدول dan_accounts
-    try:
-        from db_manager import dan_mark_used
-        dan_mark_used(email)
-    except: pass
 
     # تحقق لو خلصت الحسابات كلها
     registered = set(data.get("registered_accounts", []))
@@ -680,14 +628,6 @@ def process_dan_file(file_bytes: bytes) -> dict:
         global accounts
         accounts = existing
 
-        # 🐘 PostgreSQL — حفظ الحسابات الجديدة في dan_accounts
-        try:
-            from db_manager import dan_add_accounts
-            added = dan_add_accounts(to_add)
-            print(f"[dan_file] 🐘 PostgreSQL: {added} new accounts added to dan_accounts")
-        except Exception as _dbe:
-            print(f"[dan_file] ⚠️ PostgreSQL add failed: {_dbe}")
-
         # 🚀 تشغيل الحسابات في الخلفية للحصول على التوكنات
         threading.Thread(target=_init_tokens_background, args=(to_add,), daemon=True).start()
 
@@ -769,11 +709,6 @@ def _init_tokens_background(accounts_to_init: list):
                 print(f"[init_tokens] ❌ Failed after 3 attempts: {email} -> marking as used")
                 failed_emails.append(email)
                 mark_email_used(email)  # نحطه في قائمة المستعملين
-                # 🐘 PostgreSQL — تحديث جدول dan_accounts
-                try:
-                    from db_manager import dan_mark_failed
-                    dan_mark_failed(email)
-                except: pass
                 
             # انتظار قصير بين كل حساب
             time.sleep(0.3)
@@ -785,11 +720,6 @@ def _init_tokens_background(accounts_to_init: list):
             if email:
                 failed_emails.append(email)
                 mark_email_used(email)
-                # 🐘 PostgreSQL — تحديث جدول dan_accounts
-                try:
-                    from db_manager import dan_mark_failed
-                    dan_mark_failed(email)
-                except: pass
     
     # نحفظ الفاشلين في ملف
     if failed_emails:
@@ -858,20 +788,10 @@ def get_dan_calls(user_id: int) -> int:
     return users_db.get(str(user_id), {}).get("dan_calls", 0)
 
 def save_bot_data(data: dict):
-    # 🐘 PostgreSQL — المخزن الأساسي
-    try:
-        from db_manager import db_set
-        db_set("bot_data", data)
-    except: pass
-    # 📄 JSON — نسخة محلية (cache)
+    # 📄 Local JSON
     try:
         with open(BOT_DATA_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-    except: pass
-    # ☁️ GitHub sync
-    try:
-        from github_sync import push_now
-        push_now()
     except: pass
 
 # ============================================================================
@@ -1358,14 +1278,7 @@ def convert_balance_to_code(user_id, num_people: int) -> dict:
 
 def load_tokens_cache() -> dict:
     """تحميل التوكنات المحملة مسبقاً"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import token_count, token_get_ready
-        ready = token_get_ready(limit=100000)
-        if ready:
-            return {"ready_tokens": ready, "last_updated": datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     if os.path.exists(TOKENS_CACHE_FILE):
         try:
             with open(TOKENS_CACHE_FILE, 'r', encoding='utf-8') as f:
@@ -1375,13 +1288,7 @@ def load_tokens_cache() -> dict:
 
 def save_tokens_cache(data: dict):
     """حفظ التوكنات المحملة"""
-    # 🐘 PostgreSQL — حفظ كل توكن في جدول ready_tokens
-    try:
-        from db_manager import token_add
-        for t in data.get('ready_tokens', []):
-            token_add(t.get('email', ''), t.get('device_id', ''), t.get('token', ''))
-    except: pass
-    # 📄 JSON cache
+    # 📄 Local JSON
     try:
         data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(TOKENS_CACHE_FILE, 'w', encoding='utf-8') as f:
@@ -1391,24 +1298,11 @@ def save_tokens_cache(data: dict):
 def add_ready_token(email: str, device_id: str, token: str):
     """إضافة توكن جاهز للاستخدام — مع التحقق إنه مش مستعمل"""
     # ⚡ تحقق إن الحساب مش في قائمة المستعملين
-    # 🐘 PostgreSQL — تحقق من جدول dan_accounts
-    try:
-        from db_manager import dan_is_used
-        if dan_is_used(email):
-            print(f"[tokens_cache] ⚠️ Skipping used account: {email}")
-            return
-    except:
-        # Fallback لـ bot_data
-        bd = load_bot_data()
-        used_set = set(bd.get("used_accounts", []))
-        if email in used_set:
-            print(f"[tokens_cache] ⚠️ Skipping used account: {email}")
-            return
-    # 🐘 PostgreSQL — أضف التوكن مباشرة
-    try:
-        from db_manager import token_add
-        token_add(email, device_id, token)
-    except: pass
+    bd = load_bot_data()
+    used_set = set(bd.get("used_accounts", []))
+    if email in used_set:
+        print(f"[tokens_cache] ⚠️ Skipping used account: {email}")
+        return
     # 📄 JSON cache
     cache = load_tokens_cache()
     # نتأكد إنه مش موجود قبل كده
@@ -1437,16 +1331,7 @@ def get_ready_token() -> dict:
 def pop_ready_token() -> dict:
     """أخذ توكن جاهز وحذفه من القائمة — آمن للخيوط المتزامنة"""
     with _token_lock:
-        # 🐘 PostgreSQL — أخذ التوكن مباشرة من قاعدة البيانات
-        try:
-            from db_manager import token_get_ready, token_remove
-            ready = token_get_ready(limit=1)
-            if ready:
-                token_data = ready[0]
-                token_remove(token_data.get("email", ""))
-                return token_data
-        except: pass
-        # 📄 Fallback — JSON cache
+        # 📄 Local JSON cache
         cache = load_tokens_cache()
         ready_tokens = cache.get("ready_tokens", [])
         if ready_tokens:
@@ -1458,30 +1343,13 @@ def pop_ready_token() -> dict:
 
 def count_ready_tokens() -> int:
     """عدد التوكنات الجاهزة"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import token_count
-        count = token_count()
-        if count > 0:
-            return count
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     cache = load_tokens_cache()
     return len(cache.get("ready_tokens", []))
 
 def cleanup_used_tokens_from_cache():
     """يزيل التوكنات المستعملة من الكاش — ينفذ مرة عند البداية"""
-    # 🐘 PostgreSQL — حذف التوكنات المستعملة من جدول ready_tokens
-    try:
-        from db_manager import token_remove_used, dan_count_used
-        bd = load_bot_data()
-        used_set = set(bd.get("used_accounts", []))
-        if used_set:
-            removed = token_remove_used(used_set)
-            if removed > 0:
-                print(f"[tokens_cache] 🧹 DB: Cleaned up {removed} used tokens")
-    except: pass
-    # 📄 JSON cache
+    # 📄 Local JSON
     bd = load_bot_data()
     used_set = set(bd.get("used_accounts", []))
     if not used_set:
@@ -1499,17 +1367,7 @@ def cleanup_used_tokens_from_cache():
 
 def clear_all_ready_tokens():
     """يمسح كل التوكنات الجاهزة — يستخدم عند البداية لو التوكنات قديمة/منتهية"""
-    try:
-        from db_manager import token_count, token_get_ready, token_remove
-        count = token_count()
-        if count > 0:
-            # حذف كل التوكنات
-            tokens = token_get_ready(limit=100000)
-            for t in tokens:
-                token_remove(t.get("email", ""))
-            print(f"[tokens_cache] 🧹 Cleared ALL {count} ready tokens (they were expired)")
-    except: pass
-    # مسح JSON cache
+    # 📄 Clear JSON cache
     cache = {"ready_tokens": [], "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
     try:
         with open(TOKENS_CACHE_FILE, 'w', encoding='utf-8') as f:
@@ -1522,14 +1380,7 @@ def clear_all_ready_tokens():
 
 def load_call_logs() -> dict:
     """تحميل سجل المكالمات"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_get
-        data = db_get("call_logs")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     if os.path.exists(CALL_LOGS_FILE):
         try:
             with open(CALL_LOGS_FILE, 'r', encoding='utf-8') as f:
@@ -1543,12 +1394,7 @@ def load_call_logs() -> dict:
 
 def save_call_logs(data: dict):
     """حفظ سجل المكالمات"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_set
-        db_set("call_logs", data)
-    except: pass
-    # 📄 JSON cache
+    # 📄 Local JSON
     try:
         with open(CALL_LOGS_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -1694,14 +1540,7 @@ DOMAINS = [
 
 def load_users_db():
     """تحميل قاعدة بيانات المستخدمين"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_get
-        data = db_get("users_db")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     if os.path.exists(USERS_DB_FILE):
         try:
             with open(USERS_DB_FILE, 'r') as f:
@@ -1711,33 +1550,16 @@ def load_users_db():
     return {}
 
 def save_users_db(users_db):
-    """حفظ قاعدة بيانات المستخدمين مع مزامنة GitHub"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_set
-        db_set("users_db", users_db)
-    except: pass
-    # 📄 JSON cache
+    """حفظ قاعدة بيانات المستخدمين"""
+    # 📄 Local JSON
     try:
         with open(USERS_DB_FILE, 'w') as f:
             json.dump(users_db, f, indent=2)
     except: pass
-    # ☁️ GitHub
-    try:
-        from github_sync import push_now
-        push_now()
-    except: pass
 
 def load_premium_db():
     """تحميل قاعدة بيانات المميزين"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_get
-        data = db_get("premium_db")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     if os.path.exists(PREMIUM_DB_FILE):
         try:
             with open(PREMIUM_DB_FILE, 'r') as f:
@@ -1747,33 +1569,16 @@ def load_premium_db():
     return {}
 
 def save_premium_db(premium_db):
-    """حفظ قاعدة بيانات المميزين مع مزامنة GitHub"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_set
-        db_set("premium_db", premium_db)
-    except: pass
-    # 📄 JSON cache
+    """حفظ قاعدة بيانات المميزين"""
+    # 📄 Local JSON
     try:
         with open(PREMIUM_DB_FILE, 'w') as f:
             json.dump(premium_db, f, indent=2)
     except: pass
-    # ☁️ GitHub
-    try:
-        from github_sync import push_now
-        push_now()
-    except: pass
 
 def load_banned_db():
     """تحميل قاعدة بيانات المحظورين"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_get
-        data = db_get("banned_db")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     if os.path.exists(BANNED_DB_FILE):
         try:
             with open(BANNED_DB_FILE, 'r') as f:
@@ -1783,21 +1588,11 @@ def load_banned_db():
     return {}
 
 def save_banned_db(banned_db):
-    """حفظ قاعدة بيانات المحظورين مع مزامنة GitHub"""
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_set
-        db_set("banned_db", banned_db)
-    except: pass
-    # 📄 JSON cache
+    """حفظ قاعدة بيانات المحظورين"""
+    # 📄 Local JSON
     try:
         with open(BANNED_DB_FILE, 'w') as f:
             json.dump(banned_db, f, indent=2)
-    except: pass
-    # ☁️ GitHub
-    try:
-        from github_sync import push_now
-        push_now()
     except: pass
 
 def get_user_usage(user_id):
@@ -1951,14 +1746,7 @@ def _monthly_db_path():
     return os.path.join(DATA_DIR, "monthly_subs.json")
 
 def load_monthly_subs() -> dict:
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_get
-        data = db_get("monthly_subs")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     path = _monthly_db_path()
     if os.path.exists(path):
         try:
@@ -1968,20 +1756,10 @@ def load_monthly_subs() -> dict:
     return {}
 
 def save_monthly_subs(data: dict):
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_set
-        db_set("monthly_subs", data)
-    except: pass
-    # 📄 JSON cache
+    # 📄 Local JSON
     try:
         with open(_monthly_db_path(), 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-    except: pass
-    # ☁️ GitHub
-    try:
-        from github_sync import push_now
-        push_now()
     except: pass
 
 def get_monthly_sub(user_id) -> dict | None:
@@ -2338,35 +2116,12 @@ def clear():
 
 def load_accounts():
     global accounts
-    # 🐘 PostgreSQL — المخزن الأساسي (أولوية قصوى)
-    try:
-        from db_manager import dan_get_unused, dan_count_remaining
-        remaining = dan_count_remaining()
-        if remaining > 0:
-            unused = dan_get_unused(limit=remaining)
-            if unused:
-                accounts = unused
-                print(f"[load_accounts] 🐘 Loaded {len(accounts)} unused accounts from PostgreSQL")
-                # حفظ نسخة محلية مشفرة
-                try:
-                    _save_accounts_encrypted()
-                except: pass
-                return len(accounts)
-    except Exception as e:
-        print(f"[load_accounts] ⚠️ PostgreSQL load failed: {e}")
-    # 📄 Fallback — ملف JSON محلي
+    # 📄 Local JSON
     if os.path.exists(ACCOUNTS_FILE):
         try:
             # حاول فك التشفير أولاً
             decrypted = _decrypt_accounts(ACCOUNTS_FILE)
             accounts  = json.loads(decrypted)
-            # 🐘 استيراد لـ PostgreSQL لو مش موجودة
-            try:
-                from db_manager import dan_add_accounts, dan_count_total
-                if dan_count_total() == 0 and accounts:
-                    dan_add_accounts(accounts)
-                    print(f"[load_accounts] 🐘 Imported {len(accounts)} accounts from local file to PostgreSQL")
-            except: pass
             return len(accounts)
         except:
             try:
@@ -2375,12 +2130,6 @@ def load_accounts():
                     accounts = json.load(f)
                 # احفظه مشفر فوراً
                 _save_accounts_encrypted()
-                # 🐘 استيراد لـ PostgreSQL
-                try:
-                    from db_manager import dan_add_accounts, dan_count_total
-                    if dan_count_total() == 0 and accounts:
-                        dan_add_accounts(accounts)
-                except: pass
                 return len(accounts)
             except:
                 pass
@@ -2397,11 +2146,6 @@ def save_account(email, device, tok):
     acc = {"email": email, "x-client-device-id": device, "x-token": tok, "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
     accounts.append(acc)
     _save_accounts_encrypted()
-    # 🐘 PostgreSQL — حفظ الحساب في dan_accounts
-    try:
-        from db_manager import dan_add_accounts
-        dan_add_accounts([acc])
-    except: pass
 
 # دوال إنشاء البريد المؤقت (مخفية تماماً)
 def create_mob2_mail():
@@ -2727,11 +2471,6 @@ def _remove_account_by_email(email: str):
                 _save_accounts_encrypted()
             except Exception:
                 pass
-            # 🐘 PostgreSQL — تحديث جدول dan_accounts
-            try:
-                from db_manager import dan_mark_used
-                dan_mark_used(email)
-            except: pass
             print(f"[start_call] 🗑️ Removed {removed} account(s) for {email} from list")
 
 
@@ -3812,14 +3551,7 @@ def get_bot_instance():
     return _main_bot_instance
 
 def load_sub_bots() -> list:
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_get
-        data = db_get("sub_bots")
-        if data is not None:
-            return data
-    except: pass
-    # 📄 Fallback
+    # 📄 Local JSON
     if os.path.exists(SUB_BOTS_FILE):
         try:
             with open(SUB_BOTS_FILE, 'r', encoding='utf-8') as f:
@@ -3828,12 +3560,7 @@ def load_sub_bots() -> list:
     return []
 
 def save_sub_bots(bots_list: list):
-    # 🐘 PostgreSQL
-    try:
-        from db_manager import db_set
-        db_set("sub_bots", bots_list)
-    except: pass
-    # 📄 JSON cache
+    # 📄 Local JSON
     try:
         with open(SUB_BOTS_FILE, 'w', encoding='utf-8') as f:
             json.dump(bots_list, f, ensure_ascii=False, indent=2)
@@ -3851,11 +3578,6 @@ def register_sub_bot_to_file(token: str, owner_id: int, username: str) -> bool:
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
     save_sub_bots(bots)
-    # مزامنة فورية مع GitHub عشان التوكن يتحفظ
-    try:
-        from github_sync import push_now
-        push_now()
-    except: pass
     return True
 
 MAX_SUB_BOTS_PER_USER = 3   # الحد الأقصى للبوتات الفرعية لكل مستخدم
@@ -5007,10 +4729,6 @@ def _admin_panel():
         InlineKeyboardButton("📤 رفع الداتا", callback_data="admin_data_push")
     )
     kb.add(
-        InlineKeyboardButton("☁️ مزامنة GitHub", callback_data="admin_gh_sync"),
-        InlineKeyboardButton("📥 تحميل من GitHub", callback_data="admin_gh_pull")
-    )
-    kb.add(
         InlineKeyboardButton("📱 منح اشتراك تطبيق", callback_data="admin_grant_app_sub"),
         InlineKeyboardButton("📱 إلغاء اشتراك تطبيق", callback_data="admin_cancel_app_sub")
     )
@@ -5044,26 +4762,7 @@ def _stats_text():
     banned_count   = len(banned_db)
     accounts_count = len(bot_data.get("registered_accounts", []))
     used_count     = len(bot_data.get("used_accounts", []))
-    # 🐘 PostgreSQL — استخدم أعداد من DB لو متاحة
-    pg_status = ""
-    try:
-        from db_manager import dan_count_total, dan_count_remaining, dan_count_used, db_health, token_count
-        pg_total = dan_count_total()
-        if pg_total > 0:
-            accounts_count = pg_total
-            used_count = dan_count_used()
-            remaining = dan_count_remaining()
-        else:
-            remaining = max(0, accounts_count - used_count)
-        health = db_health()
-        tokens_ready = token_count()
-        if health.get('connected'):
-            pg_status = f"\n🐘 *PostgreSQL:* ✅ متصل | {tokens_ready} توكن جاهز"
-        else:
-            pg_status = f"\n🐘 *PostgreSQL:* ❌ غير متصل"
-    except:
-        remaining = max(0, accounts_count - used_count)
-        pg_status = f"\n🐘 *PostgreSQL:* ⚠️ غير متاح"
+    remaining = max(0, accounts_count - used_count)
 
     # Count calls made through the app (Flask API)
     api_call_count = 0
@@ -5104,8 +4803,7 @@ def _stats_text():
         f"📂 *حسابات Dan.json:* `{accounts_count}` إجمالي\n"
         f"✅ *متبقية للاستخدام:* `{remaining}`\n"
         f"🔴 *مستعملة:* `{used_count}`\n"
-        f"📞 *مكالمات التطبيق:* `{api_call_count}`"
-        f"{pg_status}\n\n"
+        f"📞 *مكالمات التطبيق:* `{api_call_count}`\n\n"
         f"📅 *آخر تحديث:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         f"{used_preview}"
     )
@@ -5454,11 +5152,6 @@ def run_bot(token_override: str = ""):
                 "user_cooldowns": {}
             }
             save_authorized_groups(groups)
-            # مزامنة فورية مع GitHub عشان الجروب يتحفظ
-            try:
-                from github_sync import push_now
-                push_now()
-            except: pass
             bot.answer_callback_query(call.id, "✅ تم تفعيل البوت في الجروب!")
             bot.edit_message_text(f"✅ *تم تفعيل البوت في الجروب*\n📋 `{title}`\n🆔 `{group_id}`", 
                                   call.message.chat.id, call.message.message_id, parse_mode='Markdown')
@@ -6888,7 +6581,7 @@ def run_bot(token_override: str = ""):
             try:
                 import zipfile
                 import tempfile
-                # الملفات المطلوبة (موافقة لـ github_sync.py SYNC_FILES)
+                # الملفات المطلوبة
                 data_files = [
                     "bot_data.json",
                     "telicall_accounts.json",
@@ -6947,70 +6640,12 @@ def run_bot(token_override: str = ""):
             kb_back = InlineKeyboardMarkup()
             kb_back.row(InlineKeyboardButton("🔙 إلغاء", callback_data="admin_panel"))
             bot.edit_message_text(
-                "📤 *رفع الداتا*\n\nأرسل ملف zip أو ملف JSON واحد\nهيتم استبدال الملفات بالجديدة ورفعها على GitHub فوراً:\n\n"
+                "📤 *رفع الداتا*\n\nأرسل ملف zip أو ملف JSON واحد\nهيتم استبدال الملفات بالجديدة فوراً:\n\n"
                 "📦 ملف zip: استلمته من سحب الداتا\n"
                 "📄 ملف JSON: ملف واحد من القائمة",
                 cid, call.message.message_id,
                 parse_mode='Markdown', reply_markup=kb_back
             )
-
-        # ══════════════════════════════════════════════════════════════
-        # ☁️ مزامنة GitHub — Push all data to GitHub now
-        # ══════════════════════════════════════════════════════════════
-        elif data == "admin_gh_sync":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id, "☁️ جاري المزامنة...")
-            try:
-                from github_sync import push_to_github
-                result = push_to_github(force=True)
-                pushed = result.get('pushed', 0)
-                skipped = result.get('skipped', 0)
-                errors = result.get('errors', 0)
-                msg_text = (
-                    f"☁️ *مزامنة GitHub*\n\n"
-                    f"✅ مرفوع: {pushed}\n"
-                    f"⏭️ تم تخطيه: {skipped}\n"
-                    f"❌ أخطاء: {errors}"
-                )
-                bot.send_message(cid, msg_text, parse_mode='Markdown', reply_markup=_admin_panel())
-            except Exception as e:
-                bot.send_message(cid, f"❌ فشل المزامنة: {e}", reply_markup=_admin_panel())
-
-        # ══════════════════════════════════════════════════════════════
-        # 📥 تحميل من GitHub — Pull all data from GitHub now
-        # ══════════════════════════════════════════════════════════════
-        elif data == "admin_gh_pull":
-            if cid not in ADMIN_IDS:
-                return
-            bot.answer_callback_query(call.id, "📥 جاري التحميل من GitHub...")
-            try:
-                from github_sync import pull_from_github
-                result = pull_from_github()
-                pulled = result.get('pulled', 0)
-                skipped = result.get('skipped', 0)
-                errors = result.get('errors', 0)
-                details = result.get('details', [])
-                msg_text = (
-                    f"📥 *تحميل من GitHub*\n\n"
-                    f"✅ تم تحميل: {pulled}\n"
-                    f"⏭️ تم تخطيه: {skipped}\n"
-                    f"❌ أخطاء: {errors}"
-                )
-                if details:
-                    msg_text += "\n\n📋 التفاصيل:"
-                    for d in details[:10]:
-                        msg_text += f"\n  • {d}"
-                bot.send_message(cid, msg_text, parse_mode='Markdown', reply_markup=_admin_panel())
-                # إعادة تحميل الحسابات بعد التحميل
-                if pulled > 0:
-                    load_accounts()
-                    bd = load_bot_data()
-                    saved_accounts = bd.get("accounts", [])
-                    if saved_accounts:
-                        bot.send_message(cid, f"🔄 تم إعادة تحميل {len(saved_accounts)} حساب")
-            except Exception as e:
-                bot.send_message(cid, f"❌ فشل التحميل: {e}", reply_markup=_admin_panel())
 
         # ══════════════════════════════════════════════════════════════
         # 🔑 إنشاء توكن — Create Fox Token
@@ -7472,7 +7107,7 @@ def run_bot(token_override: str = ""):
         state = user_state.get(cid, {})
         if state.get("action") == "admin_data_push_input" and cid in ADMIN_IDS:
             user_state.pop(cid, None)
-            # قائمة الملفات المسموحة (موافقة لـ github_sync.py SYNC_FILES)
+            # قائمة الملفات المسموحة
             allowed_data_files = [
                 "bot_data.json",
                 "telicall_accounts.json",
@@ -7517,35 +7152,8 @@ def run_bot(token_override: str = ""):
                     dest = os.path.join(DATA_DIR, base_name)
                     with open(dest, 'wb') as f:
                         f.write(file_bytes)
-                    # 🐘 استيراد لـ PostgreSQL
-                    db_msg = ""
-                    try:
-                        from db_manager import db_set, import_from_json
-                        if base_name in {"telicall_accounts.json"}:
-                            # ملف مشفر — استيراد كامل
-                            import_result = import_from_json(DATA_DIR)
-                            db_msg = f"\n🐘 PostgreSQL: {import_result['imported']} ملف تم استيراده"
-                        else:
-                            # ملف JSON عادي — استيراد مباشر
-                            key = base_name.replace('.json', '')
-                            try:
-                                data = json.loads(file_bytes.decode('utf-8'))
-                                db_set(key, data)
-                                db_msg = f"\n🐘 PostgreSQL: تم استيراد {base_name}"
-                            except: pass
-                    except Exception as _dbe:
-                        db_msg = f"\n⚠️ PostgreSQL استيراد فشل: {_dbe}"
-                    # ☁️ رفع على GitHub (نسخ احتياطي)
-                    gh_msg = ""
-                    try:
-                        from github_sync import push_to_github
-                        gh_result = push_to_github(force=True)
-                        gh_pushed = gh_result.get('pushed', 0)
-                        gh_msg = f"\n☁️ GitHub: {gh_pushed} ملف تم رفعه"
-                    except Exception as _ghe:
-                        gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
                     bot.edit_message_text(
-                        f"✅ تم رفع الملف بنجاح\n📄 {base_name}{db_msg}{gh_msg}",
+                        f"✅ تم رفع الملف بنجاح\n📄 {base_name}",
                         cid, m.message_id)
                 except Exception as e:
                     try: bot.edit_message_text(f"❌ خطأ في رفع الملف: {e}", cid, m.message_id)
@@ -7628,19 +7236,7 @@ def run_bot(token_override: str = ""):
                 # تنظيف
                 try: os.unlink(tmp_zip.name)
                 except: pass
-                # 🐘 استيراد البيانات الجديدة لـ PostgreSQL (قبل load_accounts)
-                db_msg = ""
-                try:
-                    from db_manager import import_from_json
-                    db_result = import_from_json(DATA_DIR)
-                    db_msg = f"\n🐘 PostgreSQL: {db_result['imported']} ملف تم استيراده"
-                    if db_result.get('details'):
-                        for d in db_result.get('details', {}).get('details', []):
-                            if 'account' in d.lower() or 'token' in d.lower():
-                                db_msg += f"\n  {d}"
-                except Exception as _dbe:
-                    db_msg = f"\n⚠️ PostgreSQL استيراد فشل: {_dbe}"
-                # 🔄 إعادة تحميل الحسابات من PostgreSQL (بعد الاستيراد)
+                # 🔄 إعادة تحميل الحسابات
                 try:
                     load_accounts()
                     print(f"[data_push] ✅ Reloaded accounts: {len(accounts)}")
@@ -7651,16 +7247,6 @@ def run_bot(token_override: str = ""):
                     try:
                         threading.Thread(target=_init_tokens_background, args=(accounts,), daemon=True).start()
                     except: pass
-                # ☁️ رفع على GitHub (نسخ احتياطي)
-                gh_msg = ""
-                if replaced:
-                    try:
-                        from github_sync import push_to_github
-                        gh_result = push_to_github(force=True)
-                        gh_pushed = gh_result.get('pushed', 0)
-                        gh_msg = f"\n☁️ GitHub: {gh_pushed} ملف تم رفعه"
-                    except Exception as _ghe:
-                        gh_msg = f"\n⚠️ GitHub sync فشل: {_ghe}"
                 # نتيجة
                 if replaced:
                     result_lines = [f"✅ تم رفع الداتا بنجاح", f"", f"📁 الملفات المستبدلة ({len(replaced)}):"]
@@ -7670,8 +7256,6 @@ def run_bot(token_override: str = ""):
                         result_lines.append(f"\n❌ أخطاء ({len(errors)}):")
                         for err in errors:
                             result_lines.append(f"  ❌ {err}")
-                    result_lines.append(db_msg)
-                    result_lines.append(gh_msg)
                     try:
                         bot.edit_message_text("\n".join(result_lines), cid, m.message_id)
                     except Exception:
@@ -8860,32 +8444,6 @@ if __name__ == "__main__":
         # 🗂️ Step 1: Initialize data directory (create defaults if missing)
         _init_data_dir()
 
-        # 🐘 Step 2: Initialize PostgreSQL — المخزن الأساسي
-        try:
-            from db_manager import init_and_migrate, db_health
-            result = init_and_migrate(DATA_DIR)
-            print(f"[startup] 🐘 PostgreSQL: {result['action']}")
-            if result['action'] == 'imported':
-                for d in result.get('details', {}).get('details', []):
-                    print(f"  {d}")
-            elif result['action'] == 'failed':
-                print(f"[startup] ⚠️ PostgreSQL failed: {result.get('details', {})}")
-            # Health check
-            health = db_health()
-            if health.get('connected'):
-                print(f"[startup] 🐘 PostgreSQL: {health.get('dan_total', 0)} Dan accounts, {health.get('tokens_ready', 0)} tokens, {health.get('kv_store_keys', 0)} KV keys")
-            else:
-                print(f"[startup] ⚠️ PostgreSQL not connected: {health.get('error', 'unknown')}")
-        except Exception as _dbe:
-            print(f"[startup] ⚠️ PostgreSQL init failed: {_dbe}")
-
-        # ☁️ Step 3: GitHub — نسخ احتياطي يومي (لو PostgreSQL فاضي → سحب من GitHub)
-        try:
-            from github_sync import init_github_sync
-            init_github_sync()
-        except Exception as _ghe:
-            print(f"[startup] ⚠️ GitHub backup init failed: {_ghe}")
-
         load_accounts()
         print(f"[startup] 📞 Accounts loaded: {len(accounts)} available")
 
@@ -8909,10 +8467,4 @@ if __name__ == "__main__":
 
         run_bot()
     except KeyboardInterrupt:
-        # 🌐 Final push to GitHub before shutdown
-        try:
-            from github_sync import stop_auto_sync
-            stop_auto_sync()
-        except Exception:
-            pass
         print("\nتم الإيقاف")
