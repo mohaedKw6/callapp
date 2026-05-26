@@ -58,7 +58,7 @@ APP_SUBSCRIPTION_PLANS = {
     "app_unlimited": {"name": "غير محدود","emoji": "💎", "calls": 999999, "price": 20.00},
 }
 
-BOT_VERSION = "5.8.0"
+BOT_VERSION = "5.9.0"
 
 SUBSCRIPTION_SELLERS = [
     {"username": "@G_M_A_Q", "name": "⛥-𝔾_𝕄_𝔸_ℚ-⛥"},
@@ -1528,10 +1528,11 @@ ref = None
 # إخفاء الألوان في الإخراج للمستخدم
 G, R, Y, B, P, C, W, E = '', '', '', '', '', '', '', ''
 
+# ⚠️ تم تحديث النطاقات — النطاقات القديمة اتحظرت (blocklisted) من Telicall
+# النطاقات الجديدة من mob2.temp-mail.org بتتغير كل فترة
 DOMAINS = [
-    "daouse.com", "bltiwd.com", "rommiui.com", "mrotzis.com", 
-    "mkzaso.com", "illubd.com", "wnbaldwy.com", "xkxkud.com", 
-    "yzcalo.com", "ozsaip.com", "bwmyga.com", "ruutukf.com", "inovic.com"
+    "web5h.com", "savdz.com", "westecom.com", "seolaner.com",
+    "rommiui.com", "chitthi.com", "1box.app",
 ]
 
 # ============================================================================
@@ -2283,6 +2284,181 @@ def verify_otp(code):
             return r.json()['result']['user']
     except: pass
     return None
+
+def check_accounts_batch(bot_obj, chat_id, msg_id):
+    """
+    فحص كل حسابات Dan.json — يختبر كل حساب عبر API ويشوف شغال ولا لأ
+    الحسابات اللي مش شغالة بيتنقل لقائمة المستعملة
+    """
+    global accounts
+    bd = load_bot_data()
+    registered = set(bd.get("registered_accounts", []))
+    used = set(bd.get("used_accounts", []))
+    all_emails = list(registered | used)  # كل الإيميلات المسجلة
+    
+    total = len(all_emails)
+    already_used = len(used)
+    
+    bot_obj.edit_message_text(
+        f"🔍 *فحص الحسابات*\n\n"
+        f"📂 إجمالي: `{total}`\n"
+        f"🔴 مستعملة فعلاً: `{already_used}`\n"
+        f"⏳ جاري الفحص...",
+        chat_id, msg_id, parse_mode='Markdown'
+    )
+    
+    # نجيب كل الحسابات من الملف
+    all_accounts = list(accounts)  # نسخة من accounts الحالية
+    
+    # لو مفيش حسابات محملة، نحملها
+    if not all_accounts:
+        load_accounts()
+        all_accounts = list(accounts)
+    
+    # بناء map: email -> account_data
+    email_to_acc = {}
+    for acc in all_accounts:
+        email = acc.get("email", "")
+        if email:
+            email_to_acc[email] = acc
+    
+    checked = 0
+    new_used = 0
+    working = 0
+    failed_list = []
+    
+    for email in all_emails:
+        if email in used:
+            # ده أصلاً مستعمل — نتخطاه
+            checked += 1
+            continue
+        
+        # نجيب بيانات الحساب
+        acc = email_to_acc.get(email)
+        if not acc:
+            # مفيش بيانات للحساب — نعتبره مستعمل
+            mark_email_used(email)
+            new_used += 1
+            failed_list.append(email)
+            checked += 1
+            continue
+        
+        call_token = acc.get('x-token') or acc.get('token')
+        call_device_id = acc.get('x-client-device-id') or acc.get('device_id')
+        
+        if not call_token or not call_device_id:
+            # مفيش توكن — نعتبره مستعمل
+            mark_email_used(email)
+            new_used += 1
+            failed_list.append(email)
+            checked += 1
+            continue
+        
+        # نختبر التوكن عبر API
+        try:
+            h = get_headers(_token=call_token, _device_id=call_device_id)
+            r = requests.post(f"{API_URL}/balance", json={}, headers=h, timeout=10)
+            
+            if r.status_code == 401:
+                # ❌ التوكن منتهي / الحساب مش موجود
+                mark_email_used(email)
+                _remove_account_by_email(email)
+                new_used += 1
+                failed_list.append(email)
+            elif r.status_code == 200:
+                # ✅ الحساب شغال
+                working += 1
+            else:
+                # حالة غريبة — نعتبره مش شغال عشان الاحتياط
+                mark_email_used(email)
+                _remove_account_by_email(email)
+                new_used += 1
+                failed_list.append(email)
+        except Exception as e:
+            # خطأ شبكة — نسيبه عادي مش نحذفه
+            working += 1  # نعتبره شغال عشان مش متأكدين
+        
+        checked += 1
+        
+        # تحديث الرسالة كل 50 حساب
+        if checked % 50 == 0:
+            try:
+                bot_obj.edit_message_text(
+                    f"🔍 *فحص الحسابات*\n\n"
+                    f"📊 تم فحص: `{checked}/{total}`\n"
+                    f"✅ شغال: `{working}`\n"
+                    f"🔴 مش شغال (جديد): `{new_used}`\n"
+                    f"⏳ جاري الفحص...",
+                    chat_id, msg_id, parse_mode='Markdown'
+                )
+            except:
+                pass
+    
+    # نحدث accounts بعد الحذف
+    load_accounts()
+    
+    # الرسالة النهائية
+    bd2 = load_bot_data()
+    final_used = len(bd2.get("used_accounts", []))
+    final_remaining = total - final_used
+    
+    preview = ""
+    if failed_list:
+        shown = failed_list[:10]
+        preview = "\n\n📋 *أمثلة للحسابات المش شغالة:*\n"
+        for em in shown:
+            preview += f"• `{em}`\n"
+        if len(failed_list) > 10:
+            preview += f"_... و {len(failed_list)-10} أخرى_"
+    
+    try:
+        bot_obj.edit_message_text(
+            f"✅ *انتهى الفحص!*\n\n"
+            f"📂 إجمالي: `{total}`\n"
+            f"🔍 تم فحص: `{checked}`\n"
+            f"✅ شغال: `{working}`\n"
+            f"🔴 مش شغال (تم نقله): `{new_used}`\n\n"
+            f"📊 *النتيجة النهائية:*\n"
+            f"✅ متبقية للاستخدام: `{final_remaining}`\n"
+            f"🔴 مستعملة: `{final_used}`"
+            f"{preview}",
+            chat_id, msg_id, parse_mode='Markdown', reply_markup=_admin_panel()
+        )
+    except:
+        pass
+
+
+def clean_used_from_accounts():
+    """مسح كل الحسابات المستعملة من ملف telicall_accounts.json"""
+    global accounts
+    bd = load_bot_data()
+    used = set(bd.get("used_accounts", []))
+    
+    if not used:
+        return 0
+    
+    before = len(accounts)
+    accounts = [a for a in accounts if a.get("email", "") not in used]
+    removed = before - len(accounts)
+    
+    if removed > 0:
+        try:
+            _save_accounts_encrypted()
+        except:
+            pass
+    
+    # مسح التوكنات المستعملة من الكاش
+    cache = load_tokens_cache()
+    ready_tokens = cache.get("ready_tokens", [])
+    before_tokens = len(ready_tokens)
+    ready_tokens = [t for t in ready_tokens if t.get("email", "") not in used]
+    removed_tokens = before_tokens - len(ready_tokens)
+    if removed_tokens > 0:
+        cache["ready_tokens"] = ready_tokens
+        save_tokens_cache(cache)
+    
+    return removed
+
 
 def create_account():
     global token, device_id, temp_email, temp_token, temp_api_type, ref
@@ -4708,6 +4884,10 @@ def _admin_panel():
         InlineKeyboardButton("📊 عدد التوكنات الجاهزة", callback_data="admin_count_tokens")
     )
     kb.add(
+        InlineKeyboardButton("🔍 فحص كل الحسابات", callback_data="admin_check_accounts"),
+        InlineKeyboardButton("🗑️ مسح الحسابات المستعملة", callback_data="admin_clean_accounts")
+    )
+    kb.add(
         InlineKeyboardButton("🔢 تحديد عدد الإحالات", callback_data="admin_set_referrals"),
         InlineKeyboardButton("🎫 إنشاء كود شحن", callback_data="admin_create_promo")
     )
@@ -6274,6 +6454,43 @@ def run_bot(token_override: str = ""):
                 f"📂 إجمالي الحسابات: `{registered}`\n"
                 f"🔴 مستعملة: `{used}`\n"
                 f"🟢 متبقية: `{remaining}`",
+                cid, call.message.message_id, parse_mode='Markdown', reply_markup=_admin_panel()
+            )
+
+        # ══════════════════════════════════════════════════════════════
+        # 🔍 فحص كل الحسابات
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_check_accounts":
+            if cid not in ADMIN_IDS:
+                return
+            bot.answer_callback_query(call.id, "🔍 بدء فحص الحسابات...")
+            # نبدأ الفحص في الخلفية عشان ميقفلش البوت
+            threading.Thread(
+                target=check_accounts_batch,
+                args=(bot, cid, call.message.message_id),
+                daemon=True
+            ).start()
+
+        # ══════════════════════════════════════════════════════════════
+        # 🗑️ مسح الحسابات المستعملة من الملف
+        # ══════════════════════════════════════════════════════════════
+        elif data == "admin_clean_accounts":
+            if cid not in ADMIN_IDS:
+                return
+            removed = clean_used_from_accounts()
+            data_bd = load_bot_data()
+            registered = len(data_bd.get("registered_accounts", []))
+            used = len(data_bd.get("used_accounts", []))
+            remaining = registered - used
+            
+            bot.edit_message_text(
+                f"🗑️ *مسح الحسابات المستعملة*\n\n"
+                f"✅ تم مسح `{removed}` حساب مستعمل من الملف\n\n"
+                f"📊 *النتيجة:*\n"
+                f"📂 إجمالي: `{registered}`\n"
+                f"✅ متبقية: `{remaining}`\n"
+                f"🔴 مستعملة: `{used}`\n"
+                f"📞 حسابات متاحة: `{len(accounts)}`",
                 cid, call.message.message_id, parse_mode='Markdown', reply_markup=_admin_panel()
             )
 
