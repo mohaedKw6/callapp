@@ -1,17 +1,4 @@
 {
-  "ready_tokens": [
-    {
-      "email": "vejepeh394@pavecode.com",
-      "device_id": "45101244617654d7",
-      "token": "9e_LlGBL79U8XlBy3WTtuZtRsSBhbJ3SCLKliq1eN2F8dQIvb2lGUGTuggIQ3Wog",
-      "created": "2026-05-26 09:18:33"
-    },
-    {
-      "email": "kalah45487@pavecode.com",
-      "device_id": "6ba51a30f4356191",
-      "token": "zzcI4ANOp1uboAT09bFgTlNgEGktZhEV83ytMbK7fIHnPs5z0Lm6Cwp55iOenMAY",
-      "created": "2026-05-26 09:18:33"
-    }
-  ],
-  "last_updated": "2026-05-26 09:18:33"
+  "ready_tokens": [],
+  "last_updated": "2026-05-26 09:18:38"
 }
