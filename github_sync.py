@@ -13,6 +13,11 @@ Flow:
   3. On shutdown: final push to GitHub
   4. On critical changes (group auth, subs, sub-bots): immediate push
 
+🔒 Data Protection (v5.4.5):
+  Before pushing, compare local Dan.json account count vs GitHub.
+  If local count >= GitHub count → push (data is safe)
+  If local count < GitHub count → pull from GitHub instead (data was lost)
+
 Environment variables:
   GH_TOKEN   — GitHub personal access token (required)
   GH_REPO    — GitHub repo in "owner/repo" format (default: MohamedQM/callapp)
@@ -72,9 +77,8 @@ SYNC_FILES = [
     "owner_earnings.json",
 ]
 
-# ═══ الملف الرئيسي اللي بنقارن بناءً عليه ═══
-# telicall_accounts.json هو ملف الحسابات — لو عدده أقل من GitHub يبقي الداتا اتمسحت
-ACCOUNTS_FNAME = "telicall_accounts.json"
+# 🔒 ملفات مشفرة — يتخطى التحقق من JSON لأنها مش JSON عادي
+ENCRYPTED_FILES = {"telicall_accounts.json"}
 
 # Track SHA for each file (needed for GitHub update API)
 _file_shas: dict = {}
@@ -118,18 +122,67 @@ def _file_local_hash(filepath: str) -> str:
         return ""
 
 
-def _file_local_content(filepath: str) -> str | None:
-    """Read local file content as string. Returns None if missing."""
+def _file_local_content(filepath: str, is_encrypted: bool = False) -> str | None:
+    """Read local file content as string. Returns None if missing.
+    For encrypted files, read as binary and decode as latin-1 to preserve bytes."""
     if not os.path.exists(filepath):
         return None
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            return f.read()
+        if is_encrypted:
+            # قراءة الملف المشفر كـ binary وتحويله لنص
+            with open(filepath, "rb") as f:
+                raw = f.read()
+            return raw.decode("latin-1")  # يحافظ على كل البايتات
+        else:
+            with open(filepath, "r", encoding="utf-8") as f:
+                return f.read()
     except Exception:
         return None
 
 
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  🔒 Dan.json Account Count — حماية البيانات
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _get_local_dan_count() -> int:
+    """عدد حسابات Dan.json المحلية (registered_accounts في bot_data.json)"""
+    bot_data_path = os.path.join(DATA_DIR, "bot_data.json")
+    if not os.path.exists(bot_data_path):
+        return 0
+    try:
+        with open(bot_data_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return len(data.get("registered_accounts", []))
+    except Exception:
+        return 0
+
+
+def _get_github_dan_count() -> int:
+    """عدد حسابات Dan.json على GitHub (registered_accounts في bot_data.json)"""
+    if not GH_TOKEN:
+        return 0
+    try:
+        import requests as req
+        gh_path = f"{GH_DATA_DIR}/bot_data.json"
+        url = _gh_api_url(gh_path)
+        r = req.get(url, headers=_gh_headers(), timeout=30)
+        if r.status_code == 200:
+            resp = r.json()
+            content_b64 = resp.get("content", "").replace("\n", "")
+            content_bytes = base64.b64decode(content_b64)
+            content_str = content_bytes.decode("utf-8")
+            data = json.loads(content_str)
+            count = len(data.get("registered_accounts", []))
+            log.info("[gh-sync] GitHub Dan.json count: %d", count)
+            return count
+        else:
+            log.warning("[gh-sync] Could not fetch bot_data.json from GitHub: HTTP %d", r.status_code)
+            return 0
+    except Exception as e:
+        log.error("[gh-sync] Error fetching GitHub Dan.json count: %s", e)
+        return 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -153,6 +206,7 @@ def pull_from_github() -> dict:
         local_path = os.path.join(DATA_DIR, fname)
         gh_path = f"{GH_DATA_DIR}/{fname}"
         url = _gh_api_url(gh_path)
+        is_encrypted = fname in ENCRYPTED_FILES
 
         try:
             r = req.get(url, headers=_gh_headers(), timeout=30)
@@ -162,30 +216,39 @@ def pull_from_github() -> dict:
                 sha = data.get("sha", "")
 
                 # Decode base64 content
-                # GitHub returns base64 with newlines — strip them
                 content_b64_clean = content_b64.replace("\n", "")
                 content_bytes = base64.b64decode(content_b64_clean)
-                content_str = content_bytes.decode("utf-8")
 
-                # Validate it's valid JSON
-                try:
-                    json.loads(content_str)
-                except json.JSONDecodeError:
-                    result["errors"] += 1
-                    result["details"].append(f"{fname}: invalid JSON from GitHub")
-                    continue
+                if is_encrypted:
+                    # 🔒 ملف مشفر — نحفظه كـ binary بدون التحقق من JSON
+                    with open(local_path, "wb") as f:
+                        f.write(content_bytes)
+                    _file_shas[fname] = sha
+                    _local_hashes[fname] = _file_local_hash(local_path)
+                    result["pulled"] += 1
+                    result["details"].append(f"{fname}: pulled OK (encrypted)")
+                    log.info("[gh-sync] Pulled %s (encrypted)", fname)
+                else:
+                    # ملف JSON عادي — نتحقق إنه JSON صحيح
+                    content_str = content_bytes.decode("utf-8")
+                    try:
+                        json.loads(content_str)
+                    except json.JSONDecodeError:
+                        result["errors"] += 1
+                        result["details"].append(f"{fname}: invalid JSON from GitHub")
+                        continue
 
-                # Save locally (overwrite)
-                with open(local_path, "w", encoding="utf-8") as f:
-                    f.write(content_str)
+                    # Save locally (overwrite)
+                    with open(local_path, "w", encoding="utf-8") as f:
+                        f.write(content_str)
 
-                # Track SHA for future updates
-                _file_shas[fname] = sha
-                _local_hashes[fname] = _file_local_hash(local_path)
+                    # Track SHA for future updates
+                    _file_shas[fname] = sha
+                    _local_hashes[fname] = _file_local_hash(local_path)
 
-                result["pulled"] += 1
-                result["details"].append(f"{fname}: pulled OK")
-                log.info("[gh-sync] Pulled %s", fname)
+                    result["pulled"] += 1
+                    result["details"].append(f"{fname}: pulled OK")
+                    log.info("[gh-sync] Pulled %s", fname)
 
             elif r.status_code == 404:
                 # File doesn't exist on GitHub yet — that's fine
@@ -214,7 +277,8 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
     """Push a single file to GitHub with retry logic.
     Returns {"status": "ok"|"skipped"|"error", "detail": str}
     """
-    content = _file_local_content(local_path)
+    is_encrypted = fname in ENCRYPTED_FILES
+    content = _file_local_content(local_path, is_encrypted=is_encrypted)
     if content is None:
         return {"status": "skipped", "detail": f"{fname}: read error"}
 
@@ -226,7 +290,11 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
     commit_msg = f"auto-sync: update {fname} [{ts}]"
 
     # Encode content as base64
-    content_b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    if is_encrypted:
+        # ملف مشفر — المحتوى متقرأ كـ latin-1، نحوله لبايتات ثم base64
+        content_b64 = base64.b64encode(content.encode("latin-1")).decode("ascii")
+    else:
+        content_b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
 
     # Build request body
     body = {
@@ -262,7 +330,7 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
                     _file_shas[fname] = data["content"].get("sha", new_sha)
                 _local_hashes[fname] = current_hash
                 return {"status": "ok", "detail": f"{fname}: pushed OK"}
-            
+
             # لو فيه تعارض (409 Conflict) — نحدث الـ SHA ونعيد المحاولة
             if r.status_code == 409:
                 log.warning("[gh-sync] Conflict on %s, refreshing SHA (attempt %d)", fname, attempt + 1)
@@ -276,18 +344,18 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
                             continue  # إعادة المحاولة بالـ SHA الجديد
                 except Exception:
                     pass
-            
+
             error_msg = ""
             try:
                 error_msg = r.json().get("message", r.text[:200])
             except Exception:
                 error_msg = r.text[:200]
-            
+
             # لو مش التعارض، نحاول تاني بعد انتظار
             if attempt < 2:
                 time.sleep(1 * (attempt + 1))
                 continue
-            
+
             return {"status": "error", "detail": f"{fname}: HTTP {r.status_code} - {error_msg}"}
 
         except Exception as e:
@@ -299,115 +367,18 @@ def _push_single_file(req, fname: str, local_path: str, current_hash: str) -> di
     return {"status": "error", "detail": f"{fname}: failed after 3 attempts"}
 
 
-def _get_total_local_size() -> int:
-    """Get total size in bytes of all local data files."""
-    total = 0
-    for fname in SYNC_FILES:
-        fpath = os.path.join(DATA_DIR, fname)
-        if os.path.exists(fpath):
-            try:
-                total += os.path.getsize(fpath)
-            except Exception:
-                pass
-    return total
-
-
-def _count_local_accounts() -> int:
-    """عدد الحسابات في telicall_accounts.json المحلي.
-    بيرجع -1 لو الملف مش موجود أو مش قرأه."""
-    local_path = os.path.join(DATA_DIR, ACCOUNTS_FNAME)
-    if not os.path.exists(local_path):
-        return -1
-    try:
-        with open(local_path, 'rb') as f:
-            raw = f.read()
-        # حاول JSON عادي الأول
-        try:
-            data = json.loads(raw.decode('utf-8'))
-            if isinstance(data, list):
-                return len(data)
-            return -1
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            pass
-        # لو مشفر — حاول فك التشفير بنفس طريقة callv2
-        try:
-            import hashlib as _hl
-            _acc_pass = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"').strip("'").strip()
-            key = _hl.sha256(_acc_pass.encode()).digest()
-            decoded_b64 = base64.b64decode(raw)
-            decrypted = bytes([decoded_b64[i] ^ key[i % len(key)] for i in range(len(decoded_b64))]).decode('utf-8')
-            data = json.loads(decrypted)
-            if isinstance(data, list):
-                return len(data)
-        except Exception:
-            pass
-        return -1
-    except Exception:
-        return -1
-
-
-def _count_github_accounts() -> int:
-    """عدد الحسابات في telicall_accounts.json على GitHub.
-    بيرجع -1 لو مفيش ملف أو حصل خطأ."""
-    if not GH_TOKEN:
-        return -1
-    import requests as req
-    gh_path = f"{GH_DATA_DIR}/{ACCOUNTS_FNAME}"
-    url = _gh_api_url(gh_path)
-    try:
-        r = req.get(url, headers=_gh_headers(), timeout=30)
-        if r.status_code == 200:
-            data = r.json()
-            content_b64 = data.get("content", "")
-            sha = data.get("sha", "")
-            # سجل الـ SHA
-            if sha:
-                _file_shas[ACCOUNTS_FNAME] = sha
-            # فك الـ base64
-            content_b64_clean = content_b64.replace("\n", "")
-            content_bytes = base64.b64decode(content_b64_clean)
-            content_str = content_bytes.decode("utf-8")
-            # حاول JSON عادي
-            try:
-                parsed = json.loads(content_str)
-                if isinstance(parsed, list):
-                    return len(parsed)
-                return -1
-            except json.JSONDecodeError:
-                pass
-            # لو مشفر — حاول فك التشفير
-            try:
-                import hashlib as _hl
-                _acc_pass = os.environ.get("ACCOUNTS_PASSWORD", "@@@GMAQ@@@").strip('"').strip("'").strip()
-                key = _hl.sha256(_acc_pass.encode()).digest()
-                decrypted = bytes([content_bytes[i] ^ key[i % len(key)] for i in range(len(content_bytes))]).decode('utf-8')
-                parsed = json.loads(decrypted)
-                if isinstance(parsed, list):
-                    return len(parsed)
-            except Exception:
-                pass
-            return -1
-        elif r.status_code == 404:
-            return 0  # مفيش ملف على GitHub بعد
-        else:
-            return -1
-    except Exception:
-        return -1
-
-
 def push_to_github(force: bool = False) -> dict:
     """Upload changed data files to GitHub repo.
     Only uploads files that have actually changed (hash comparison).
-    
-    🔒 حماية الداتا بناءً على عدد الحسابات:
-    قبل ما يرفع، بيقرأ عدد الحسابات من telicall_accounts.json المحلي
-    ويقارنه بعدد الحسابات على GitHub.
-    - لو المحلي >= GitHub → يرفع عادي (الداتا سليمة)
-    - لو المحلي < GitHub → ميرفعمش وبدل كده يسحب من GitHub
-    
+
+    🔒 Data Protection (v5.4.5): Based on Dan.json account count
+    Before pushing, compare local registered_accounts count vs GitHub's.
+    - If local >= GitHub → push (data is safe, no accounts lost)
+    - If local < GitHub → pull from GitHub instead (data was lost on restart)
+
     Args:
         force: Force push even if hashes match
-    
+
     Returns {pushed: int, skipped: int, errors: int, details: []}
     """
     global _sync_cycle_count, _last_push_time
@@ -416,36 +387,41 @@ def push_to_github(force: bool = False) -> dict:
         log.warning("[gh-sync] No GH_TOKEN set — skipping push")
         return {"pushed": 0, "skipped": 0, "errors": 0, "details": ["No GH_TOKEN"]}
 
-    # ═══ 🔒 حماية الداتا: مقارنة عدد الحسابات ═══
-    # لو عدد الحسابات المحلي أقل من GitHub → الداتا اتمسحت → نسحب من GitHub
+    # ═══ 🔒 حماية بناءً على عدد حسابات Dan.json ═══
+    # لو عدد الحسابات المحلية أقل من GitHub → الداتا ضاعت، نسحب من GitHub
     if not force:
-        local_count = _count_local_accounts()
-        gh_count = _count_github_accounts()
-        log.info("[gh-sync] 📊 Accounts check: local=%d, github=%d", local_count, gh_count)
-        
-        if gh_count >= 0 and local_count >= 0 and local_count < gh_count:
-            log.warning("[gh-sync] 🚨 Local accounts (%d) < GitHub accounts (%d) — pulling from GitHub instead!",
-                       local_count, gh_count)
+        local_count = _get_local_dan_count()
+        github_count = _get_github_dan_count()
+
+        log.info("[gh-sync] 🔒 Dan.json protection: local=%d, github=%d", local_count, github_count)
+
+        if github_count > 0 and local_count < github_count:
+            log.warning(
+                "[gh-sync] 🚨 DATA PROTECTION: Local Dan.json accounts (%d) < GitHub (%d) — pulling from GitHub instead!",
+                local_count, github_count
+            )
             try:
                 pull_result = pull_from_github()
                 log.info("[gh-sync] Recovery pull: %d pulled, %d skipped, %d errors",
                          pull_result["pulled"], pull_result["skipped"], pull_result["errors"])
-                return {"pushed": 0, "skipped": 0, "errors": 0,
-                        "details": [f"DATA PROTECTION: Local accounts ({local_count}) < GitHub ({gh_count}), pulled from GitHub instead"]}
+                return {
+                    "pushed": 0, "skipped": 0, "errors": 0,
+                    "details": [
+                        f"🔒 حماية البيانات: حسابات Dan.json المحلية ({local_count}) أقل من GitHub ({github_count})\n"
+                        f"✅ تم سحب البيانات من GitHub بدلاً من رفع بيانات ناقصة\n"
+                        f"📥 سحب: {pull_result['pulled']} | تخطي: {pull_result['skipped']} | أخطاء: {pull_result['errors']}"
+                    ]
+                }
             except Exception as e:
                 log.error("[gh-sync] Recovery pull failed: %s", e)
                 return {"pushed": 0, "skipped": 0, "errors": 1,
-                        "details": [f"DATA PROTECTION: Accounts too few, pull also failed: {e}"]}
-        elif local_count == -1 and gh_count > 0:
-            # ملف الحسابات المحلي مش موجود أو مش قرأه بس GitHub عنده بيانات
-            log.warning("[gh-sync] 🚨 Local accounts file unreadable but GitHub has %d accounts — pulling!", gh_count)
-            try:
-                pull_result = pull_from_github()
-                return {"pushed": 0, "skipped": 0, "errors": 0,
-                        "details": [f"DATA PROTECTION: Local unreadable, pulled {pull_result['pulled']} files from GitHub"]}
-            except Exception as e:
-                return {"pushed": 0, "skipped": 0, "errors": 1,
-                        "details": [f"DATA PROTECTION: Local unreadable, pull failed: {e}"]}
+                        "details": [f"🔒 DATA PROTECTION: Local ({local_count}) < GitHub ({github_count}), pull also failed: {e}"]}
+        elif local_count >= github_count and github_count > 0:
+            log.info("[gh-sync] ✅ Dan.json protection: local (%d) >= github (%d) — safe to push", local_count, github_count)
+        elif github_count == 0 and local_count == 0:
+            log.info("[gh-sync] ⚠️ Both local and GitHub have 0 Dan.json accounts — first time or no data yet")
+        elif local_count > 0 and github_count == 0:
+            log.info("[gh-sync] ✅ Local has %d accounts, GitHub has 0 — pushing new data", local_count)
 
     import requests as req
 
@@ -467,7 +443,7 @@ def push_to_github(force: bool = False) -> dict:
             continue
 
         push_result = _push_single_file(req, fname, local_path, current_hash)
-        
+
         if push_result["status"] == "ok":
             result["pushed"] += 1
             result["details"].append(push_result["detail"])

@@ -4721,7 +4721,6 @@ def _admin_panel():
         InlineKeyboardButton("☁️ مزامنة GitHub", callback_data="admin_gh_sync"),
         InlineKeyboardButton("📥 تحميل من GitHub", callback_data="admin_gh_pull")
     )
-    # 📦 النسخ الاحتياطي التلقائي — تم إلغاؤه
     kb.add(
         InlineKeyboardButton("📱 منح اشتراك تطبيق", callback_data="admin_grant_app_sub"),
         InlineKeyboardButton("📱 إلغاء اشتراك تطبيق", callback_data="admin_cancel_app_sub")
@@ -6626,8 +6625,7 @@ def run_bot(token_override: str = ""):
                 except: pass
 
         # (تم إلغاء خاصية حماية حجم الداتا — كانت بتسبب تعليق البوت)
-
-        # (تم إلغاء خاصية النسخ الاحتياطي التلقائي نهائياً)
+        # (تم إلغاء خاصية النسخ الاحتياطي التلقائي — بناءً على طلب المستخدم v5.4.5)
 
         # ══════════════════════════════════════════════════════════════
         # 📤 رفع الداتا — Push Data (expect zip upload)
@@ -7189,14 +7187,17 @@ def run_bot(token_override: str = ""):
                 try:
                     file_info = bot.get_file(doc.file_id)
                     file_bytes = bot.download_file(file_info.file_path)
-                    # التحقق من إنه JSON صالح
-                    try:
-                        json.loads(file_bytes.decode('utf-8'))
-                    except (json.JSONDecodeError, UnicodeDecodeError):
-                        bot.edit_message_text("❌ الملف مش JSON صالح", cid, m.message_id)
-                        return
-                    # التحقق من الاسم
+                    # التحقق من الاسم أولاً
                     base_name = os.path.basename(fname)
+                    # 🔒 ملفات مشفرة — نتخطى التحقق من JSON
+                    encrypted_files = {"telicall_accounts.json"}
+                    if base_name not in encrypted_files:
+                        # التحقق من إنه JSON صالح
+                        try:
+                            json.loads(file_bytes.decode('utf-8'))
+                        except (json.JSONDecodeError, UnicodeDecodeError):
+                            bot.edit_message_text("❌ الملف مش JSON صالح", cid, m.message_id)
+                            return
                     if base_name not in allowed_data_files:
                         bot.edit_message_text(
                             f"❌ الملف `{base_name}` مش في القائمة المسموحة\n"
@@ -7262,6 +7263,8 @@ def run_bot(token_override: str = ""):
                     return
 
                 # فك الضغط واستبدال الملفات
+                # 🔒 ملفات مشفرة — نتخطى التحقق من JSON
+                encrypted_files = {"telicall_accounts.json"}
                 replaced = []
                 errors = []
                 with zipfile.ZipFile(tmp_zip.name, 'r') as zf:
@@ -7276,6 +7279,13 @@ def run_bot(token_override: str = ""):
                         if base_name in allowed_data_files:
                             try:
                                 content = zf.read(fname_in_zip)
+                                # 🔒 ملفات مشفرة — نحفظها كما هي بدون التحقق من JSON
+                                if base_name in encrypted_files:
+                                    dest = os.path.join(DATA_DIR, base_name)
+                                    with open(dest, 'wb') as f:
+                                        f.write(content)
+                                    replaced.append(base_name)
+                                    continue
                                 # التحقق من إنه JSON صالح
                                 try:
                                     json.loads(content.decode('utf-8'))
@@ -7291,6 +7301,12 @@ def run_bot(token_override: str = ""):
                 # تنظيف
                 try: os.unlink(tmp_zip.name)
                 except: pass
+                # 🔄 إعادة تحميل الحسابات من الملفات الجديدة
+                try:
+                    load_accounts()
+                    print(f"[data_push] ✅ Reloaded accounts: {len(accounts)}")
+                except Exception as _re:
+                    print(f"[data_push] ⚠️ Failed to reload accounts: {_re}")
                 # رفع على GitHub فوراً
                 gh_msg = ""
                 if replaced:
@@ -8490,14 +8506,6 @@ def _init_data_dir():
     print(f"[init_data] ✅ Data directory ready: {DATA_DIR}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  📦 النسخ الاحتياطي التلقائي — كل 5 ساعات يبعت الداتا للأدمنز
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ═══ النسخ الاحتياطي التلقائي — تم إلغاؤه نهائياً بناءً على طلب المستخدم ═══
-# (لا حاجة لنسخ احتياطي تلقائي — الداتا محمية عبر GitHub sync بحساب عدد الحسابات)
-
-
 # ============================================================================
 if __name__ == "__main__":
     try:
@@ -8526,8 +8534,6 @@ if __name__ == "__main__":
 
         # 🔄 تشغيل خلفية التعبئة — يضمن 3 حسابات جاهزة دايماً
         start_token_refill()
-
-        # 📦 النسخ الاحتياطي التلقائي — تم إلغاؤه نهائياً
 
         # 🤖 تشغيل البوتات الفرعية المحفوظة
         threading.Thread(target=start_all_sub_bots, daemon=True).start()
