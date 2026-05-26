@@ -28,7 +28,8 @@ log = logging.getLogger("db-manager")
 
 # 🔧 بيانات الاتصال — القيم المضمنة في الكود (الأساسية)
 # نستخدم PG_DATABASE_URL بدل DATABASE_URL عشان ما يتعارضش مع SQLite
-_PG_URL = "postgresql://postgres:TzIMZoWsqxpywTwxqFXBZTikFDaZRPWm@zephyr.proxy.rlwy.net:56940/railway"
+# ⚠️ sslmode=require ضروري للاتصال بـ Railway PostgreSQL proxy
+_PG_URL = "postgresql://postgres:TzIMZoWsqxpywTwxqFXBZTikFDaZRPWm@zephyr.proxy.rlwy.net:56940/railway?sslmode=require"
 _PG_PRIVATE_URL = "postgresql://postgres:TzIMZoWsqxpywTwxqFXBZTikFDaZRPWm@postgres.railway.internal:5432/railway"
 
 DATABASE_URL = os.environ.get(
@@ -43,6 +44,12 @@ DATABASE_PRIVATE_URL = os.environ.get(
 # لو URL يبدأ بـ "postgresql://" نستخدمه، لو مش كده نستخدم القيمة المضمنة
 if not DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = _PG_URL
+
+# ⚠️ أضف sslmode=require لو مش موجود — ضروري لـ Railway PostgreSQL proxy
+if "sslmode" not in DATABASE_URL:
+    separator = "&" if "?" in DATABASE_URL else "?"
+    DATABASE_URL = DATABASE_URL + separator + "sslmode=require"
+
 _db_url = DATABASE_URL
 
 # ═══════════════════════════════════════════════════════════════════════════════
