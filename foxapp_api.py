@@ -738,43 +738,15 @@ app = Flask(__name__)
 
 @app.after_request
 def _security_headers(response):
-    response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    # 🔒 CORS: Only allow requests from our own domain and Telegram
-    origin = request.headers.get("Origin", "")
-    allowed_origins = [
-        PUBLIC_URL,
-        "https://web.telegram.org",
-        "https://t.me",
-    ]
-    if origin and (origin in allowed_origins or origin.endswith(".telegram.org")):
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, x-admin-key, x-farm-token, x-signature, x-timestamp, x-nonce"
-        response.headers["Access-Control-Max-Age"] = "86400"
+    # Allow iframe embedding for Telegram WebApp and Monetag
+    # (Monetag ads load in iframes, so SAMEORIGIN would block them)
+    response.headers["X-Frame-Options"] = "ALLOWALL"
+    # Remove X-Frame-Options if CSP is set
+    response.headers.pop("X-Frame-Options", None)
     return response
-
-
-@app.before_request
-def _handle_cors_preflight():
-    """Handle CORS preflight OPTIONS requests."""
-    if request.method == "OPTIONS":
-        origin = request.headers.get("Origin", "")
-        allowed_origins = [
-            PUBLIC_URL,
-            "https://web.telegram.org",
-            "https://t.me",
-        ]
-        if origin and (origin in allowed_origins or origin.endswith(".telegram.org")):
-            resp = jsonify({"ok": True})
-            resp.headers["Access-Control-Allow-Origin"] = origin
-            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, x-admin-key, x-farm-token, x-signature, x-timestamp, x-nonce"
-            resp.headers["Access-Control-Max-Age"] = "86400"
-            return resp
-        return jsonify({"error": "forbidden"}), 403
 
 
 # Old endpoints — disabled, return 410 Gone
@@ -3672,11 +3644,7 @@ def _render_ads_page(session_token: str, uid: str) -> str:
     stats = _get_ads_stats(uid)
     daily_count = _get_ads_daily_count(uid)
     daily_remaining = max(0, ADS_DAILY_LIMIT - daily_count)
-
-    monetag_script = (
-        f"<script async src='//libtl.com/sdk.js' data-zone='{MONETAG_ZONE_ID}' data-sdk='{MONETAG_SDK_FUNCTION}'></script>"
-        if MONETAG_ENABLED else ''
-    )
+    ads_remaining_today = daily_remaining * ADS_PER_SESSION  # Individual ads remaining
 
     # Build 10 ad dots
     ad_dots_html = ""
@@ -3691,7 +3659,6 @@ def _render_ads_page(session_token: str, uid: str) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fox Call</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    {monetag_script}
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
@@ -3791,12 +3758,12 @@ def _render_ads_page(session_token: str, uid: str) -> str:
 
         <div class="info-card">
             <div class="row">
-                <span>💰 المكافأة</span>
+                <span>💰 مكافأة الجلسة</span>
                 <span>+{ADS_REWARD:.2f}$</span>
             </div>
             <div class="row">
-                <span>📊 المتبقي اليوم</span>
-                <span>{daily_remaining} جلسة</span>
+                <span>📊 إعلانات متبقية اليوم</span>
+                <span>{ads_remaining_today} إعلان</span>
             </div>
             <div class="row">
                 <span>📈 إجمالي الكسب</span>
@@ -3811,12 +3778,57 @@ def _render_ads_page(session_token: str, uid: str) -> str:
         const _0t = {ADS_PER_SESSION};
         const _0r = {ADS_REWARD};
         const _0b = window.location.origin;
+        const _0zone = "{MONETAG_ZONE_ID}";
+        const _0sdk = "{MONETAG_SDK_FUNCTION}";
         let _0c = 0;
         let _0l = false;
         let _0a = null;  // Will be fetched from API
         let _0k = null;  // Will be fetched from API (fp_salt, per-session)
-        let _0m = {"true" if MONETAG_ENABLED else "false"};
         let _0p = {ADS_REWARD_PER_AD};
+        let _0sdkReady = false;
+
+        // ─── Monetag SDK Loader ────────────────────────────────
+        function _0loadSDK() {{
+            return new Promise((resolve) => {{
+                // Check if already loaded
+                if (typeof window[_0sdk] === 'function') {{
+                    _0sdkReady = true;
+                    resolve(true);
+                    return;
+                }}
+                // Load the script dynamically (sync-style, no async)
+                const script = document.createElement('script');
+                script.src = '//libtl.com/sdk.js';
+                script.setAttribute('data-zone', _0zone);
+                script.setAttribute('data-sdk', _0sdk);
+                script.onload = function() {{
+                    // Give SDK 500ms to register the function
+                    setTimeout(() => {{
+                        if (typeof window[_0sdk] === 'function') {{
+                            _0sdkReady = true;
+                            resolve(true);
+                        }} else {{
+                            console.warn("SDK loaded but function not found");
+                            resolve(false);
+                        }}
+                    }}, 500);
+                }};
+                script.onerror = function() {{
+                    console.warn("SDK script failed to load");
+                    resolve(false);
+                }};
+                document.head.appendChild(script);
+                // Timeout: 10 seconds
+                setTimeout(() => {{
+                    if (typeof window[_0sdk] === 'function') {{
+                        _0sdkReady = true;
+                        resolve(true);
+                    }} else {{
+                        resolve(false);
+                    }}
+                }}, 10000);
+            }});
+        }}
 
         // 🔒 Fetch session config from API (ad_token + fp_salt — never in page source)
         async function _0loadConfig() {{
@@ -3837,7 +3849,7 @@ def _render_ads_page(session_token: str, uid: str) -> str:
         // 🔒 Generate browser fingerprint (fp_salt is per-session, from API)
         function _0fp() {{
             try {{
-                if (!_0k) return '';  // No salt yet
+                if (!_0k) return '';
                 const c = document.createElement('canvas');
                 const g = c.getContext('2d');
                 g.textBaseline = 'top';
@@ -3870,28 +3882,6 @@ def _render_ads_page(session_token: str, uid: str) -> str:
             return '';
         }}
 
-        // Wait for Monetag SDK to load (with timeout)
-        function _0waitForSDK(maxWait) {{
-            return new Promise((resolve) => {{
-                const fn = 'show_{MONETAG_ZONE_ID}';
-                if (typeof window[fn] === 'function') {{
-                    resolve(true);
-                    return;
-                }}
-                let waited = 0;
-                const interval = setInterval(() => {{
-                    waited += 200;
-                    if (typeof window[fn] === 'function') {{
-                        clearInterval(interval);
-                        resolve(true);
-                    }} else if (waited >= maxWait) {{
-                        clearInterval(interval);
-                        resolve(false);
-                    }}
-                }}, 200);
-            }});
-        }}
-
         // Initialize Telegram WebApp
         try {{
             if (window.Telegram && window.Telegram.WebApp) {{
@@ -3920,80 +3910,83 @@ def _render_ads_page(session_token: str, uid: str) -> str:
                 }}
             }}
 
+            // Try to load Monetag SDK if not ready
+            if (!_0sdkReady) {{
+                status.innerHTML = '<span class="spinner"></span> جاري تحميل الإعلانات...';
+                _0sdkReady = await _0loadSDK();
+            }}
+
             // ── Try Monetag SDK ──
-            if (_0m) {{
-                // Wait for SDK to load (up to 8 seconds)
-                const sdkReady = await _0waitForSDK(8000);
-                if (sdkReady) {{
-                    try {{
-                        status.innerHTML = '<span class="spinner"></span> جاري تحميل الإعلان...';
+            if (_0sdkReady && typeof window[_0sdk] === 'function') {{
+                try {{
+                    status.innerHTML = '<span class="spinner"></span> جاري تحميل الإعلان...';
 
-                        // Show the ad
-                        const fn = 'show_{MONETAG_ZONE_ID}';
-                        await window[fn]();
+                    // Show the ad
+                    await window[_0sdk]();
 
-                        // Ad watched — claim reward with anti-cheat tokens
-                        status.innerHTML = '<span class="spinner"></span> جاري تسجيل المكافأة...';
+                    // Ad watched — claim reward with anti-cheat tokens
+                    status.innerHTML = '<span class="spinner"></span> جاري تسجيل المكافأة...';
 
-                        const fp = _0fp();
-                        const tg = _0tg();
+                    const fp = _0fp();
+                    const tg = _0tg();
 
-                        const resp = await fetch(_0b + '/api/ads/complete-ad/' + _0s, {{
-                            method: 'POST',
-                            headers: {{ 'Content-Type': 'application/json' }},
-                            body: JSON.stringify({{
-                                ad_token: _0a,
-                                init_data: tg,
-                                fp: fp
-                            }})
-                        }});
+                    const resp = await fetch(_0b + '/api/ads/complete-ad/' + _0s, {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{
+                            ad_token: _0a,
+                            init_data: tg,
+                            fp: fp
+                        }})
+                    }});
 
-                        if (resp.ok) {{
-                            const data = await resp.json();
-                            if (data.ok) {{
-                                _0c = data.ads_completed;
-                                _0a = data.next_ad_token || null;
-                                _0updateUI();
+                    if (resp.ok) {{
+                        const data = await resp.json();
+                        if (data.ok) {{
+                            _0c = data.ads_completed;
+                            _0a = data.next_ad_token || null;
+                            _0updateUI();
 
-                                if (data.all_done) {{
-                                    _0showDone();
-                                }} else {{
-                                    status.innerHTML = '<span class="success-icon">✅</span> إعلان '
-                                        + _0c + ' من ' + _0t + ' تم! '
-                                        + '<span style="color:#4CAF50;font-size:14px">+' + _0p.toFixed(2) + '$</span>';
-                                    btn.textContent = '▶️ التالي (' + _0c + '/' + _0t + ')';
-                                    btn.disabled = false;
-                                }}
-                                _0l = false;
-                                return;
-                            }}
-                        }}
-
-                        // Server rejected — show specific error
-                        try {{
-                            const errData = await resp.json();
-                            console.warn("Ad completion rejected:", errData.error);
-                            if (errData.error === 'invalid_ad_token') {{
-                                status.innerHTML = '⚠️ فشل التحقق من الإعلان<br><span style="font-size:12px;color:#aaa">حاول تاني</span>';
-                            }} else if (errData.error === 'missing_fingerprint') {{
-                                status.innerHTML = '⚠️ يجب استخدام المتصفح<br><span style="font-size:12px;color:#aaa">الروبوتات مش مقبولة!</span>';
-                            }} else if (errData.error === 'too_fast') {{
-                                status.innerHTML = '⚠️ سرعت أوي — استنى شوية<br><span style="font-size:12px;color:#aaa">حاول تاني بعد 10 ثواني</span>';
+                            if (data.all_done) {{
+                                _0showDone();
                             }} else {{
-                                status.innerHTML = '⚠️ حصل خطأ: ' + (errData.message || errData.error) + '<br><span style="font-size:12px;color:#aaa">حاول تاني</span>';
+                                status.innerHTML = '<span class="success-icon">✅</span> إعلان '
+                                    + _0c + ' من ' + _0t + ' تم! '
+                                    + '<span style="color:#4CAF50;font-size:14px">+' + _0p.toFixed(2) + '$</span>';
+                                btn.textContent = '▶️ التالي (' + _0c + '/' + _0t + ')';
+                                btn.disabled = false;
                             }}
-                        }} catch(e2) {{
-                            status.innerHTML = '⚠️ حصل خطأ في تسجيل المكافأة<br><span style="font-size:12px;color:#aaa">حاول تاني</span>';
+                            _0l = false;
+                            return;
                         }}
-                        btn.disabled = false;
-                        _0l = false;
-                        return;
-
-                    }} catch(e) {{
-                        console.warn("Monetag error:", e);
                     }}
-                }} else {{
-                    console.warn("Monetag SDK did not load in time");
+
+                    // Server rejected — show specific error
+                    try {{
+                        const errData = await resp.json();
+                        console.warn("Ad completion rejected:", errData.error);
+                        if (errData.error === 'invalid_ad_token') {{
+                            // Token expired — try refreshing
+                            _0a = null;
+                            _0k = null;
+                            status.innerHTML = '⚠️ انتهت صلاحية الجلسة — حاول مرة تانية';
+                        }} else if (errData.error === 'missing_fingerprint') {{
+                            status.innerHTML = '⚠️ يجب استخدام المتصفح<br><span style="font-size:12px;color:#aaa">الروبوتات مش مقبولة!</span>';
+                        }} else if (errData.error === 'too_fast') {{
+                            status.innerHTML = '⚠️ سرعت أوي — استنى شوية<br><span style="font-size:12px;color:#aaa">حاول تاني بعد 10 ثواني</span>';
+                        }} else {{
+                            status.innerHTML = '⚠️ حصل خطأ: ' + (errData.message || errData.error) + '<br><span style="font-size:12px;color:#aaa">حاول تاني</span>';
+                        }}
+                    }} catch(e2) {{
+                        status.innerHTML = '⚠️ حصل خطأ في تسجيل المكافأة<br><span style="font-size:12px;color:#aaa">حاول تاني</span>';
+                    }}
+                    btn.disabled = false;
+                    _0l = false;
+                    return;
+
+                }} catch(e) {{
+                    console.warn("Monetag show error:", e);
+                    // SDK function threw error — ad might not be available
                 }}
             }}
 
@@ -4037,30 +4030,22 @@ def _render_ads_page(session_token: str, uid: str) -> str:
             }}
         }}
 
-        // Initialize
+        // Initialize — load everything up front
         (async function() {{
             const btn = document.getElementById('watchBtn');
             const status = document.getElementById('adStatus');
             status.innerHTML = '<span class="spinner"></span> جاري التحضير...';
 
-            // Fetch config from API (ad_token + fp_salt)
+            // 1. Fetch config from API (ad_token + fp_salt)
             await _0loadConfig();
 
-            if (_0m) {{
-                // Wait for Monetag SDK to load
-                const sdkReady = await _0waitForSDK(6000);
-                if (sdkReady) {{
-                    status.textContent = 'اضغط لمشاهدة إعلان';
-                }} else {{
-                    status.textContent = '⏳ جاري تحميل الإعلانات...';
-                    // Keep waiting in background
-                    _0waitForSDK(15000).then(ok => {{
-                        if (ok) status.textContent = 'اضغط لمشاهدة إعلان';
-                        else status.innerHTML = '⚠️ الإعلانات مش متاحة حالياً<br><span style="font-size:12px;color:#aaa">حاول تاني بعد شوية!</span>';
-                    }});
-                }}
+            // 2. Load Monetag SDK
+            _0sdkReady = await _0loadSDK();
+
+            if (_0sdkReady) {{
+                status.textContent = '✅ جاهز! اضغط لمشاهدة إعلان';
             }} else {{
-                status.textContent = '⚠️ الإعلانات مش متاحة حالياً';
+                status.innerHTML = '⏳ جاري تحميل الإعلانات...<br><span style="font-size:12px;color:#aaa">لو مزحت اضغط الزرار وهنجرب تاني</span>';
             }}
             btn.textContent = '📺 مشاهدة الإعلان';
             btn.disabled = false;
