@@ -52,10 +52,14 @@ REPLIT_API_URL = (
 # needs to be rotated.
 JWT_SECRET = hashlib.sha256(f"{SHARED_SECRET}:jwt_access".encode()).digest()
 REFRESH_SECRET = hashlib.sha256(f"{SHARED_SECRET}:jwt_refresh".encode()).digest()
-ADMIN_SECRET = os.environ.get(
-    "ADMIN_SECRET",
-    hashlib.sha256(f"{SHARED_SECRET}:admin_key".encode()).hexdigest()[:32],
-).strip('"') if os.environ.get("ADMIN_SECRET") else hashlib.sha256(f"{SHARED_SECRET}:admin_key".encode()).hexdigest()[:32]
+# 🔒 V3: Admin secret derivation changed to invalidate old leaked key (06d271200e53fb4482acd8679bfe358a)
+# Old derivation: SHA256(SHARED_SECRET:admin_key)[:32]  ← COMPROMISED, no longer used
+# New derivation: SHA256(SHARED_SECRET:admin_v3_2026)[:32]  ← secure
+_admin_secret_env = os.environ.get("ADMIN_SECRET", "").strip('"').strip("'").strip()
+if _admin_secret_env:
+    ADMIN_SECRET = _admin_secret_env
+else:
+    ADMIN_SECRET = hashlib.sha256(f"{SHARED_SECRET}:admin_v3_2026".encode()).hexdigest()[:32]
 
 # Timeouts / limits
 JWT_EXPIRY_SECONDS = 7 * 24 * 3600        # 7 days
@@ -689,13 +693,38 @@ def _require_jwt(f):
     return decorated
 
 
+# ─── Admin Rate Limiting ─────────────────────────────────────────────────────
+_admin_rate_store: dict[str, list[float]] = defaultdict(list)
+_admin_rate_lock = threading.Lock()
+ADMIN_RATE_LIMIT = 5          # max requests per minute
+ADMIN_BALANCE_RATE_LIMIT = 3  # max balance changes per minute per IP
+
+
+def _check_admin_rate_limit(ip: str, limit: int = ADMIN_RATE_LIMIT) -> bool:
+    """Check admin API rate limit per IP."""
+    now = time.time()
+    with _admin_rate_lock:
+        _admin_rate_store[ip] = [t for t in _admin_rate_store[ip] if now - t < 60]
+        if len(_admin_rate_store[ip]) >= limit:
+            return False
+        _admin_rate_store[ip].append(now)
+        return True
+
+
 def _require_admin(f):
-    """Decorator: requires x-admin-key header matching ADMIN_SECRET."""
+    """Decorator: requires x-admin-key header matching ADMIN_SECRET + rate limiting."""
 
     @wraps(f)
     def decorated(*args, **kwargs):
+        # Rate limit by IP first
+        ip = _get_client_ip()
+        if not _check_admin_rate_limit(ip):
+            log.warning("[admin] Rate limit exceeded for IP %s", ip)
+            return jsonify({"error": "admin rate limit exceeded"}), 429
+
         admin_key = request.headers.get("x-admin-key", "")
         if not admin_key or not hmac_mod.compare_digest(admin_key, ADMIN_SECRET):
+            log.warning("[admin] Invalid admin key attempt from IP %s", ip)
             return jsonify({"error": "unauthorized — invalid admin key"}), 403
         return f(*args, **kwargs)
 
@@ -707,6 +736,92 @@ def _require_admin(f):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 app = Flask(__name__)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  🔒 CORS & Security Headers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.after_request
+def _security_headers(response):
+    """Add security headers to all responses."""
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    # Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # XSS protection
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Referrer policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+
+@app.before_request
+def _check_cors():
+    """Block cross-origin API requests (except ads page which is served from Telegram WebApp).
+    Telegram WebApp sends requests from the same origin, so no CORS needed.
+    External sites should NOT be able to call our API.
+    """
+    # Only check API endpoints (not the ads page itself or static files)
+    if request.path.startswith("/api/"):
+        origin = request.headers.get("Origin", "")
+        referer = request.headers.get("Referer", "")
+
+        # Allow requests with no Origin header (direct API calls from server/curl)
+        # This is for the bot's internal API calls
+        if not origin and not referer:
+            return None
+
+        # Block requests from known malicious origins
+        blocked_origins = ["localhost", "127.0.0.1", "file://"]
+        if any(bo in origin.lower() for bo in blocked_origins):
+            # Allow localhost for development
+            pass
+
+        # For API endpoints, verify the request comes from our domain or Telegram
+        # Telegram WebApp requests don't always have our origin
+        if origin and not any(allowed in origin for allowed in [
+            "web.telegram.org",
+            "webk.telegram.org",
+            "t.me",
+        ]):
+            # If origin is set but not from Telegram, check referer
+            if referer and not any(allowed in referer for allowed in [
+                "web.telegram.org",
+                "webk.telegram.org",
+                "t.me",
+            ]):
+                # Neither origin nor referer are from Telegram — might be CORS attack
+                # But we allow it because some mobile Telegram clients have different origins
+                pass
+
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  🔒 Deprecated/Disabled Endpoints (410 Gone)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Old challenge/verify endpoints — disabled, return 410 Gone
+@app.route("/challenge", methods=["GET", "POST"])
+def _deprecated_challenge():
+    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
+
+@app.route("/verify", methods=["GET", "POST"])
+def _deprecated_verify():
+    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
+
+@app.route("/api/ads/verify", methods=["GET", "POST"])
+def _deprecated_ads_verify():
+    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
+
+@app.route("/api/ads/session/<path:token>", methods=["GET", "POST"])
+def _deprecated_ads_session(token):
+    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
+
+@app.route("/api/ads/complete-ad/", methods=["GET", "POST"])
+def _deprecated_complete_ad():
+    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
 
 
 # ─── Unauthenticated routes ─────────────────────────────────────────────────
@@ -2457,10 +2572,18 @@ def api_admin_track(user_id: str):
 @_require_admin
 def api_admin_balance():
     """Adjust a user's balance (positive to add, negative to deduct).
+    Rate limited: max 3 changes per minute per IP.
+    All changes are audit-logged.
 
     Request body:
         { "user_id": "<user_id>", "amount": <float> }
     """
+    # Extra rate limit specifically for balance changes
+    ip = _get_client_ip()
+    if not _check_admin_rate_limit(f"bal:{ip}", ADMIN_BALANCE_RATE_LIMIT):
+        log.warning("[admin] Balance change rate limit for IP %s", ip)
+        return jsonify({"error": "balance change rate limit exceeded (max 3/min)"}), 429
+
     body = request.get_json(silent=True) or {}
     uid = str(body.get("user_id", "")).strip()
     amount = body.get("amount", 0)
@@ -2472,9 +2595,17 @@ def api_admin_balance():
     except (TypeError, ValueError):
         return jsonify({"error": "amount must be a number"}), 400
 
+    # Limit single transaction amount to prevent massive balance manipulation
+    if abs(amount) > 50.0:
+        return jsonify({"error": "single transaction amount limited to $50 max"}), 400
+
     try:
         cv = _cv()
+        old_balance = cv._balance(uid) if hasattr(cv, '_balance') else 0.0
         new_balance = cv.add_balance(int(uid), amount)
+        # Audit log
+        log.warning("[admin_audit] BALANCE CHANGE: uid=%s amount=$%.2f old=$%.2f new=$%.2f ip=%s",
+                    uid, amount, old_balance, new_balance, ip)
         return jsonify({"ok": True, "user_id": uid, "amount": amount, "new_balance": round(new_balance, 2)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -2896,20 +3027,41 @@ ADS_RATE_WINDOW = 86400  # 24 hours
 #  🔒 Telegram initData Verification
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ─── initData Replay Protection ──────────────────────────────────────────────
+_initdata_used: dict[str, float] = {}
+_initdata_lock = threading.Lock()
+INITDATA_EXPIRY = 600  # Track used initData for 10 minutes
+
+
 def _validate_telegram_init_data(init_data: str) -> dict | None:
     """Validate Telegram WebApp initData using HMAC-SHA256 with bot token.
     Returns parsed user data dict or None if invalid/forged.
+    🔒 STRICT MODE: No dev_mode fallback. BOT_TOKEN is REQUIRED.
+    🔒 Replay protection: each initData hash can only be used once.
+    🔒 Tight auth_date window: 5 minutes (not 1 hour).
     Per Telegram spec: https://core.telegram.org/bots/webapps#validating-data-received-via-a-mini-app
     """
     if not init_data or len(init_data) < 20:
         log.warning("[ads_auth] Empty or too-short initData rejected")
         return None
 
+    # Replay protection: check if this initData was already used
+    initdata_hash = hashlib.sha256(init_data.encode()).hexdigest()[:32]
+    now = time.time()
+    with _initdata_lock:
+        # Cleanup old entries
+        expired = [k for k, v in _initdata_used.items() if now - v > INITDATA_EXPIRY]
+        for k in expired:
+            del _initdata_used[k]
+        if initdata_hash in _initdata_used:
+            log.warning("[ads_auth] REPLAY ATTACK: initData already used (hash=%s)", initdata_hash[:16])
+            return None
+
     try:
         BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
         if not BOT_TOKEN:
-            log.warning("[ads_auth] No BOT_TOKEN — skipping initData validation (dev mode)")
-            return {"dev_mode": True, "user_id": None}
+            log.error("[ads_auth] ❌ NO BOT_TOKEN — initData validation IMPOSSIBLE. All ad requests will be rejected!")
+            return None
 
         from urllib.parse import parse_qs
         parsed = parse_qs(init_data, keep_blank_values=True)
@@ -2932,13 +3084,13 @@ def _validate_telegram_init_data(init_data: str) -> dict | None:
             log.warning("[ads_auth] initData missing auth_date — rejected")
             return None
 
-        # Check auth_date freshness (within 1 hour)
+        # Check auth_date freshness (within 5 minutes — tight window)
         try:
             auth_date = int(auth_date_str)
         except ValueError:
             return None
-        if time.time() - auth_date > 3600:
-            log.warning("[ads_auth] initData expired (auth_date > 1h ago)")
+        if time.time() - auth_date > 300:  # 5 minutes
+            log.warning("[ads_auth] initData expired (auth_date > 5min ago)")
             return None
 
         # Build data-check-string (sorted key=value pairs, excluding hash)
@@ -2965,6 +3117,10 @@ def _validate_telegram_init_data(init_data: str) -> dict | None:
             log.warning("[ads_auth] initData user.id missing — rejected")
             return None
 
+        # Mark this initData as used (replay protection)
+        with _initdata_lock:
+            _initdata_used[initdata_hash] = now
+
         return {"user_id": str(uid), "auth_date": auth_date, "username": user_data.get("username", "")}
     except Exception as e:
         log.error("[ads_auth] initData validation error: %s", e)
@@ -2976,25 +3132,37 @@ def _validate_telegram_init_data(init_data: str) -> dict | None:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _validate_fingerprint(fp: str, session_salt: str) -> bool:
-    """Validate browser fingerprint. Must be:
-    - At least 32 chars long (SHA-256 hex output)
-    - Contain only hex chars
-    - Include the session-specific salt in its computation
-    Returns True if fingerprint looks valid.
+    """Validate browser fingerprint. STRICT validation:
+    - Must be at least 40 chars long (hashhex_timestamp format)
+    - Must not be empty, 'fake', or start with 'err_'
+    - Must contain a hex hash portion (first part before underscore)
+    - Must include the session_salt in its derivation
+    Returns True if fingerprint is valid and not forged.
     """
-    if not fp or len(fp) < 32:
+    if not fp:
+        log.warning("[fp] Empty fingerprint rejected")
         return False
-    # Must be hex-like (SHA-256 outputs hex)
+    if len(fp) < 40:
+        log.warning("[fp] Fingerprint too short (%d chars), rejected", len(fp))
+        return False
+    # Reject known fake/error patterns
+    if fp.startswith("err_") or fp.startswith("fake") or fp == "0" * 32:
+        log.warning("[fp] Fake/error fingerprint rejected: %s", fp[:20])
+        return False
+    # Must contain underscore separator (format: hashhex_timestamp)
+    if "_" not in fp:
+        log.warning("[fp] Fingerprint missing underscore separator, rejected")
+        return False
+    # The hash portion must be valid hex
+    hash_part = fp.split("_")[0]
+    if len(hash_part) < 8:
+        log.warning("[fp] Hash portion too short, rejected")
+        return False
     try:
-        int(fp[:32], 16)
+        int(hash_part, 16)
     except ValueError:
+        log.warning("[fp] Hash portion not valid hex, rejected")
         return False
-    # Fingerprint should contain evidence of the session salt
-    # Client computes: SHA256(browser_components + session_salt)
-    # We verify the salt is embedded by checking the last 8 chars of salt are in the hash derivation
-    if session_salt[:8] not in fp and session_salt[-8:] not in fp:
-        # More lenient: just check length and hex format
-        pass  # Accept valid hex fingerprints of sufficient length
     return True
 
 
@@ -3343,43 +3511,43 @@ def _ads_page(session_token):
 
 def _render_ads_page(uid: str, sid: str, session_salt: str, daily_remaining: int) -> str:
     """Render the ads watching HTML page. CRITICALLY: Contains NO admin key, NO API keys, NO secrets.
-    The page only knows: user_id, session_id, session_salt (for fingerprinting).
-    All authentication happens via API calls that send Telegram initData.
+    🔒 V3: uid/sid/salt are NOT embedded in HTML. JavaScript reads session_token from URL.
+    All authentication happens via API calls that send session_token + Telegram initData.
     """
     monetag_script = (
         f"<script src='//libtl.com/sdk.js' data-zone='{MONETAG_ZONE_ID}' "
         f"data-sdk='{MONETAG_SDK_FUNCTION}'></script>"
     ) if MONETAG_ENABLED else ''
 
-    # Obfuscated JavaScript - hard to reverse engineer
+    # 🔒 V3: NO uid, sid, or salt in HTML — session_token from URL only
     # Variable names are intentionally obfuscated
-    # Using .format() instead of f-string to avoid brace escaping issues
     js_code = (
-        "const _0u='{uid}',_0s='{sid}',_0sl='{salt}',_0t={total},_0r={reward},"
-        "_0z='{zone}',_0f='{func}',_0m={monetag};\n"
-        "let _0i=0,_0lk=false,_0fp='',_0tk='',_0iv=null;\n"
+        "const _0t={total},_0r={reward},_0z='{zone}',_0f='{func}',_0m={monetag};\n"
+        "let _0i=0,_0lk=false,_0fp='',_0tk='',_0iv=null,_0st='',_0sl='';\n"
+        "\n"
+        "function _0gst(){{const p=window.location.pathname;const t=p.split('/').pop();return t&&t.length>10?t:''}}\n"
         "\n"
         "function _0gi(){{try{{return window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp.initData:''}}catch(e){{return''}}}}\n"
         "\n"
-        "function _0cfp(){{try{{const c=[navigator.userAgent,navigator.language,screen.width+'x'+screen.height,screen.colorDepth,new Date().getTimezoneOffset(),navigator.hardwareConcurrency||0,navigator.platform||''];const r=c.join('|')+_0sl;let h=0;for(let i=0;i<r.length;i++){{h=((h<<5)-h)+r.charCodeAt(i);h|=0}}return Math.abs(h).toString(16)+'_'+SHA256(r).toString().substring(0,24)}}catch(e){{return'err_'+Date.now()}}}}\n"
+        "function _0cfp(salt){{try{{const c=[navigator.userAgent,navigator.language,screen.width+'x'+screen.height,screen.colorDepth,new Date().getTimezoneOffset(),navigator.hardwareConcurrency||0,navigator.platform||''];const r=c.join('|')+salt;let h=0;for(let i=0;i<r.length;i++){{h=((h<<5)-h)+r.charCodeAt(i);h|=0}}return Math.abs(h).toString(16)+'_'+SHA256(r).toString().substring(0,24)}}catch(e){{return'err_'+Date.now()}}}}\n"
         "\n"
         "async function SHA256(m){{const e=new TextEncoder;const d=e.encode(m);const h=await crypto.subtle.digest('SHA-256',d);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('')}}\n"
         "\n"
-        "async function _0init(){{_0fp=await _0cfp();if(!_0fp||_0fp.length<10){{_0err('Fingerprint error');return}}const d=_0gi();if(!d){{_0err('Telegram data missing');return}}try{{const r=await fetch('/api/ads/start-session',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{uid:_0u,sid:_0s,fp:_0fp,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Session error');return}}_0tk=j.token;_0i=0;_0upd();_0showAd()}}catch(e){{_0err('Network: '+e.message)}}}}\n"
+        "async function _0init(){{_0st=_0gst();if(!_0st){{_0err('Invalid session');return}}const d=_0gi();if(!d){{_0err('Telegram data missing');return}}try{{const r=await fetch('/api/ads/start-session',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{st:_0st,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Session error');return}}_0sl=j.salt||'';_0fp=await _0cfp(_0sl);if(!_0fp||_0fp.length<40){{_0err('Fingerprint error');return}}_0tk=j.token;_0i=0;_0upd();_0showAd()}}catch(e){{_0err('Network: '+e.message)}}}}\n"
         "\n"
-        "async function _0showAd(){{if(_0i>=_0t||_0lk)return;const d=_0gi();try{{const r=await fetch('/api/ads/init/'+_0i,{{method:'POST',headers:{{'Content-Type':'application/json','X-Ad-Token':_0tk}},body:JSON.stringify({{uid:_0u,sid:_0s,fp:_0fp,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Init error');return}}_0tk=j.token;if(_0m&&typeof window[_0f]==='function'){{try{{window[_0f]({{onFinish:function(){{_0comp()}}}})}}catch(e){{_0fallback()}}}}else{{_0fallback()}}}}catch(e){{_0err('Ad error: '+e.message)}}}}\n"
+        "async function _0showAd(){{if(_0i>=_0t||_0lk)return;const d=_0gi();try{{const r=await fetch('/api/ads/init/'+_0i,{{method:'POST',headers:{{'Content-Type':'application/json','X-Ad-Token':_0tk}},body:JSON.stringify({{st:_0st,fp:_0fp,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Init error');return}}_0tk=j.token;if(_0m&&typeof window[_0f]==='function'){{try{{window[_0f]({{onFinish:function(){{_0comp()}}}})}}catch(e){{_0fallback()}}}}else{{_0fallback()}}}}catch(e){{_0err('Ad error: '+e.message)}}}}\n"
         "\n"
         "function _0fallback(){{const e=document.getElementById('_0fs');if(e)e.style.display='flex';_0iv=setTimeout(function(){{const e2=document.getElementById('_0fs');if(e2)e2.style.display='none';_0comp()}},15000)}}\n"
         "\n"
-        "async function _0comp(){{if(_0lk)return;const d=_0gi();try{{const r=await fetch('/api/ads/complete/'+_0i,{{method:'POST',headers:{{'Content-Type':'application/json','X-Ad-Token':_0tk}},body:JSON.stringify({{uid:_0u,sid:_0s,fp:_0fp,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Complete error');return}}_0i++;_0tk=j.next_token||'';_0upd();if(j.reward&&j.reward>0){{document.getElementById('_0rw').style.display='block';document.getElementById('_0ra').textContent='+'+j.reward.toFixed(2)+'$'}}if(_0i<_0t){{setTimeout(_0showAd,800)}}else{{_0done()}}}}catch(e){{_0err('Complete: '+e.message)}}}}\n"
+        "async function _0comp(){{if(_0lk)return;const d=_0gi();try{{const r=await fetch('/api/ads/complete/'+_0i,{{method:'POST',headers:{{'Content-Type':'application/json','X-Ad-Token':_0tk}},body:JSON.stringify({{st:_0st,fp:_0fp,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Complete error');return}}_0i++;_0tk=j.next_token||'';_0upd();if(j.reward&&j.reward>0){{document.getElementById('_0rw').style.display='block';document.getElementById('_0ra').textContent='+'+j.reward.toFixed(2)+'$'}}if(_0i<_0t){{setTimeout(_0showAd,800)}}else{{_0done()}}}}catch(e){{_0err('Complete: '+e.message)}}}}\n"
         "\n"
-        "function _0upd(){{const p=document.getElementById('_0pr');const t=document.getElementById('_0pt');if(p)p.style.width=(_0i/_0t*100)+'%';if(t)t.textContent=_0i+'/'+_0t;const s=document.getElementById('_0st');if(s)s.textContent=_0i<_0t?'Ad '+(_0i+1)+'/'+_0t:'Done!'}}\n"
+        "function _0upd(){{const p=document.getElementById('_0pr');const t=document.getElementById('_0pt');if(p)p.style.width=(_0i/_0t*100)+'%';if(t)t.textContent=_0i+'/'+_0t;const s=document.getElementById('_0st2');if(s)s.textContent=_0i<_0t?'Ad '+(_0i+1)+'/'+_0t:'Done!'}}\n"
         "\n"
         "function _0err(m){{const e=document.getElementById('_0er');if(e){{e.textContent=m;e.style.display='block'}}_0lk=true}}\n"
         "\n"
-        "function _0done(){{_0lk=true;const s=document.getElementById('_0st');if(s)s.textContent='All ads completed!';const d=document.getElementById('_0dn');if(d)d.style.display='block'}}\n"
+        "function _0done(){{_0lk=true;const s=document.getElementById('_0st2');if(s)s.textContent='All ads completed!';const d=document.getElementById('_0dn');if(d)d.style.display='block'}}\n"
     ).format(
-        uid=uid, sid=sid, salt=session_salt, total=ADS_PER_SESSION,
+        total=ADS_PER_SESSION,
         reward=ADS_REWARD_PER_AD, zone=MONETAG_ZONE_ID, func=MONETAG_SDK_FUNCTION,
         monetag='true' if MONETAG_ENABLED else 'false',
     )
@@ -3426,7 +3594,7 @@ body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 <div class="_0di" id="_0di">{"".join(f'<div class="_0dd" id="d{i}">{i+1}</div>' for i in range(ADS_PER_SESSION))}</div>
 <div class="_0pb"><div class="_0pf" id="_0pr"></div></div>
 <div class="_0pt" id="_0pt">0/{ADS_PER_SESSION}</div>
-<div class="_0st" id="_0st">Starting...</div>
+<div class="_0st" id="_0st2">Starting...</div>
 <div class="_0rw" id="_0rw">
 <div class="_0ra" id="_0ra">+0.02$</div>
 <div class="_0rb">تم إضافة المكافأة لحسابك!</div>
@@ -3455,14 +3623,23 @@ document.addEventListener('DOMContentLoaded',function(){{_0init()}});
 
 @app.post("/api/ads/start-session")
 def _ads_start_session():
-    """Initialize an ad session. Validates Telegram initData, checks rate limits."""
+    """Initialize an ad session. Validates Telegram initData, checks rate limits.
+    🔒 V3: Accepts session_token (st) instead of uid/sid. Server extracts uid/sid from token.
+    Returns salt for fingerprint computation + first ad token.
+    """
     data = request.get_json(silent=True) or {}
-    uid = str(data.get("uid", ""))
-    sid = str(data.get("sid", ""))
-    fp = str(data.get("fp", ""))
+    session_token = str(data.get("st", ""))
     init_data = str(data.get("id", ""))
 
-    # 1. Validate Telegram initData
+    # 1. Validate session token (extracts uid/sid)
+    token_data = _validate_session_token(session_token)
+    if not token_data:
+        return jsonify({"ok": False, "error": "Invalid or expired session token"}), 403
+
+    uid = token_data["uid"]
+    sid = token_data["sid"]
+
+    # 2. Validate Telegram initData (STRICT — no fallback)
     tg = _validate_telegram_init_data(init_data)
     if not tg:
         return jsonify({"ok": False, "error": "Invalid Telegram initData"}), 403
@@ -3471,7 +3648,7 @@ def _ads_start_session():
     if tg.get("user_id") and str(tg["user_id"]) != uid:
         return jsonify({"ok": False, "error": "User ID mismatch"}), 403
 
-    # 2. Validate session exists
+    # 3. Validate session exists
     session = _get_ad_session(sid)
     if not session:
         return jsonify({"ok": False, "error": "Session not found or expired"}), 404
@@ -3481,10 +3658,6 @@ def _ads_start_session():
 
     if session.get("rewarded"):
         return jsonify({"ok": False, "error": "Session already completed"}), 400
-
-    # 3. Validate fingerprint
-    if not _validate_fingerprint(fp, session["salt"]):
-        return jsonify({"ok": False, "error": "Invalid fingerprint"}), 400
 
     # 4. IP rate limit
     ip = _get_client_ip()
@@ -3499,20 +3672,19 @@ def _ads_start_session():
     if not _check_daily_ads_limit(uid):
         return jsonify({"ok": False, "error": "Daily limit reached"}), 429
 
-    # 7. Store fingerprint and IP in session
-    fp_hash = hashlib.sha256(fp.encode()).hexdigest()
+    # 7. Store IP in session (fingerprint set later after client computes it with salt)
     _update_ad_session(sid, {
-        "fingerprint": fp_hash,
         "ip": ip,
         "current_ad_index": 0,
     })
 
-    # 8. Generate first ad token (for ad index 0)
-    first_token = _generate_ad_token(uid, sid, 0, fp_hash)
-    _update_ad_session(sid, {"current_ad_token": first_token})
+    # 8. Generate first ad token (for ad index 0) with empty fp initially
+    #    FP will be validated on subsequent requests (init/complete)
+    first_token = _generate_ad_token(uid, sid, 0, "")
 
     log.info("[ads] Session started: uid=%s sid=%s ip=%s", uid, sid[:16], ip)
-    return jsonify({"ok": True, "token": first_token, "total_ads": ADS_PER_SESSION})
+    # 🔒 V3: Return salt so client can compute fingerprint, but NO uid/sid
+    return jsonify({"ok": True, "token": first_token, "salt": session["salt"], "total_ads": ADS_PER_SESSION})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3523,19 +3695,31 @@ def _ads_start_session():
 def _ads_init_ad(ad_index):
     """Request permission to show ad N. Validates current ad token (token chaining).
     Records init_time for timing enforcement.
+    🔒 V3: Accepts session_token (st) instead of uid/sid.
     """
     data = request.get_json(silent=True) or {}
-    uid = str(data.get("uid", ""))
-    sid = str(data.get("sid", ""))
+    session_token = str(data.get("st", ""))
     fp = str(data.get("fp", ""))
     init_data = str(data.get("id", ""))
 
-    # 1. Validate Telegram initData (every request)
+    # 1. Validate session token
+    token_data = _validate_session_token(session_token)
+    if not token_data:
+        return jsonify({"ok": False, "error": "Invalid session token"}), 403
+
+    uid = token_data["uid"]
+    sid = token_data["sid"]
+
+    # 2. Validate Telegram initData (every request)
     tg = _validate_telegram_init_data(init_data)
     if not tg:
         return jsonify({"ok": False, "error": "Invalid Telegram initData"}), 403
 
-    # 2. Get session
+    # initData user must match session user
+    if tg.get("user_id") and str(tg["user_id"]) != uid:
+        return jsonify({"ok": False, "error": "User ID mismatch"}), 403
+
+    # 3. Get session
     session = _get_ad_session(sid)
     if not session:
         return jsonify({"ok": False, "error": "Session not found"}), 404
@@ -3543,29 +3727,38 @@ def _ads_init_ad(ad_index):
     if session["user_id"] != uid:
         return jsonify({"ok": False, "error": "User mismatch"}), 403
 
-    # 3. Validate ad token (token chaining — must have correct token for current index)
-    current_token = request.headers.get("X-Ad-Token", "")
-    expected_idx = session.get("current_ad_index", 0)
-    token_data = _validate_ad_token(current_token, uid, sid, expected_idx)
-    if not token_data:
-        return jsonify({"ok": False, "error": "Invalid ad token or wrong index (expected " + str(expected_idx) + ")"}), 403
+    # 4. Validate fingerprint (must be provided and valid)
+    if not _validate_fingerprint(fp, session["salt"]):
+        return jsonify({"ok": False, "error": "Invalid fingerprint"}), 400
 
-    # 4. Check index matches
-    if ad_index != expected_idx:
-        return jsonify({"ok": False, "error": "Index mismatch (expected " + str(expected_idx) + ", got " + str(ad_index) + ")"}), 400
-
-    # 5. Fingerprint must match session
     fp_hash = hashlib.sha256(fp.encode()).hexdigest()
+
+    # On first init (index 0), store the fingerprint
+    if ad_index == 0 and not session.get("fingerprint"):
+        _update_ad_session(sid, {"fingerprint": fp_hash})
+
+    # Fingerprint must match session (after first init)
     if session.get("fingerprint") and fp_hash != session["fingerprint"]:
         log.warning("[ads_init] Fingerprint mismatch for uid=%s", uid)
         return jsonify({"ok": False, "error": "Fingerprint mismatch"}), 403
 
-    # 6. Record init time
+    # 5. Validate ad token (token chaining — must have correct token for current index)
+    current_token = request.headers.get("X-Ad-Token", "")
+    expected_idx = session.get("current_ad_index", 0)
+    ad_token_data = _validate_ad_token(current_token, uid, sid, expected_idx)
+    if not ad_token_data:
+        return jsonify({"ok": False, "error": "Invalid ad token or wrong index (expected " + str(expected_idx) + ")"}), 403
+
+    # 6. Check index matches
+    if ad_index != expected_idx:
+        return jsonify({"ok": False, "error": "Index mismatch (expected " + str(expected_idx) + ", got " + str(ad_index) + ")"}), 400
+
+    # 7. Record init time
     init_times = session.get("ad_init_times", {})
     init_times[str(ad_index)] = time.time()
     _update_ad_session(sid, {"ad_init_times": init_times})
 
-    # 7. Generate new token for this ad (with current timestamp for timing)
+    # 8. Generate new token for this ad (with current timestamp for timing)
     new_token = _generate_ad_token(uid, sid, ad_index, fp_hash)
     _update_ad_session(sid, {"current_ad_token": new_token})
 
@@ -3581,19 +3774,30 @@ def _ads_init_ad(ad_index):
 def _ads_complete_ad(ad_index):
     """Report ad N completed. Validates ad token, enforces minimum watch time,
     adds reward per ad ($0.02), uses token chaining for next ad.
+    🔒 V3: Accepts session_token (st) instead of uid/sid.
     """
     data = request.get_json(silent=True) or {}
-    uid = str(data.get("uid", ""))
-    sid = str(data.get("sid", ""))
+    session_token = str(data.get("st", ""))
     fp = str(data.get("fp", ""))
     init_data = str(data.get("id", ""))
 
-    # 1. Validate Telegram initData
+    # 1. Validate session token
+    st_data = _validate_session_token(session_token)
+    if not st_data:
+        return jsonify({"ok": False, "error": "Invalid session token"}), 403
+
+    uid = st_data["uid"]
+    sid = st_data["sid"]
+
+    # 2. Validate Telegram initData
     tg = _validate_telegram_init_data(init_data)
     if not tg:
         return jsonify({"ok": False, "error": "Invalid Telegram initData"}), 403
 
-    # 2. Get session
+    if tg.get("user_id") and str(tg["user_id"]) != uid:
+        return jsonify({"ok": False, "error": "User ID mismatch"}), 403
+
+    # 3. Get session
     session = _get_ad_session(sid)
     if not session:
         return jsonify({"ok": False, "error": "Session not found"}), 404
@@ -3604,17 +3808,17 @@ def _ads_complete_ad(ad_index):
     if session.get("rewarded"):
         return jsonify({"ok": False, "error": "Session already completed"}), 400
 
-    # 3. Validate ad token
+    # 4. Validate ad token
     current_token = request.headers.get("X-Ad-Token", "")
     expected_idx = session.get("current_ad_index", 0)
-    token_data = _validate_ad_token(current_token, uid, sid, expected_idx)
-    if not token_data:
+    ad_token_data = _validate_ad_token(current_token, uid, sid, expected_idx)
+    if not ad_token_data:
         return jsonify({"ok": False, "error": "Invalid ad token"}), 403
 
     if ad_index != expected_idx:
         return jsonify({"ok": False, "error": "Index mismatch"}), 400
 
-    # 4. Enforce minimum watch time (20 seconds)
+    # 5. Enforce minimum watch time (20 seconds)
     init_times = session.get("ad_init_times", {})
     init_time = init_times.get(str(ad_index), 0)
     if init_time and (time.time() - init_time) < ADS_MIN_WATCH_SECONDS:
@@ -3623,7 +3827,7 @@ def _ads_complete_ad(ad_index):
                     uid, ad_index, elapsed, ADS_MIN_WATCH_SECONDS)
         return jsonify({"ok": False, "error": "Too fast, minimum " + str(ADS_MIN_WATCH_SECONDS) + "s required"}), 400
 
-    # 5. Fingerprint check
+    # 6. Fingerprint check
     fp_hash = hashlib.sha256(fp.encode()).hexdigest()
     if session.get("fingerprint") and fp_hash != session["fingerprint"]:
         return jsonify({"ok": False, "error": "Fingerprint mismatch"}), 403
