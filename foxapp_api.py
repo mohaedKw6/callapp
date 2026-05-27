@@ -55,10 +55,15 @@ REFRESH_SECRET = hashlib.sha256(f"{SHARED_SECRET}:jwt_refresh".encode()).digest(
 # 🔒 V3: Admin secret derivation changed to invalidate old leaked key (06d271200e53fb4482acd8679bfe358a)
 # Old derivation: SHA256(SHARED_SECRET:admin_key)[:32]  ← COMPROMISED, no longer used
 # New derivation: SHA256(SHARED_SECRET:admin_v3_2026)[:32]  ← secure
+_COMPROMISED_KEYS = {
+    "06d271200e53fb4482acd8679bfe358a",  # Old leaked admin key
+}
 _admin_secret_env = os.environ.get("ADMIN_SECRET", "").strip('"').strip("'").strip()
-if _admin_secret_env:
+if _admin_secret_env and _admin_secret_env not in _COMPROMISED_KEYS:
     ADMIN_SECRET = _admin_secret_env
 else:
+    if _admin_secret_env in _COMPROMISED_KEYS:
+        log.error("🔒 COMPROMISED ADMIN KEY DETECTED in env! Forcing new key derivation.")
     ADMIN_SECRET = hashlib.sha256(f"{SHARED_SECRET}:admin_v3_2026".encode()).hexdigest()[:32]
 
 # Timeouts / limits
@@ -2695,6 +2700,10 @@ def api_farm_auth():
     """
     body = request.get_json(silent=True) or {}
     key = body.get("key", "")
+    # 🔒 Reject compromised admin keys
+    if key in _COMPROMISED_KEYS:
+        log.warning("[farm_auth] Rejected compromised key attempt")
+        return jsonify({"error": "invalid farm key"}), 403
     if not key or not hmac_mod.compare_digest(key, ADMIN_SECRET):
         return jsonify({"error": "invalid farm key"}), 403
     return jsonify({"ok": True, "token": FARM_TOKEN})
