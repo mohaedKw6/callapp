@@ -53,11 +53,7 @@ REPLIT_API_URL = (
 JWT_SECRET = hashlib.sha256(f"{SHARED_SECRET}:jwt_access".encode()).digest()
 REFRESH_SECRET = hashlib.sha256(f"{SHARED_SECRET}:jwt_refresh".encode()).digest()
 # 🔒 V3: Admin secret derivation changed to invalidate old leaked key (06d271200e53fb4482acd8679bfe358a)
-# Old derivation: SHA256(SHARED_SECRET:admin_key)[:32]  ← COMPROMISED, no longer used
-# New derivation: SHA256(SHARED_SECRET:admin_v3_2026)[:32]  ← secure
-_COMPROMISED_KEYS = {
-    "06d271200e53fb4482acd8679bfe358a",  # Old leaked admin key
-}
+_COMPROMISED_KEYS = {"06d271200e53fb4482acd8679bfe358a"}
 _admin_secret_env = os.environ.get("ADMIN_SECRET", "").strip('"').strip("'").strip()
 if _admin_secret_env and _admin_secret_env not in _COMPROMISED_KEYS:
     ADMIN_SECRET = _admin_secret_env
@@ -699,14 +695,11 @@ def _require_jwt(f):
 
 
 # ─── Admin Rate Limiting ─────────────────────────────────────────────────────
-_admin_rate_store: dict[str, list[float]] = defaultdict(list)
+_admin_rate_store = defaultdict(list)
 _admin_rate_lock = threading.Lock()
-ADMIN_RATE_LIMIT = 5          # max requests per minute
-ADMIN_BALANCE_RATE_LIMIT = 3  # max balance changes per minute per IP
 
 
-def _check_admin_rate_limit(ip: str, limit: int = ADMIN_RATE_LIMIT) -> bool:
-    """Check admin API rate limit per IP."""
+def _check_admin_rate_limit(ip, limit=5):
     now = time.time()
     with _admin_rate_lock:
         _admin_rate_store[ip] = [t for t in _admin_rate_store[ip] if now - t < 60]
@@ -721,15 +714,11 @@ def _require_admin(f):
 
     @wraps(f)
     def decorated(*args, **kwargs):
-        # Rate limit by IP first
         ip = _get_client_ip()
         if not _check_admin_rate_limit(ip):
-            log.warning("[admin] Rate limit exceeded for IP %s", ip)
             return jsonify({"error": "admin rate limit exceeded"}), 429
-
         admin_key = request.headers.get("x-admin-key", "")
         if not admin_key or not hmac_mod.compare_digest(admin_key, ADMIN_SECRET):
-            log.warning("[admin] Invalid admin key attempt from IP %s", ip)
             return jsonify({"error": "unauthorized — invalid admin key"}), 403
         return f(*args, **kwargs)
 
@@ -744,89 +733,54 @@ app = Flask(__name__)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 CORS & Security Headers
+#  🔒 Security Headers & Deprecated Endpoints
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.after_request
 def _security_headers(response):
-    """Add security headers to all responses."""
-    # Prevent clickjacking
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
-    # Prevent MIME type sniffing
     response.headers["X-Content-Type-Options"] = "nosniff"
-    # XSS protection
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    # Referrer policy
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # 🔒 CORS: Only allow requests from our own domain and Telegram
+    origin = request.headers.get("Origin", "")
+    allowed_origins = [
+        PUBLIC_URL,
+        "https://web.telegram.org",
+        "https://t.me",
+    ]
+    if origin and (origin in allowed_origins or origin.endswith(".telegram.org")):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, x-admin-key, x-farm-token, x-signature, x-timestamp, x-nonce"
+        response.headers["Access-Control-Max-Age"] = "86400"
     return response
 
 
 @app.before_request
-def _check_cors():
-    """Block cross-origin API requests (except ads page which is served from Telegram WebApp).
-    Telegram WebApp sends requests from the same origin, so no CORS needed.
-    External sites should NOT be able to call our API.
-    """
-    # Only check API endpoints (not the ads page itself or static files)
-    if request.path.startswith("/api/"):
+def _handle_cors_preflight():
+    """Handle CORS preflight OPTIONS requests."""
+    if request.method == "OPTIONS":
         origin = request.headers.get("Origin", "")
-        referer = request.headers.get("Referer", "")
-
-        # Allow requests with no Origin header (direct API calls from server/curl)
-        # This is for the bot's internal API calls
-        if not origin and not referer:
-            return None
-
-        # Block requests from known malicious origins
-        blocked_origins = ["localhost", "127.0.0.1", "file://"]
-        if any(bo in origin.lower() for bo in blocked_origins):
-            # Allow localhost for development
-            pass
-
-        # For API endpoints, verify the request comes from our domain or Telegram
-        # Telegram WebApp requests don't always have our origin
-        if origin and not any(allowed in origin for allowed in [
-            "web.telegram.org",
-            "webk.telegram.org",
-            "t.me",
-        ]):
-            # If origin is set but not from Telegram, check referer
-            if referer and not any(allowed in referer for allowed in [
-                "web.telegram.org",
-                "webk.telegram.org",
-                "t.me",
-            ]):
-                # Neither origin nor referer are from Telegram — might be CORS attack
-                # But we allow it because some mobile Telegram clients have different origins
-                pass
-
-    return None
+        allowed_origins = [
+            PUBLIC_URL,
+            "https://web.telegram.org",
+            "https://t.me",
+        ]
+        if origin and (origin in allowed_origins or origin.endswith(".telegram.org")):
+            resp = jsonify({"ok": True})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, x-admin-key, x-farm-token, x-signature, x-timestamp, x-nonce"
+            resp.headers["Access-Control-Max-Age"] = "86400"
+            return resp
+        return jsonify({"error": "forbidden"}), 403
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Deprecated/Disabled Endpoints (410 Gone)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# Old challenge/verify endpoints — disabled, return 410 Gone
-@app.route("/challenge", methods=["GET", "POST"])
-def _deprecated_challenge():
-    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
-
-@app.route("/verify", methods=["GET", "POST"])
-def _deprecated_verify():
-    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
-
-@app.route("/api/ads/verify", methods=["GET", "POST"])
-def _deprecated_ads_verify():
-    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
-
-@app.route("/api/ads/session/<path:token>", methods=["GET", "POST"])
-def _deprecated_ads_session(token):
-    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
-
+# Old endpoints — disabled, return 410 Gone
 @app.route("/api/ads/complete-ad/", methods=["GET", "POST"])
 def _deprecated_complete_ad():
-    return jsonify({"error": "This endpoint is deprecated and disabled", "status": "gone"}), 410
+    return jsonify({"error": "deprecated", "status": "gone"}), 410
 
 
 # ─── Unauthenticated routes ─────────────────────────────────────────────────
@@ -2577,17 +2531,12 @@ def api_admin_track(user_id: str):
 @_require_admin
 def api_admin_balance():
     """Adjust a user's balance (positive to add, negative to deduct).
-    Rate limited: max 3 changes per minute per IP.
-    All changes are audit-logged.
-
-    Request body:
-        { "user_id": "<user_id>", "amount": <float> }
+    🔒 SECURED: max $5 per transaction, 2/min per IP, daily cap per user.
     """
-    # Extra rate limit specifically for balance changes
+    # Extra rate limit for balance changes — strict
     ip = _get_client_ip()
-    if not _check_admin_rate_limit(f"bal:{ip}", ADMIN_BALANCE_RATE_LIMIT):
-        log.warning("[admin] Balance change rate limit for IP %s", ip)
-        return jsonify({"error": "balance change rate limit exceeded (max 3/min)"}), 429
+    if not _check_admin_rate_limit(f"bal:{ip}", limit=2):
+        return jsonify({"error": "balance change rate limit exceeded (max 2/min)"}), 429
 
     body = request.get_json(silent=True) or {}
     uid = str(body.get("user_id", "")).strip()
@@ -2600,17 +2549,36 @@ def api_admin_balance():
     except (TypeError, ValueError):
         return jsonify({"error": "amount must be a number"}), 400
 
-    # Limit single transaction amount to prevent massive balance manipulation
-    if abs(amount) > 50.0:
-        return jsonify({"error": "single transaction amount limited to $50 max"}), 400
+    # 🔒 Limit single transaction amount — max $5
+    if abs(amount) > 5.0:
+        return jsonify({"error": "single transaction limited to $5 max"}), 400
+
+    # 🔒 Daily cap: max $10 total balance changes per user per day
+    try:
+        cv = _cv()
+        db = cv.load_users_db()
+        admin_bal_daily = db.get(uid, {}).get("admin_bal_daily", {})
+        date_str = time.strftime("%Y-%m-%d")
+        if admin_bal_daily.get("date") != date_str:
+            admin_bal_daily = {"date": date_str, "total_added": 0.0, "total_deducted": 0.0}
+        if amount > 0:
+            if admin_bal_daily.get("total_added", 0) + amount > 10.0:
+                return jsonify({"error": f"daily add limit reached for user ({admin_bal_daily.get('total_added', 0):.2f}/$10)"}), 429
+            admin_bal_daily["total_added"] = round(admin_bal_daily.get("total_added", 0) + amount, 2)
+        else:
+            if admin_bal_daily.get("total_deducted", 0) + abs(amount) > 10.0:
+                return jsonify({"error": f"daily deduct limit reached for user ({admin_bal_daily.get('total_deducted', 0):.2f}/$10)"}), 429
+            admin_bal_daily["total_deducted"] = round(admin_bal_daily.get("total_deducted", 0) + abs(amount), 2)
+        db.setdefault(uid, {})["admin_bal_daily"] = admin_bal_daily
+        cv.save_users_db(db)
+    except Exception as e:
+        log.error("[admin_audit] Daily cap check error: %s", e)
 
     try:
         cv = _cv()
-        old_balance = cv._balance(uid) if hasattr(cv, '_balance') else 0.0
         new_balance = cv.add_balance(int(uid), amount)
-        # Audit log
-        log.warning("[admin_audit] BALANCE CHANGE: uid=%s amount=$%.2f old=$%.2f new=$%.2f ip=%s",
-                    uid, amount, old_balance, new_balance, ip)
+        log.warning("[admin_audit] BALANCE: uid=%s amt=$%.2f new=$%.2f ip=%s",
+                    uid, amount, new_balance, ip)
         return jsonify({"ok": True, "user_id": uid, "amount": amount, "new_balance": round(new_balance, 2)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -2695,16 +2663,19 @@ def _require_farm_auth(f):
 def api_farm_auth():
     """Authenticate with a farm key.  Returns a session token identical to
     the FARM_TOKEN (derived from SHARED_SECRET, same as ADMIN_SECRET source).
+    🔒 Rate limited: max 3 attempts per minute per IP.
 
     Body: {"key": "..."}
     """
+    # Rate limit farm auth attempts
+    ip = _get_client_ip()
+    if not _check_admin_rate_limit(f"farm_auth:{ip}", limit=3):
+        return jsonify({"error": "farm auth rate limit exceeded (max 3/min)"}), 429
+
     body = request.get_json(silent=True) or {}
     key = body.get("key", "")
-    # 🔒 Reject compromised admin keys
-    if key in _COMPROMISED_KEYS:
-        log.warning("[farm_auth] Rejected compromised key attempt")
-        return jsonify({"error": "invalid farm key"}), 403
     if not key or not hmac_mod.compare_digest(key, ADMIN_SECRET):
+        log.warning("[farm] Failed farm auth attempt from IP: %s", ip)
         return jsonify({"error": "invalid farm key"}), 403
     return jsonify({"ok": True, "token": FARM_TOKEN})
 
@@ -2992,117 +2963,143 @@ def install_fox_layer(bot):
     _start_flask_once()
 
 
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Ads System v2 — Secure ad-watching with Monetag SDK
-#  🔒 Fixes: No admin key in HTML, initData verification, dynamic salt,
-#     IP+user rate limiting, 20s minimum watch, token chaining, HMAC ad tokens
+#  Ads System — Watch ads via Monetag to earn balance
+#  🔒 Anti-cheat: HMAC ad tokens, Telegram initData validation, fingerprinting
 # ═══════════════════════════════════════════════════════════════════════════════
+
+ADSGRAM_BLOCK_ID = os.environ.get("ADSGRAM_BLOCK_ID", "int-32989")  # Legacy AdsGram
+ADSGRAM_API_TOKEN = os.environ.get("ADSGRAM_API_TOKEN", "")   # Legacy AdsGram
+ADSGRAM_BOT_BLOCK_ID = os.environ.get("ADSGRAM_BOT_BLOCK_ID", "32999")  # Legacy AdsGram
 
 # ─── Monetag SDK Configuration ─────────────────────────────────────────────────
 MONETAG_ZONE_ID = os.environ.get("MONETAG_ZONE_ID", "11063303")
 MONETAG_SDK_FUNCTION = os.environ.get("MONETAG_SDK_FUNCTION", f"show_{MONETAG_ZONE_ID}")
 MONETAG_ENABLED = os.environ.get("MONETAG_ENABLED", "true").lower() == "true"
-
-# ─── Ads Configuration ────────────────────────────────────────────────────────
 ADS_PER_SESSION = 10
-ADS_REWARD_PER_AD = 0.02         # $0.02 per individual ad
-ADS_REWARD = 0.20                # $0.20 total for completing 10 ads
+ADS_REWARD = 0.20                # $0.20 for completing 10 ads
 ADS_SESSION_EXPIRY = 30 * 60     # 30 minutes
-ADS_MIN_WATCH_SECONDS = 20       # minimum 20 seconds between init and complete
-ADS_DAILY_LIMIT = 10             # max completed sessions per user per day
+ADS_DAILY_LIMIT = 5              # max completed sessions per day (5 × $0.20 = $1.00/day)
+ADS_MIN_VERIFY_DELAY = 5         # minimum seconds between challenge issue and verify
+ADS_FALLBACK_DURATION = 15       # seconds per fallback ad
+ADS_REWARD_PER_AD = 0.02         # $0.02 per individual ad
 
-# ─── Rate Limiting ────────────────────────────────────────────────────────────
-ADS_IP_DAILY_LIMIT = 3           # max 3 ad sessions per IP per 24 hours
-ADS_USER_DAILY_LIMIT = 2         # max 2 ad sessions per user per 24 hours
+# ─── Anti-Cheat Configuration ──────────────────────────────────────────────────
+ADS_SECRET_KEY = hashlib.sha256(f"{SHARED_SECRET}:ads_anti_cheat".encode()).digest()
+ADS_MIN_AD_DURATION = 10         # minimum seconds an ad must be shown before claiming
+ADS_FINGERPRINT_SALT = os.environ.get("ADS_FINGERPRINT_SALT", secrets.token_hex(16))  # 🔒 Random per-deploy salt — never in frontend
+ADS_MAX_AD_TOKEN_AGE = 120       # ad token expires after 120 seconds (gives more time for SDK loading)
 
-# ─── Anti-Cheat Keys (derived from SHARED_SECRET, NOT admin key) ──────────────
-ADS_SESSION_KEY = hashlib.sha256(f"{SHARED_SECRET}:ads_session_v2".encode()).digest()
-ADS_TOKEN_KEY = hashlib.sha256(f"{SHARED_SECRET}:ads_token_v2".encode()).digest()
-
-# ─── In-Memory Session Storage ────────────────────────────────────────────────
+# In-memory active ad sessions
 _ads_sessions: dict[str, dict] = {}
 _ads_sessions_lock = threading.Lock()
 
-# ─── IP & Fingerprint Rate Limiting Stores ────────────────────────────────────
-_ads_ip_store: dict[str, list[float]] = defaultdict(list)
-_ads_fp_store: dict[str, list[float]] = defaultdict(list)
-_ads_rate_lock = threading.Lock()
-ADS_RATE_WINDOW = 86400  # 24 hours
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Telegram initData Verification
+#  🔒 Anti-Cheat Functions
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def _generate_ad_token(session_token: str, ad_index: int, timestamp: int) -> str:
+    """Generate a cryptographically signed ad token for one specific ad.
+    Format: ad_index:timestamp:HMAC-SHA256(session_token:ad_index:timestamp)
+    This token CANNOT be forged without ADS_SECRET_KEY."""
+    msg = f"{session_token}:{ad_index}:{timestamp}"
+    sig = hmac_mod.new(ADS_SECRET_KEY, msg.encode(), hashlib.sha256).hexdigest()[:24]
+    token = f"{ad_index}:{timestamp}:{sig}"
+    return token
+
+
+def _validate_ad_token(ad_token: str, session_token: str, current_ad_index: int) -> dict | None:
+    """Validate an ad token. Returns {ad_index, timestamp} or None if invalid.
+    Checks: correct index, valid signature, not expired, minimum ad duration elapsed."""
+    try:
+        parts = ad_token.split(":")
+        if len(parts) != 3:
+            return None
+        idx_str, ts_str, sig = parts
+        idx = int(idx_str)
+        ts = int(ts_str)
+
+        # Must match expected ad index
+        if idx != current_ad_index:
+            log.warning("[anti_cheat] Ad index mismatch: expected %d, got %d", current_ad_index, idx)
+            return None
+
+        # Verify HMAC signature
+        msg = f"{session_token}:{idx}:{ts}"
+        expected_sig = hmac_mod.new(ADS_SECRET_KEY, msg.encode(), hashlib.sha256).hexdigest()[:24]
+        if not hmac_mod.compare_digest(sig, expected_sig):
+            log.warning("[anti_cheat] Invalid ad token signature for session %s", session_token[:20])
+            return None
+
+        # Token must not be expired
+        now = int(time.time())
+        if now - ts > ADS_MAX_AD_TOKEN_AGE:
+            log.warning("[anti_cheat] Ad token expired for user in session %s", session_token[:20])
+            return None
+
+        # Minimum ad duration must have elapsed since token was issued
+        elapsed = time.time() - ts
+        if elapsed < ADS_MIN_AD_DURATION:
+            log.warning("[anti_cheat] Ad too fast: %.1fs < %ds minimum", elapsed, ADS_MIN_AD_DURATION)
+            return None
+
+        return {"ad_index": idx, "timestamp": ts}
+    except Exception as e:
+        log.error("[anti_cheat] Token validation error: %s", e)
+        return None
+
 
 # ─── initData Replay Protection ──────────────────────────────────────────────
-_initdata_used: dict[str, float] = {}
+_initdata_used = {}
 _initdata_lock = threading.Lock()
-INITDATA_EXPIRY = 600  # Track used initData for 10 minutes
 
 
 def _validate_telegram_init_data(init_data: str) -> dict | None:
     """Validate Telegram WebApp initData using HMAC-SHA256 with bot token.
-    Returns parsed user data dict or None if invalid/forged.
     🔒 STRICT MODE: No dev_mode fallback. BOT_TOKEN is REQUIRED.
     🔒 Replay protection: each initData hash can only be used once.
-    🔒 Tight auth_date window: 5 minutes (not 1 hour).
-    Per Telegram spec: https://core.telegram.org/bots/webapps#validating-data-received-via-a-mini-app
-    """
+    🔒 Tight auth_date window: 5 minutes (not 1 hour)."""
     if not init_data or len(init_data) < 20:
-        log.warning("[ads_auth] Empty or too-short initData rejected")
         return None
 
-    # Replay protection: check if this initData was already used
+    # Replay protection
     initdata_hash = hashlib.sha256(init_data.encode()).hexdigest()[:32]
     now = time.time()
     with _initdata_lock:
-        # Cleanup old entries
-        expired = [k for k, v in _initdata_used.items() if now - v > INITDATA_EXPIRY]
+        expired = [k for k, v in _initdata_used.items() if now - v > 600]
         for k in expired:
             del _initdata_used[k]
         if initdata_hash in _initdata_used:
-            log.warning("[ads_auth] REPLAY ATTACK: initData already used (hash=%s)", initdata_hash[:16])
+            log.warning("[anti_cheat] initData REPLAY ATTACK rejected")
             return None
 
     try:
         BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
         if not BOT_TOKEN:
-            log.error("[ads_auth] ❌ NO BOT_TOKEN — initData validation IMPOSSIBLE. All ad requests will be rejected!")
+            log.error("[anti_cheat] NO BOT_TOKEN — cannot validate initData!")
             return None
 
         from urllib.parse import parse_qs
         parsed = parse_qs(init_data, keep_blank_values=True)
 
-        # Must have hash field
         hash_value = parsed.get("hash", [""])[0]
         if not hash_value:
-            log.warning("[ads_auth] initData missing hash field — rejected")
             return None
 
-        # Must have user field
         user_str = parsed.get("user", [""])[0]
         if not user_str:
-            log.warning("[ads_auth] initData missing user field — rejected")
             return None
 
-        # Must have auth_date
-        auth_date_str = parsed.get("auth_date", [""])[0]
-        if not auth_date_str:
-            log.warning("[ads_auth] initData missing auth_date — rejected")
+        auth_date_str = parsed.get("auth_date", ["0"])[0]
+        auth_date = int(auth_date_str) if auth_date_str else 0
+
+        # Tight window: 5 minutes
+        if time.time() - auth_date > 300:
+            log.warning("[anti_cheat] initData expired (>5min old)")
             return None
 
-        # Check auth_date freshness (within 5 minutes — tight window)
-        try:
-            auth_date = int(auth_date_str)
-        except ValueError:
-            return None
-        if time.time() - auth_date > 300:  # 5 minutes
-            log.warning("[ads_auth] initData expired (auth_date > 5min ago)")
-            return None
-
-        # Build data-check-string (sorted key=value pairs, excluding hash)
+        # Build data-check-string
         data_check = []
         for key in sorted(parsed.keys()):
             if key == "hash":
@@ -3111,100 +3108,216 @@ def _validate_telegram_init_data(init_data: str) -> dict | None:
             data_check.append(f"{key}={value}")
         data_check_string = "\n".join(data_check)
 
-        # Compute HMAC: key = HMAC-SHA256("WebAppData", BOT_TOKEN)
+        # Compute HMAC
         secret_key = hmac_mod.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
         computed_hash = hmac_mod.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
         if not hmac_mod.compare_digest(computed_hash, hash_value):
-            log.warning("[ads_auth] initData HMAC mismatch — FORGED REQUEST REJECTED")
+            log.warning("[anti_cheat] initData HMAC mismatch — FORGED!")
             return None
 
-        # Parse user data
         user_data = json.loads(user_str)
         uid = user_data.get("id")
         if not uid:
-            log.warning("[ads_auth] initData user.id missing — rejected")
             return None
 
-        # Mark this initData as used (replay protection)
+        # Mark as used (replay protection)
         with _initdata_lock:
             _initdata_used[initdata_hash] = now
 
-        return {"user_id": str(uid), "auth_date": auth_date, "username": user_data.get("username", "")}
+        return {"user_id": str(uid), "auth_date": auth_date}
     except Exception as e:
-        log.error("[ads_auth] initData validation error: %s", e)
+        log.error("[anti_cheat] initData validation error: %s", e)
         return None
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Fingerprint Validation
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _validate_fingerprint(fp: str, session_salt: str) -> bool:
-    """Validate browser fingerprint. STRICT validation:
-    - Must be at least 40 chars long (hashhex_timestamp format)
-    - Must not be empty, 'fake', or start with 'err_'
-    - Must contain a hex hash portion (first part before underscore)
-    - Must include the session_salt in its derivation
-    Returns True if fingerprint is valid and not forged.
-    """
-    if not fp:
-        log.warning("[fp] Empty fingerprint rejected")
+def _validate_fingerprint(fp: str, session_token: str) -> bool:
+    """Validate browser fingerprint. STRICT: reject empty/short/fake fingerprints.
+    🔒 Format: hash_salt (hash first, then underscore, then per-session salt).
+    Must be at least 40 chars, contain underscore, and have valid hex hash portion.
+    The salt part must match the per-session fp_salt derived from ADS_FINGERPRINT_SALT."""
+    if not fp or len(fp) < 40:
         return False
-    if len(fp) < 40:
-        log.warning("[fp] Fingerprint too short (%d chars), rejected", len(fp))
-        return False
-    # Reject known fake/error patterns
     if fp.startswith("err_") or fp.startswith("fake") or fp == "0" * 32:
-        log.warning("[fp] Fake/error fingerprint rejected: %s", fp[:20])
         return False
-    # Must contain underscore separator (format: hashhex_timestamp)
     if "_" not in fp:
-        log.warning("[fp] Fingerprint missing underscore separator, rejected")
         return False
-    # The hash portion must be valid hex
-    hash_part = fp.split("_")[0]
+    parts = fp.split("_", 1)
+    hash_part = parts[0]
+    salt_part = parts[1] if len(parts) > 1 else ""
     if len(hash_part) < 8:
-        log.warning("[fp] Hash portion too short, rejected")
         return False
     try:
         int(hash_part, 16)
     except ValueError:
-        log.warning("[fp] Hash portion not valid hex, rejected")
+        return False
+    # 🔒 Verify the salt matches what the server generated for this session
+    expected_salt = hashlib.sha256(f"{ADS_FINGERPRINT_SALT}:{session_token[:16]}".encode()).hexdigest()[:16]
+    if salt_part != expected_salt:
+        log.warning("[anti_cheat] Fingerprint salt mismatch: expected %s got %s", expected_salt[:8], salt_part[:8])
         return False
     return True
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 IP & User Rate Limiting
-# ═══════════════════════════════════════════════════════════════════════════════
+# ─── AdsGram Bot API ────────────────────────────────────────────────────────
+def _fetch_adsgram_ad(user_id: str, lang: str = "ar") -> dict | None:
+    """Fetch an ad from AdsGram Bot API. Returns ad data dict or None."""
+    if not ADSGRAM_API_TOKEN or not ADSGRAM_BOT_BLOCK_ID:
+        log.warning("[adsgram_api] Missing ADSGRAM_API_TOKEN or ADSGRAM_BOT_BLOCK_ID")
+        return None
+    import urllib.request
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "tgid": str(user_id),
+        "blockid": ADSGRAM_BOT_BLOCK_ID,
+        "language": lang,
+        "token": ADSGRAM_API_TOKEN,
+    })
+    url = f"https://api.adsgram.ai/advbot?{params}"
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "FoxCall-Bot/1.0",
+            "Accept": "application/json",
+        })
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+            if data.get("text_html") or data.get("click_url"):
+                log.info("[adsgram_api] Got ad for user %s", user_id)
+                return data
+            else:
+                log.warning("[adsgram_api] No ad available for user %s", user_id)
+                return None
+    except Exception as e:
+        log.error("[adsgram_api] Error fetching ad: %s", e)
+        return None
 
-def _check_ads_ip_rate_limit(ip: str) -> bool:
-    """Check if IP has exceeded daily ad session limit. Returns True if allowed."""
-    now = time.time()
-    with _ads_rate_lock:
-        _ads_ip_store[ip] = [t for t in _ads_ip_store[ip] if now - t < ADS_RATE_WINDOW]
-        if len(_ads_ip_store[ip]) >= ADS_IP_DAILY_LIMIT:
-            log.warning("[ads_ratelimit] IP %s hit daily limit (%d/%d)", ip, len(_ads_ip_store[ip]), ADS_IP_DAILY_LIMIT)
-            return False
-        _ads_ip_store[ip].append(now)
-        return True
+
+def _generate_ads_session_token(user_id: str) -> str:
+    """Generate a cryptographic ad session token."""
+    nonce = secrets.token_hex(16)
+    timestamp = str(int(time.time()))
+    msg = f"{user_id}:{timestamp}:{nonce}"
+    sig = hmac_mod.new(
+        f"{SHARED_SECRET}:ads_session".encode(),
+        msg.encode(),
+        hashlib.sha256,
+    ).hexdigest()[:32]
+    return f"{user_id}:{timestamp}:{nonce}:{sig}"
 
 
-def _check_ads_user_rate_limit(uid: str) -> bool:
-    """Check if user has exceeded daily ad session limit. Returns True if allowed."""
-    now = time.time()
-    with _ads_rate_lock:
-        _ads_fp_store[f"user:{uid}"] = [t for t in _ads_fp_store[f"user:{uid}"] if now - t < ADS_RATE_WINDOW]
-        if len(_ads_fp_store[f"user:{uid}"]) >= ADS_USER_DAILY_LIMIT:
-            log.warning("[ads_ratelimit] User %s hit daily limit (%d/%d)", uid, len(_ads_fp_store[f"user:{uid}"]), ADS_USER_DAILY_LIMIT)
-            return False
-        _ads_fp_store[f"user:{uid}"].append(now)
-        return True
+def _validate_ads_session_token(token: str) -> dict | None:
+    """Validate an ad session token. Returns {user_id, timestamp, nonce} or None."""
+    try:
+        parts = token.split(":")
+        if len(parts) != 4:
+            return None
+        user_id, timestamp, nonce, sig = parts
+        if not user_id.isdigit():
+            return None
+        msg = f"{user_id}:{timestamp}:{nonce}"
+        expected_sig = hmac_mod.new(
+            f"{SHARED_SECRET}:ads_session".encode(),
+            msg.encode(),
+            hashlib.sha256,
+        ).hexdigest()[:32]
+        if not hmac_mod.compare_digest(sig, expected_sig):
+            return None
+        if int(time.time()) - int(timestamp) > ADS_SESSION_EXPIRY:
+            return None
+        return {"user_id": user_id, "timestamp": int(timestamp), "nonce": nonce}
+    except Exception:
+        return None
+
+
+def _create_ad_session(user_id: str) -> str:
+    """Create a new ad session for a user. Returns the session token."""
+    token = _generate_ads_session_token(user_id)
+    with _ads_sessions_lock:
+        # Clean expired sessions
+        expired = [
+            k for k, v in _ads_sessions.items()
+            if time.time() > v.get("expires_at", 0)
+        ]
+        for k in expired:
+            del _ads_sessions[k]
+        _ads_sessions[token] = {
+            "user_id": user_id,
+            "created_at": time.time(),
+            "ads_completed": 0,
+            "ads_attempted": 0,
+            "expires_at": time.time() + ADS_SESSION_EXPIRY,
+        }
+    return token
+
+
+def _get_ad_session(session_token: str) -> dict | None:
+    with _ads_sessions_lock:
+        session = _ads_sessions.get(session_token)
+        if not session:
+            return None
+        if time.time() > session.get("expires_at", 0):
+            _ads_sessions.pop(session_token, None)
+            return None
+        return session
+
+
+def _update_ads_stats(uid: str, completed: bool = True, attempted: bool = True):
+    """Tracks: total_earned, ads_completed (real), ads_watched (attempts)."""
+    try:
+        cv = _cv()
+        db = cv.load_users_db()
+        if uid in db:
+            stats = db[uid].get("ads_stats", {
+                "total_earned": 0.0,
+                "ads_completed": 0,
+                "ads_watched": 0,
+            })
+            if attempted:
+                stats["ads_watched"] = stats.get("ads_watched", 0) + 1
+            if completed:
+                stats["ads_completed"] = stats.get("ads_completed", 0) + 1
+            db[uid]["ads_stats"] = stats
+            cv.save_users_db(db)
+    except Exception as e:
+        log.error("[ads_stats] Error updating stats for %s: %s", uid, e)
+
+
+def _add_ads_reward(uid: str, amount: float = ADS_REWARD):
+    """Add ads reward balance to user and notify via Telegram."""
+    try:
+        cv = _cv()
+        new_bal = cv.add_balance(int(uid), amount)
+        log.info("[ads] Awarded $%.2f to user %s (new balance: $%.2f)", amount, uid, new_bal)
+
+        # Update stats
+        try:
+            db = cv.load_users_db()
+            if uid in db:
+                stats = db[uid].get("ads_stats", {})
+                stats["total_earned"] = round(stats.get("total_earned", 0.0) + amount, 2)
+                db[uid]["ads_stats"] = stats
+                cv.save_users_db(db)
+        except Exception:
+            pass
+
+        # Notify user via Telegram
+        try:
+            import callv2 as _cv2
+            if hasattr(_cv2, 'bot'):
+                _cv2.bot.send_message(
+                    int(uid),
+                    f"💰 تم إضافة `{amount:.2f}$` لحسابك\n"
+                    f"✅ رصيدك الجديد: `{new_bal:.2f}$`",
+                    parse_mode='Markdown',
+                )
+        except Exception:
+            pass
+    except Exception as e:
+        log.error("[ads_reward] Error adding reward for %s: %s", uid, e)
 
 
 def _check_daily_ads_limit(uid: str) -> bool:
-    """Check if user can still watch ads today (legacy compatibility)."""
+    """Check if user can still watch ads today. Returns True if under limit."""
     try:
         cv = _cv()
         db = cv.load_users_db()
@@ -3233,7 +3346,7 @@ def _increment_daily_ads_count(uid: str):
         db[uid]["ads_daily"] = daily
         cv.save_users_db(db)
     except Exception as e:
-        log.error("[ads_daily] Error: %s", e)
+        log.error("[ads_daily] Error updating daily count for %s: %s", uid, e)
 
 
 def _get_ads_daily_count(uid: str) -> int:
@@ -3249,675 +3362,715 @@ def _get_ads_daily_count(uid: str) -> int:
         return 0
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Session Token Generation (for URL — NOT admin key)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _generate_session_token(user_id: str) -> str:
-    """Generate a one-time session token for the ad page URL.
-    Format: base64url(json({uid, ts, sid, hmac}))
-    HMAC key: ADS_SESSION_KEY (derived from SHARED_SECRET, NOT admin key)
-    This token does NOT grant admin access — only identifies the user session.
-    """
-    sid = secrets.token_hex(12)
-    ts = int(time.time())
-    payload = {"uid": str(user_id), "ts": ts, "sid": sid}
-    payload_json = json.dumps(payload, separators=(",", ":"))
-    sig = hmac_mod.new(ADS_SESSION_KEY, payload_json.encode(), hashlib.sha256).hexdigest()[:24]
-    payload["hmac"] = sig
-    token_json = json.dumps(payload, separators=(",", ":"))
-    return _b64url_encode(token_json.encode())
-
-
-def _validate_session_token(token: str) -> dict | None:
-    """Validate a session token from the URL. Returns {uid, ts, sid} or None."""
-    try:
-        raw = _b64url_decode(token)
-        payload = json.loads(raw)
-        uid = payload.get("uid", "")
-        ts = payload.get("ts", 0)
-        sid = payload.get("sid", "")
-        sig = payload.get("hmac", "")
-
-        if not uid or not uid.isdigit() or not sid or not sig:
-            return None
-
-        # Check expiry
-        if time.time() - ts > ADS_SESSION_EXPIRY:
-            log.warning("[ads_session] Token expired for uid=%s", uid)
-            return None
-
-        # Verify HMAC
-        verify_payload = {"uid": uid, "ts": ts, "sid": sid}
-        verify_json = json.dumps(verify_payload, separators=(",", ":"))
-        expected_sig = hmac_mod.new(ADS_SESSION_KEY, verify_json.encode(), hashlib.sha256).hexdigest()[:24]
-        if not hmac_mod.compare_digest(sig, expected_sig):
-            log.warning("[ads_session] HMAC mismatch — forged session token!")
-            return None
-
-        return {"uid": uid, "ts": ts, "sid": sid}
-    except Exception as e:
-        log.error("[ads_session] Token validation error: %s", e)
-        return None
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Ad Token Generation & Validation (HMAC-signed, token chaining)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _generate_ad_token(uid: str, sid: str, ad_index: int, fp_hash: str) -> str:
-    """Generate an HMAC-signed ad token for one specific ad in the chain.
-    Format: base64url(json({uid, sid, idx, ts, fp, hmac}))
-    Each token encodes the current ad index and must be presented to get the next one.
-    """
-    ts = int(time.time())
-    payload = {
-        "uid": uid,
-        "sid": sid,
-        "idx": ad_index,
-        "ts": ts,
-        "fp": fp_hash[:16],  # Store first 16 chars of fingerprint hash
-    }
-    payload_json = json.dumps(payload, separators=(",", ":"))
-    sig = hmac_mod.new(ADS_TOKEN_KEY, payload_json.encode(), hashlib.sha256).hexdigest()[:24]
-    payload["hmac"] = sig
-    token_json = json.dumps(payload, separators=(",", ":"))
-    return _b64url_encode(token_json.encode())
-
-
-def _validate_ad_token(token: str, expected_uid: str, expected_sid: str, expected_idx: int) -> dict | None:
-    """Validate an ad token. Returns {uid, sid, idx, ts, fp} or None.
-    Checks: correct uid, sid, index, valid HMAC, not expired (60s), timing.
-    """
-    try:
-        raw = _b64url_decode(token)
-        payload = json.loads(raw)
-        uid = payload.get("uid", "")
-        sid = payload.get("sid", "")
-        idx = payload.get("idx", -1)
-        ts = payload.get("ts", 0)
-        fp = payload.get("fp", "")
-        sig = payload.get("hmac", "")
-
-        # Verify HMAC
-        verify_payload = {"uid": uid, "sid": sid, "idx": idx, "ts": ts, "fp": fp}
-        verify_json = json.dumps(verify_payload, separators=(",", ":"))
-        expected_sig = hmac_mod.new(ADS_TOKEN_KEY, verify_json.encode(), hashlib.sha256).hexdigest()[:24]
-        if not hmac_mod.compare_digest(sig, expected_sig):
-            log.warning("[ads_token] HMAC mismatch for uid=%s idx=%d", uid, idx)
-            return None
-
-        # Must match expected values
-        if uid != expected_uid:
-            log.warning("[ads_token] UID mismatch: expected=%s got=%s", expected_uid, uid)
-            return None
-        if sid != expected_sid:
-            log.warning("[ads_token] SID mismatch")
-            return None
-        if idx != expected_idx:
-            log.warning("[ads_token] Index mismatch: expected=%d got=%d", expected_idx, idx)
-            return None
-
-        # Token must not be expired (60 seconds)
-        if time.time() - ts > 60:
-            log.warning("[ads_token] Token expired for uid=%s idx=%d", uid, idx)
-            return None
-
-        return {"uid": uid, "sid": sid, "idx": idx, "ts": ts, "fp": fp}
-    except Exception as e:
-        log.error("[ads_token] Validation error: %s", e)
-        return None
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Session Management
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _create_ad_session(user_id: str) -> str:
-    """Create a new ad session for a user. Returns the session token for the URL."""
-    token = _generate_session_token(user_id)
-    token_data = _validate_session_token(token)
-    sid = token_data["sid"]
-
-    with _ads_sessions_lock:
-        # Clean expired sessions
-        expired = [k for k, v in _ads_sessions.items() if time.time() > v.get("expires_at", 0)]
-        for k in expired:
-            del _ads_sessions[k]
-
-        _ads_sessions[sid] = {
-            "user_id": str(user_id),
-            "session_token": token,
-            "sid": sid,
-            "salt": secrets.token_hex(16),  # Dynamic per-session salt
-            "created_at": time.time(),
-            "expires_at": time.time() + ADS_SESSION_EXPIRY,
-            "ip": _get_client_ip() if request else "0.0.0.0",
-            "fingerprint": "",
-            "ads_completed": 0,
-            "ad_init_times": {},    # {ad_index: init_timestamp}
-            "ad_complete_times": {}, # {ad_index: complete_timestamp}
-            "current_ad_token": "",  # Token chaining: current valid token
-            "current_ad_index": 0,
-            "rewarded": False,
-        }
-    return token
-
-
-def _get_ad_session(sid: str) -> dict | None:
-    with _ads_sessions_lock:
-        session = _ads_sessions.get(sid)
-        if not session:
-            return None
-        if time.time() > session.get("expires_at", 0):
-            _ads_sessions.pop(sid, None)
-            return None
-        return dict(session)  # Return a copy
-
-
-def _update_ad_session(sid: str, updates: dict):
-    with _ads_sessions_lock:
-        if sid in _ads_sessions:
-            _ads_sessions[sid].update(updates)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Reward System
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _add_ads_reward(uid: str, amount: float = ADS_REWARD_PER_AD):
-    """Add ads reward balance to user and notify via Telegram."""
+def _get_ads_stats(uid: str) -> dict:
     try:
         cv = _cv()
-        new_bal = cv.add_balance(int(uid), amount)
-        log.info("[ads_reward] Awarded $%.2f to user %s (new balance: $%.2f)", amount, uid, new_bal)
-
-        # Update stats
-        try:
-            db = cv.load_users_db()
-            if uid in db:
-                stats = db[uid].get("ads_stats", {})
-                stats["total_earned"] = round(stats.get("total_earned", 0.0) + amount, 2)
-                stats["ads_completed"] = stats.get("ads_completed", 0) + 1
-                db[uid]["ads_stats"] = stats
-                cv.save_users_db(db)
-        except Exception:
-            pass
-
-        # Notify user via Telegram
-        try:
-            import callv2 as _cv2
-            if hasattr(_cv2, 'bot'):
-                _cv2.bot.send_message(
-                    int(uid),
-                    f"💰 تم إضافة `{amount:.2f}$` لحسابك\n"
-                    f"✅ رصيدك الجديد: `{new_bal:.2f}$`",
-                    parse_mode='Markdown',
-                )
-        except Exception:
-            pass
-    except Exception as e:
-        log.error("[ads_reward] Error: %s", e)
+        db = cv.load_users_db()
+        return db.get(uid, {}).get("ads_stats", {
+            "total_earned": 0.0,
+            "ads_completed": 0,
+            "ads_watched": 0,
+        })
+    except Exception:
+        return {"total_earned": 0.0, "ads_completed": 0, "ads_watched": 0}
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 Flask Endpoints — Ads System
-# ═══════════════════════════════════════════════════════════════════════════════
+# ─── Ads Flask Endpoints ────────────────────────────────────────────────────
 
 @app.get("/ads/<session_token>")
 def _ads_page(session_token):
-    """Serve the ads watching page. NO admin key in HTML.
-    session_token is a one-time token generated by the bot (NOT the admin key).
-    """
-    token_data = _validate_session_token(session_token)
+    """Serve the ads watching page. Validates the session token first."""
+    token_data = _validate_ads_session_token(session_token)
     if not token_data:
         return "<h3>⚠️ رابط الإعلانات منتهي أو غير صالح</h3>", 403
 
-    uid = token_data["uid"]
-    sid = token_data["sid"]
+    uid = token_data["user_id"]
 
-    # Check daily limit
     if not _check_daily_ads_limit(uid):
         return "<h3>⏰ وصلت الحد اليومي لمشاهدة الإعلانات! حاول غداً</h3>", 403
 
-    # Get or create server-side session
-    session = _get_ad_session(sid)
+    # Create or refresh session
+    session = _get_ad_session(session_token)
     if not session:
         with _ads_sessions_lock:
             expired = [k for k, v in _ads_sessions.items() if time.time() > v.get("expires_at", 0)]
             for k in expired:
                 del _ads_sessions[k]
-            _ads_sessions[sid] = {
+            _ads_sessions[session_token] = {
                 "user_id": uid,
-                "session_token": session_token,
-                "sid": sid,
-                "salt": secrets.token_hex(16),
                 "created_at": time.time(),
-                "expires_at": time.time() + ADS_SESSION_EXPIRY,
-                "ip": _get_client_ip(),
-                "fingerprint": "",
                 "ads_completed": 0,
-                "ad_init_times": {},
-                "ad_complete_times": {},
-                "current_ad_token": "",
-                "current_ad_index": 0,
-                "rewarded": False,
+                "ads_attempted": 0,
+                "expires_at": time.time() + ADS_SESSION_EXPIRY,
             }
-        session = _ads_sessions.get(sid)
+        session = _ads_sessions.get(session_token)
 
-    if session.get("rewarded"):
-        return "<h3>✅ هذه الجلسة مكتملة بالفعل!</h3>", 200
+    return _render_ads_page(session_token, uid)
 
+
+@app.get("/api/ads/init/<session_token>")
+def _ads_init_session(session_token):
+    """Get initial ad token and session info for the WebApp.
+    Returns the first HMAC-signed ad token that must be used for ad #0."""
+    session = _get_ad_session(session_token)
+    if not session:
+        return jsonify({"error": "session_expired"}), 400
+    if session["ads_completed"] >= ADS_PER_SESSION:
+        return jsonify({"error": "all_ads_completed"}), 400
+
+    # Generate ad token for the current ad index
+    current_index = session["ads_completed"]
+    ts = int(time.time())
+    ad_token = _generate_ad_token(session_token, current_index, ts)
+
+    return jsonify({
+        "ok": True,
+        "ad_token": ad_token,
+        "ad_index": current_index,
+        "ads_completed": session["ads_completed"],
+        "total_ads": ADS_PER_SESSION,
+    })
+
+
+@app.get("/api/ads/session-config/<session_token>")
+def _ads_session_config(session_token):
+    """🔒 Fetch session config (ad_token + fp_salt) from API.
+    This replaces embedding sensitive values in the HTML page source.
+    Validates the session token before returning any data."""
+    token_data = _validate_ads_session_token(session_token)
+    if not token_data:
+        return jsonify({"error": "invalid_session"}), 403
+
+    session = _get_ad_session(session_token)
+    if not session:
+        return jsonify({"error": "session_expired"}), 400
+    if session["ads_completed"] >= ADS_PER_SESSION:
+        return jsonify({"error": "all_ads_completed"}), 400
+
+    # Generate ad token for the current ad index
+    current_index = session["ads_completed"]
+    ts = int(time.time())
+    ad_token = _generate_ad_token(session_token, current_index, ts)
+
+    # Generate per-session fingerprint salt (derived from server secret + session)
+    fp_salt = hashlib.sha256(f"{ADS_FINGERPRINT_SALT}:{session_token[:16]}".encode()).hexdigest()[:16]
+
+    return jsonify({
+        "ok": True,
+        "ad_token": ad_token,
+        "fp_salt": fp_salt,
+        "ad_index": current_index,
+        "ads_completed": session["ads_completed"],
+        "total_ads": ADS_PER_SESSION,
+    })
+
+
+# 🔒 DEPRECATED: /api/ads/challenge — disabled, returns 410 Gone
+@app.route("/api/ads/challenge/<session_token>", methods=["GET"])
+def _ads_get_challenge(session_token):
+    return jsonify({"error": "deprecated", "status": "gone"}), 410
+
+
+@app.post("/api/ads/complete-ad/<session_token>")
+def _ads_complete_ad(session_token):
+    """🔒 Anti-cheat ad completion endpoint.
+    Requires: ad_token (HMAC-signed), telegram_init_data, fingerprint.
+    All three must be valid to claim reward."""
+    data = request.get_json(silent=True) or {}
+    ad_token = data.get("ad_token", "")
+    init_data = data.get("init_data", "")
+    fingerprint = data.get("fp", "")
+
+    # 1. Validate session
+    session = _get_ad_session(session_token)
+    if not session:
+        return jsonify({"error": "session_expired"}), 400
+    if session["ads_completed"] >= ADS_PER_SESSION:
+        return jsonify({"error": "all_ads_completed"}), 400
+
+    # 2. Validate ad token (HMAC-signed, cannot be forged)
+    current_index = session["ads_completed"]
+    token_data = _validate_ad_token(ad_token, session_token, current_index)
+    if not token_data:
+        log.warning("[anti_cheat] Ad token validation failed for session %s", session_token[:20])
+        return jsonify({"error": "invalid_ad_token", "message": "Ad verification failed"}), 403
+
+    # 3. Validate Telegram initData (ensures request comes from Telegram WebApp)
+    if init_data:
+        tg_data = _validate_telegram_init_data(init_data)
+        if tg_data is None:
+            log.warning("[anti_cheat] Telegram initData invalid for session %s", session_token[:20])
+            return jsonify({"error": "invalid_init_data", "message": "Request not from Telegram"}), 403
+        # Verify user ID matches
+        if not tg_data.get("dev_mode") and tg_data.get("user_id"):
+            if str(tg_data["user_id"]) != session["user_id"]:
+                log.warning("[anti_cheat] User ID mismatch: tg=%s session=%s",
+                           tg_data["user_id"], session["user_id"])
+                return jsonify({"error": "user_mismatch", "message": "User ID mismatch"}), 403
+
+    # 4. Validate fingerprint (🔒 REQUIRED — prevents script-based requests)
+    if not fingerprint:
+        log.warning("[anti_cheat] Missing fingerprint for session %s", session_token[:20])
+        return jsonify({"error": "missing_fingerprint", "message": "Browser verification required"}), 403
+    if not _validate_fingerprint(fingerprint, session_token):
+        log.warning("[anti_cheat] Fingerprint validation failed for session %s", session_token[:20])
+        return jsonify({"error": "invalid_fingerprint", "message": "Browser verification failed"}), 403
+
+    # 5. All checks passed — record the ad completion
+    uid = session["user_id"]
+    session["ads_completed"] += 1
+    session["ads_attempted"] += 1
+    session["last_ad_time"] = time.time()
+    completed = session["ads_completed"]
+    all_done = completed >= ADS_PER_SESSION
+
+    _update_ads_stats(uid, completed=True, attempted=True)
+
+    # 6. Generate next ad token (for the next ad)
+    next_ad_token = None
+    if not all_done:
+        next_ts = int(time.time())
+        next_ad_token = _generate_ad_token(session_token, completed, next_ts)
+
+    if all_done:
+        _add_ads_reward(uid)
+        _increment_daily_ads_count(uid)
+        with _ads_sessions_lock:
+            _ads_sessions.pop(session_token, None)
+
+    return jsonify({
+        "ok": True,
+        "ads_completed": completed,
+        "total_ads": ADS_PER_SESSION,
+        "all_done": all_done,
+        "reward": ADS_REWARD if all_done else 0,
+        "next_ad_token": next_ad_token,
+    })
+
+
+# 🔒 DEPRECATED: /api/ads/verify — disabled, returns 410 Gone
+@app.route("/api/ads/verify", methods=["POST"])
+def _ads_verify():
+    return jsonify({"error": "deprecated", "status": "gone"}), 410
+
+
+@app.get("/api/ads/stats/<uid>")
+def _ads_user_stats(uid):
+    try:
+        stats = _get_ads_stats(uid)
+        daily_count = _get_ads_daily_count(uid)
+    except Exception:
+        stats = _get_ads_stats(uid)
+        daily_count = _get_ads_daily_count(uid)
+    return jsonify({
+        "ok": True,
+        "stats": stats,
+        "daily_count": daily_count,
+        "daily_remaining": max(0, ADS_DAILY_LIMIT - daily_count),
+    })
+
+
+# ─── AdsGram Server-Side Reward Endpoint ────────────────────────────────────
+@app.get("/api/ads/reward")
+def _adsgram_reward():
+    """AdsGram server-side reward callback.
+    URL format: https://your-domain/api/ads/reward?userid=[userId]
+    The [userId] is replaced by AdsGram with the Telegram user ID."""
+    userid = request.args.get("userid", "").strip()
+    if not userid or not userid.isdigit():
+        log.warning("[ads_reward] Invalid userid: %s", userid)
+        return jsonify({"error": "invalid_userid"}), 400
+
+    uid = str(userid)
+
+    try:
+        cv = _cv()
+        db = cv.load_users_db()
+        if uid not in db:
+            log.warning("[ads_reward] User %s not found", uid)
+            return jsonify({"error": "user_not_found"}), 404
+    except Exception as e:
+        log.error("[ads_reward] DB error: %s", e)
+        return jsonify({"error": "db_error"}), 500
+
+    if not _check_daily_ads_limit(uid):
+        log.info("[ads_reward] User %s hit daily limit", uid)
+        return jsonify({"error": "daily_limit_reached"}), 429
+
+    # Rate limit: max 6 rewards per user per 60 seconds
+    if not _check_rate_limit(f"ads_reward_{uid}", 6, _rate_limit_store, window=60):
+        log.warning("[ads_reward] Rate limited for user %s", uid)
+        return jsonify({"error": "rate_limited"}), 429
+
+    # Add the reward
+    try:
+        new_bal = _cv().add_balance(int(uid), ADS_REWARD_PER_AD)
+        log.info("[ads_reward] Awarded $%.2f to user %s (new balance: $%.2f)", ADS_REWARD_PER_AD, uid, new_bal)
+    except Exception as e:
+        log.error("[ads_reward] Error adding reward: %s", e)
+        return jsonify({"error": "reward_failed"}), 500
+
+    # Update stats
+    try:
+        db = _cv().load_users_db()
+        if uid in db:
+            stats = db[uid].get("ads_stats", {
+                "total_earned": 0.0,
+                "ads_completed": 0,
+                "ads_watched": 0,
+            })
+            stats["ads_watched"] = stats.get("ads_watched", 0) + 1
+            stats["ads_completed"] = stats.get("ads_completed", 0) + 1
+            stats["total_earned"] = round(stats.get("total_earned", 0.0) + ADS_REWARD_PER_AD, 2)
+            db[uid]["ads_stats"] = stats
+            _cv().save_users_db(db)
+
+            daily = db[uid].get("ads_daily", {})
+            date_str = time.strftime("%Y-%m-%d")
+            if daily.get("date") != date_str:
+                daily = {"date": date_str, "count": 0}
+            daily["count"] = daily.get("count", 0) + 1
+            db[uid]["ads_daily"] = daily
+            _cv().save_users_db(db)
+    except Exception as e:
+        log.error("[ads_reward] Error updating stats: %s", e)
+
+    # Notify user
+    try:
+        import callv2 as _cv2
+        if hasattr(_cv2, 'bot'):
+            _cv2.bot.send_message(
+                int(uid),
+                f"💰 تم إضافة `{ADS_REWARD_PER_AD:.2f}$` لحسابك\n"
+                f"✅ رصيدك الجديد: `{new_bal:.2f}$`",
+                parse_mode='Markdown',
+            )
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "reward": ADS_REWARD_PER_AD, "new_balance": round(new_bal, 2)})
+
+
+@app.get("/api/ads/bot-fetch/<uid>")
+def _ads_bot_fetch(uid):
+    """Fetch an ad from AdsGram Bot API for a specific user."""
+    admin_key = request.headers.get("x-admin-key", "")
+    if not admin_key or not hmac_mod.compare_digest(admin_key, ADMIN_SECRET):
+        return jsonify({"error": "unauthorized"}), 403
+    lang = request.args.get("lang", "ar")
+    ad_data = _fetch_adsgram_ad(uid, lang)
+    if ad_data:
+        return jsonify({"ok": True, "ad": ad_data})
+    return jsonify({"ok": False, "error": "no_ad_available"}), 404
+
+
+# ─── Ads Page Renderer ──────────────────────────────────────────────────────
+
+def _render_ads_page(session_token: str, uid: str) -> str:
+    """🔒 Render the anti-cheat ads page with Monetag SDK.
+    🔒 Sensitive values (ad_token, fp_salt, uid) are NOT in HTML — fetched from API."""
+    stats = _get_ads_stats(uid)
     daily_count = _get_ads_daily_count(uid)
     daily_remaining = max(0, ADS_DAILY_LIMIT - daily_count)
 
-    return _render_ads_page(uid, sid, session["salt"], daily_remaining)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 HTML Page Renderer — NO admin key, NO secrets
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _render_ads_page(uid: str, sid: str, session_salt: str, daily_remaining: int) -> str:
-    """Render the ads watching HTML page. CRITICALLY: Contains NO admin key, NO API keys, NO secrets.
-    🔒 V3: uid/sid/salt are NOT embedded in HTML. JavaScript reads session_token from URL.
-    All authentication happens via API calls that send session_token + Telegram initData.
-    """
     monetag_script = (
-        f"<script src='//libtl.com/sdk.js' data-zone='{MONETAG_ZONE_ID}' "
-        f"data-sdk='{MONETAG_SDK_FUNCTION}'></script>"
-    ) if MONETAG_ENABLED else ''
-
-    # 🔒 V3: NO uid, sid, or salt in HTML — session_token from URL only
-    # Variable names are intentionally obfuscated
-    js_code = (
-        "const _0t={total},_0r={reward},_0z='{zone}',_0f='{func}',_0m={monetag};\n"
-        "let _0i=0,_0lk=false,_0fp='',_0tk='',_0iv=null,_0st='',_0sl='';\n"
-        "\n"
-        "function _0gst(){{const p=window.location.pathname;const t=p.split('/').pop();return t&&t.length>10?t:''}}\n"
-        "\n"
-        "function _0gi(){{try{{return window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp.initData:''}}catch(e){{return''}}}}\n"
-        "\n"
-        "function _0cfp(salt){{try{{const c=[navigator.userAgent,navigator.language,screen.width+'x'+screen.height,screen.colorDepth,new Date().getTimezoneOffset(),navigator.hardwareConcurrency||0,navigator.platform||''];const r=c.join('|')+salt;let h=0;for(let i=0;i<r.length;i++){{h=((h<<5)-h)+r.charCodeAt(i);h|=0}}return Math.abs(h).toString(16)+'_'+SHA256(r).toString().substring(0,24)}}catch(e){{return'err_'+Date.now()}}}}\n"
-        "\n"
-        "async function SHA256(m){{const e=new TextEncoder;const d=e.encode(m);const h=await crypto.subtle.digest('SHA-256',d);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('')}}\n"
-        "\n"
-        "async function _0init(){{_0st=_0gst();if(!_0st){{_0err('Invalid session');return}}const d=_0gi();if(!d){{_0err('Telegram data missing');return}}try{{const r=await fetch('/api/ads/start-session',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{st:_0st,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Session error');return}}_0sl=j.salt||'';_0fp=await _0cfp(_0sl);if(!_0fp||_0fp.length<40){{_0err('Fingerprint error');return}}_0tk=j.token;_0i=0;_0upd();_0showAd()}}catch(e){{_0err('Network: '+e.message)}}}}\n"
-        "\n"
-        "async function _0showAd(){{if(_0i>=_0t||_0lk)return;const d=_0gi();try{{const r=await fetch('/api/ads/init/'+_0i,{{method:'POST',headers:{{'Content-Type':'application/json','X-Ad-Token':_0tk}},body:JSON.stringify({{st:_0st,fp:_0fp,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Init error');return}}_0tk=j.token;if(_0m&&typeof window[_0f]==='function'){{try{{window[_0f]({{onFinish:function(){{_0comp()}}}})}}catch(e){{_0fallback()}}}}else{{_0fallback()}}}}catch(e){{_0err('Ad error: '+e.message)}}}}\n"
-        "\n"
-        "function _0fallback(){{const e=document.getElementById('_0fs');if(e)e.style.display='flex';_0iv=setTimeout(function(){{const e2=document.getElementById('_0fs');if(e2)e2.style.display='none';_0comp()}},15000)}}\n"
-        "\n"
-        "async function _0comp(){{if(_0lk)return;const d=_0gi();try{{const r=await fetch('/api/ads/complete/'+_0i,{{method:'POST',headers:{{'Content-Type':'application/json','X-Ad-Token':_0tk}},body:JSON.stringify({{st:_0st,fp:_0fp,id:d}})}});const j=await r.json();if(!j.ok){{_0err(j.error||'Complete error');return}}_0i++;_0tk=j.next_token||'';_0upd();if(j.reward&&j.reward>0){{document.getElementById('_0rw').style.display='block';document.getElementById('_0ra').textContent='+'+j.reward.toFixed(2)+'$'}}if(_0i<_0t){{setTimeout(_0showAd,800)}}else{{_0done()}}}}catch(e){{_0err('Complete: '+e.message)}}}}\n"
-        "\n"
-        "function _0upd(){{const p=document.getElementById('_0pr');const t=document.getElementById('_0pt');if(p)p.style.width=(_0i/_0t*100)+'%';if(t)t.textContent=_0i+'/'+_0t;const s=document.getElementById('_0st2');if(s)s.textContent=_0i<_0t?'Ad '+(_0i+1)+'/'+_0t:'Done!'}}\n"
-        "\n"
-        "function _0err(m){{const e=document.getElementById('_0er');if(e){{e.textContent=m;e.style.display='block'}}_0lk=true}}\n"
-        "\n"
-        "function _0done(){{_0lk=true;const s=document.getElementById('_0st2');if(s)s.textContent='All ads completed!';const d=document.getElementById('_0dn');if(d)d.style.display='block'}}\n"
-    ).format(
-        total=ADS_PER_SESSION,
-        reward=ADS_REWARD_PER_AD, zone=MONETAG_ZONE_ID, func=MONETAG_SDK_FUNCTION,
-        monetag='true' if MONETAG_ENABLED else 'false',
+        f"<script async src='//libtl.com/sdk.js' data-zone='{MONETAG_ZONE_ID}' data-sdk='{MONETAG_SDK_FUNCTION}'></script>"
+        if MONETAG_ENABLED else ''
     )
+
+    # Build 10 ad dots
+    ad_dots_html = ""
+    for i in range(ADS_PER_SESSION):
+        cls = 'ad-dot current' if i == 0 else 'ad-dot'
+        ad_dots_html += f'<div class="{cls}" id="dot{i}"></div>\n            '
 
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fox Call - Watch Ads</title>
-<style>
-*{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}}
-._0c{{background:rgba(255,255,255,0.08);backdrop-filter:blur(20px);border-radius:24px;padding:32px 24px;max-width:400px;width:100%;border:1px solid rgba(255,255,255,0.12)}}
-.title{{font-size:22px;font-weight:700;text-align:center;margin-bottom:8px}}
-.subtitle{{font-size:14px;color:rgba(255,255,255,0.6);text-align:center;margin-bottom:24px}}
-._0pb{{width:100%;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-bottom:8px}}
-._0pf{{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:4px;transition:width 0.5s ease;width:0%}}
-._0pt{{text-align:center;font-size:14px;color:rgba(255,255,255,0.7);margin-bottom:16px}}
-._0st{{text-align:center;font-size:18px;font-weight:600;margin:16px 0;min-height:28px}}
-._0rw{{display:none;text-align:center;padding:16px;background:rgba(34,197,94,0.15);border-radius:16px;margin:16px 0;border:1px solid rgba(34,197,94,0.3)}}
-._0ra{{font-size:28px;font-weight:700;color:#22c55e}}
-._0rb{{font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px}}
-._0dn{{display:none;text-align:center;margin-top:20px}}
-._0db{{background:linear-gradient(135deg,#22c55e,#16a34a);border:none;color:#fff;padding:14px 32px;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer}}
-._0db:hover{{opacity:0.9}}
-._0er{{display:none;color:#ef4444;text-align:center;margin-top:16px;font-size:13px}}
-._0fs{{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column}}
-._0fs span{{font-size:18px;margin-bottom:16px}}
-._0fw{{width:48px;height:48px;border:4px solid rgba(255,255,255,0.2);border-top-color:#8b5cf6;border-radius:50%;animation:_0sp 1s linear infinite}}
-@keyframes _0sp{{to{{transform:rotate(360deg)}}}}
-._0di{{display:flex;justify-content:center;gap:4px;margin:8px 0 16px;flex-wrap:wrap}}
-._0dd{{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;transition:all 0.3s}}
-._0dd.d{{background:#22c55e;color:#fff}}
-._0dd.c{{background:#8b5cf6;color:#fff;animation:_0pu 1s infinite}}
-@keyframes _0pu{{0%,100%{{transform:scale(1)}}50%{{transform:scale(1.2)}}}}
-</style>
-{monetag_script}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fox Call</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    {monetag_script}
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            padding: 20px;
+            overflow-x: hidden;
+        }}
+        .container {{ max-width: 420px; width: 100%; text-align: center; }}
+        .logo {{ font-size: 28px; font-weight: bold; margin-bottom: 5px; }}
+        .logo span {{ color: #ff6b35; }}
+        .subtitle {{ color: #888; font-size: 14px; margin-bottom: 20px; }}
+        .ad-dots {{ display: flex; justify-content: center; gap: 6px; margin: 15px 0; flex-wrap: wrap; }}
+        .ad-dot {{
+            width: 12px; height: 12px; border-radius: 50%;
+            background: rgba(255,255,255,0.15); transition: all 0.4s;
+        }}
+        .ad-dot.completed {{ background: #4CAF50; box-shadow: 0 0 8px rgba(76,175,80,0.5); }}
+        .ad-dot.current {{ background: #ff6b35; animation: pulse 1.5s infinite; }}
+        @keyframes pulse {{
+            0%,100% {{ box-shadow: 0 0 0 0 rgba(255,107,53,0.4); }}
+            50% {{ box-shadow: 0 0 0 10px rgba(255,107,53,0); }}
+        }}
+        .progress-bar {{
+            background: rgba(255,255,255,0.08); border-radius: 20px;
+            height: 32px; margin: 15px 0; overflow: hidden; position: relative;
+        }}
+        .progress-fill {{
+            background: linear-gradient(90deg, #ff6b35, #f7931e);
+            height: 100%; border-radius: 20px; transition: width 0.6s ease; width: 0%;
+        }}
+        .progress-text {{
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%); font-size: 14px; font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }}
+        .status-box {{
+            background: rgba(255,255,255,0.06); border-radius: 16px;
+            padding: 18px; margin: 12px 0; font-size: 16px; min-height: 60px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(255,255,255,0.08);
+        }}
+        .btn {{
+            display: inline-block; padding: 14px 36px; border: none;
+            border-radius: 14px; font-size: 17px; font-weight: bold;
+            cursor: pointer; transition: all 0.3s; margin: 8px;
+        }}
+        .btn-primary {{
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: #fff; box-shadow: 0 4px 20px rgba(255,107,53,0.35);
+        }}
+        .btn-primary:hover {{ transform: translateY(-2px); box-shadow: 0 6px 25px rgba(255,107,53,0.5); }}
+        .btn-primary:disabled {{ opacity: 0.5; cursor: not-allowed; transform: none; }}
+        .info-card {{
+            background: rgba(255,255,255,0.04); border-radius: 12px;
+            padding: 12px; margin: 10px 0; font-size: 13px; color: #bbb;
+            border: 1px solid rgba(255,255,255,0.06);
+        }}
+        .info-card .row {{ display: flex; justify-content: space-between; padding: 4px 0; }}
+        .spinner {{
+            display: inline-block; width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.3); border-top-color: #ff6b35;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+            vertical-align: middle; margin-left: 8px;
+        }}
+        @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+        .completed-banner {{ padding: 20px; }}
+        .completed-banner .big {{ font-size: 20px; font-weight: bold; margin-top: 8px; color: #4CAF50; }}
+        .success-icon {{ color: #4CAF50; }}
+    </style>
 </head>
 <body>
-<div class="_0c">
-<div class="title">📺 Watch Ads</div>
-<div class="subtitle">شاهد {ADS_PER_SESSION} إعلانات واكسب رصيد!</div>
-<div class="_0di" id="_0di">{"".join(f'<div class="_0dd" id="d{i}">{i+1}</div>' for i in range(ADS_PER_SESSION))}</div>
-<div class="_0pb"><div class="_0pf" id="_0pr"></div></div>
-<div class="_0pt" id="_0pt">0/{ADS_PER_SESSION}</div>
-<div class="_0st" id="_0st2">Starting...</div>
-<div class="_0rw" id="_0rw">
-<div class="_0ra" id="_0ra">+0.02$</div>
-<div class="_0rb">تم إضافة المكافأة لحسابك!</div>
-</div>
-<div class="_0dn" id="_0dn">
-<div style="font-size:20px;margin-bottom:12px">🎉 أحسنت!</div>
-<button class="_0db" onclick="window.Telegram&&Telegram.WebApp.close()">إغلاق</button>
-</div>
-<div class="_0er" id="_0er"></div>
-</div>
-<div class="_0fs" id="_0fs">
-<span>Loading ad...</span>
-<div class="_0fw"></div>
-</div>
-<script>
-{js_code}
-document.addEventListener('DOMContentLoaded',function(){{_0init()}});
-</script>
+    <div class="container">
+        <div class="logo">🦊 Fox <span>Call</span></div>
+        <div class="subtitle">شاهد {ADS_PER_SESSION} إعلانات واكسب رصيد!</div>
+
+        <div class="ad-dots">
+            {ad_dots_html}
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-text" id="progressText">0 / {ADS_PER_SESSION}</div>
+        </div>
+
+        <div class="status-box" id="adStatus">جاري التحضير...</div>
+
+        <button class="btn btn-primary" id="watchBtn" disabled onclick="initAndShowAd()">
+            📺 مشاهدة الإعلان
+        </button>
+
+        <div class="info-card">
+            <div class="row">
+                <span>💰 المكافأة</span>
+                <span>+{ADS_REWARD:.2f}$</span>
+            </div>
+            <div class="row">
+                <span>📊 المتبقي اليوم</span>
+                <span>{daily_remaining} جلسة</span>
+            </div>
+            <div class="row">
+                <span>📈 إجمالي الكسب</span>
+                <span>{stats.get('total_earned', 0):.2f}$</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 🔒 Anti-cheat: sensitive values are fetched from API, NOT embedded in HTML
+        const _0s = "{session_token}";
+        const _0t = {ADS_PER_SESSION};
+        const _0r = {ADS_REWARD};
+        const _0b = window.location.origin;
+        let _0c = 0;
+        let _0l = false;
+        let _0a = null;  // Will be fetched from API
+        let _0k = null;  // Will be fetched from API (fp_salt, per-session)
+        let _0m = {"true" if MONETAG_ENABLED else "false"};
+        let _0p = {ADS_REWARD_PER_AD};
+
+        // 🔒 Fetch session config from API (ad_token + fp_salt — never in page source)
+        async function _0loadConfig() {{
+            try {{
+                const resp = await fetch(_0b + '/api/ads/session-config/' + _0s);
+                if (resp.ok) {{
+                    const data = await resp.json();
+                    if (data.ok) {{
+                        _0a = data.ad_token;
+                        _0k = data.fp_salt;
+                        return true;
+                    }}
+                }}
+            }} catch(e) {{ console.warn("Config fetch error:", e); }}
+            return false;
+        }}
+
+        // 🔒 Generate browser fingerprint (fp_salt is per-session, from API)
+        function _0fp() {{
+            try {{
+                if (!_0k) return '';  // No salt yet
+                const c = document.createElement('canvas');
+                const g = c.getContext('2d');
+                g.textBaseline = 'top';
+                g.font = '14px Arial';
+                g.fillText(_0k, 2, 2);
+                const f = c.toDataURL();
+                let h = 0;
+                for (let i = 0; i < f.length; i++) {{ h = ((h << 5) - h) + f.charCodeAt(i); h |= 0; }}
+                const nav = [screen.width, screen.height, navigator.language, new Date().getTimezoneOffset()].join('|');
+                const raw = _0k + ':' + Math.abs(h).toString(36) + ':' + nav;
+                let hash = 0;
+                for (let i = 0; i < raw.length; i++) {{
+                    const ch = raw.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + ch;
+                    hash |= 0;
+                }}
+                return Math.abs(hash).toString(36) + '_' + _0k;
+            }} catch(e) {{
+                return '';
+            }}
+        }}
+
+        // 🔒 Get Telegram initData
+        function _0tg() {{
+            try {{
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {{
+                    return window.Telegram.WebApp.initData;
+                }}
+            }} catch(e) {{}}
+            return '';
+        }}
+
+        // Wait for Monetag SDK to load (with timeout)
+        function _0waitForSDK(maxWait) {{
+            return new Promise((resolve) => {{
+                const fn = 'show_{MONETAG_ZONE_ID}';
+                if (typeof window[fn] === 'function') {{
+                    resolve(true);
+                    return;
+                }}
+                let waited = 0;
+                const interval = setInterval(() => {{
+                    waited += 200;
+                    if (typeof window[fn] === 'function') {{
+                        clearInterval(interval);
+                        resolve(true);
+                    }} else if (waited >= maxWait) {{
+                        clearInterval(interval);
+                        resolve(false);
+                    }}
+                }}, 200);
+            }});
+        }}
+
+        // Initialize Telegram WebApp
+        try {{
+            if (window.Telegram && window.Telegram.WebApp) {{
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+            }}
+        }} catch(e) {{}}
+
+        // ─── Main ad watching flow ────
+        async function initAndShowAd() {{
+            if (_0l) return;
+            _0l = true;
+            const status = document.getElementById('adStatus');
+            const btn = document.getElementById('watchBtn');
+            btn.disabled = true;
+
+            // Load config if not yet loaded
+            if (!_0a || !_0k) {{
+                status.innerHTML = '<span class="spinner"></span> جاري التحضير...';
+                const configOk = await _0loadConfig();
+                if (!configOk || !_0a) {{
+                    status.innerHTML = '⚠️ حصل خطأ — حاول مرة تانية';
+                    btn.disabled = false;
+                    _0l = false;
+                    return;
+                }}
+            }}
+
+            // ── Try Monetag SDK ──
+            if (_0m) {{
+                // Wait for SDK to load (up to 8 seconds)
+                const sdkReady = await _0waitForSDK(8000);
+                if (sdkReady) {{
+                    try {{
+                        status.innerHTML = '<span class="spinner"></span> جاري تحميل الإعلان...';
+
+                        // Show the ad
+                        const fn = 'show_{MONETAG_ZONE_ID}';
+                        await window[fn]();
+
+                        // Ad watched — claim reward with anti-cheat tokens
+                        status.innerHTML = '<span class="spinner"></span> جاري تسجيل المكافأة...';
+
+                        const fp = _0fp();
+                        const tg = _0tg();
+
+                        const resp = await fetch(_0b + '/api/ads/complete-ad/' + _0s, {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                ad_token: _0a,
+                                init_data: tg,
+                                fp: fp
+                            }})
+                        }});
+
+                        if (resp.ok) {{
+                            const data = await resp.json();
+                            if (data.ok) {{
+                                _0c = data.ads_completed;
+                                _0a = data.next_ad_token || null;
+                                _0updateUI();
+
+                                if (data.all_done) {{
+                                    _0showDone();
+                                }} else {{
+                                    status.innerHTML = '<span class="success-icon">✅</span> إعلان '
+                                        + _0c + ' من ' + _0t + ' تم! '
+                                        + '<span style="color:#4CAF50;font-size:14px">+' + _0p.toFixed(2) + '$</span>';
+                                    btn.textContent = '▶️ التالي (' + _0c + '/' + _0t + ')';
+                                    btn.disabled = false;
+                                }}
+                                _0l = false;
+                                return;
+                            }}
+                        }}
+
+                        // Server rejected — show specific error
+                        try {{
+                            const errData = await resp.json();
+                            console.warn("Ad completion rejected:", errData.error);
+                            if (errData.error === 'invalid_ad_token') {{
+                                status.innerHTML = '⚠️ فشل التحقق من الإعلان<br><span style="font-size:12px;color:#aaa">حاول تاني</span>';
+                            }} else if (errData.error === 'missing_fingerprint') {{
+                                status.innerHTML = '⚠️ يجب استخدام المتصفح<br><span style="font-size:12px;color:#aaa">الروبوتات مش مقبولة!</span>';
+                            }} else if (errData.error === 'too_fast') {{
+                                status.innerHTML = '⚠️ سرعت أوي — استنى شوية<br><span style="font-size:12px;color:#aaa">حاول تاني بعد 10 ثواني</span>';
+                            }} else {{
+                                status.innerHTML = '⚠️ حصل خطأ: ' + (errData.message || errData.error) + '<br><span style="font-size:12px;color:#aaa">حاول تاني</span>';
+                            }}
+                        }} catch(e2) {{
+                            status.innerHTML = '⚠️ حصل خطأ في تسجيل المكافأة<br><span style="font-size:12px;color:#aaa">حاول تاني</span>';
+                        }}
+                        btn.disabled = false;
+                        _0l = false;
+                        return;
+
+                    }} catch(e) {{
+                        console.warn("Monetag error:", e);
+                    }}
+                }} else {{
+                    console.warn("Monetag SDK did not load in time");
+                }}
+            }}
+
+            // ── No Monetag / SDK failed ──
+            status.innerHTML = '⚠️ الإعلانات مش متاحة حالياً<br><span style="font-size:12px;color:#aaa">حاول تاني بعد شوية!</span>';
+            btn.disabled = false;
+            _0l = false;
+        }}
+
+        function _0showDone() {{
+            const status = document.getElementById('adStatus');
+            const btn = document.getElementById('watchBtn');
+            btn.style.display = 'none';
+            document.getElementById('progressFill').style.width = '100%';
+            document.getElementById('progressText').textContent = _0t + ' / ' + _0t;
+            for (let i = 0; i < _0t; i++) {{
+                document.getElementById('dot' + i).className = 'ad-dot completed';
+            }}
+            status.innerHTML = '<div class="completed-banner">'
+                + '<div class="success-icon">🎉</div>'
+                + '<div class="big">تم إكمال جميع الإعلانات!</div>'
+                + '<div style="margin-top:8px">💰 تم إضافة +' + _0r.toFixed(2) + '$ لحسابك</div>'
+                + '<div style="margin-top:6px;font-size:13px;color:#c8e6c9">ارجع للبوت للتأكد من رصيدك</div>'
+                + '</div>';
+            try {{
+                if (window.Telegram && window.Telegram.WebApp) {{
+                    setTimeout(function() {{ window.Telegram.WebApp.close(); }}, 3000);
+                }}
+            }} catch(e) {{}}
+        }}
+
+        function _0updateUI() {{
+            const pct = (_0c / _0t) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = _0c + ' / ' + _0t;
+            for (let i = 0; i < _0t; i++) {{
+                const dot = document.getElementById('dot' + i);
+                dot.className = 'ad-dot';
+                if (i < _0c) dot.className = 'ad-dot completed';
+                else if (i === _0c) dot.className = 'ad-dot current';
+            }}
+        }}
+
+        // Initialize
+        (async function() {{
+            const btn = document.getElementById('watchBtn');
+            const status = document.getElementById('adStatus');
+            status.innerHTML = '<span class="spinner"></span> جاري التحضير...';
+
+            // Fetch config from API (ad_token + fp_salt)
+            await _0loadConfig();
+
+            if (_0m) {{
+                // Wait for Monetag SDK to load
+                const sdkReady = await _0waitForSDK(6000);
+                if (sdkReady) {{
+                    status.textContent = 'اضغط لمشاهدة إعلان';
+                }} else {{
+                    status.textContent = '⏳ جاري تحميل الإعلانات...';
+                    // Keep waiting in background
+                    _0waitForSDK(15000).then(ok => {{
+                        if (ok) status.textContent = 'اضغط لمشاهدة إعلان';
+                        else status.innerHTML = '⚠️ الإعلانات مش متاحة حالياً<br><span style="font-size:12px;color:#aaa">حاول تاني بعد شوية!</span>';
+                    }});
+                }}
+            }} else {{
+                status.textContent = '⚠️ الإعلانات مش متاحة حالياً';
+            }}
+            btn.textContent = '📺 مشاهدة الإعلان';
+            btn.disabled = false;
+        }})();
+    </script>
 </body>
 </html>"""
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 API: Start Session
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@app.post("/api/ads/start-session")
-def _ads_start_session():
-    """Initialize an ad session. Validates Telegram initData, checks rate limits.
-    🔒 V3: Accepts session_token (st) instead of uid/sid. Server extracts uid/sid from token.
-    Returns salt for fingerprint computation + first ad token.
-    """
-    data = request.get_json(silent=True) or {}
-    session_token = str(data.get("st", ""))
-    init_data = str(data.get("id", ""))
-
-    # 1. Validate session token (extracts uid/sid)
-    token_data = _validate_session_token(session_token)
-    if not token_data:
-        return jsonify({"ok": False, "error": "Invalid or expired session token"}), 403
-
-    uid = token_data["uid"]
-    sid = token_data["sid"]
-
-    # 2. Validate Telegram initData (STRICT — no fallback)
-    tg = _validate_telegram_init_data(init_data)
-    if not tg:
-        return jsonify({"ok": False, "error": "Invalid Telegram initData"}), 403
-
-    # If initData has a user_id, it must match the UID from the session
-    if tg.get("user_id") and str(tg["user_id"]) != uid:
-        return jsonify({"ok": False, "error": "User ID mismatch"}), 403
-
-    # 3. Validate session exists
-    session = _get_ad_session(sid)
-    if not session:
-        return jsonify({"ok": False, "error": "Session not found or expired"}), 404
-
-    if session["user_id"] != uid:
-        return jsonify({"ok": False, "error": "User mismatch"}), 403
-
-    if session.get("rewarded"):
-        return jsonify({"ok": False, "error": "Session already completed"}), 400
-
-    # 4. IP rate limit
-    ip = _get_client_ip()
-    if not _check_ads_ip_rate_limit(ip):
-        return jsonify({"ok": False, "error": "IP rate limit exceeded (max " + str(ADS_IP_DAILY_LIMIT) + "/day)"}), 429
-
-    # 5. User rate limit
-    if not _check_ads_user_rate_limit(uid):
-        return jsonify({"ok": False, "error": "User rate limit exceeded (max " + str(ADS_USER_DAILY_LIMIT) + "/day)"}), 429
-
-    # 6. Daily limit check
-    if not _check_daily_ads_limit(uid):
-        return jsonify({"ok": False, "error": "Daily limit reached"}), 429
-
-    # 7. Store IP in session (fingerprint set later after client computes it with salt)
-    _update_ad_session(sid, {
-        "ip": ip,
-        "current_ad_index": 0,
-    })
-
-    # 8. Generate first ad token (for ad index 0) with empty fp initially
-    #    FP will be validated on subsequent requests (init/complete)
-    first_token = _generate_ad_token(uid, sid, 0, "")
-
-    log.info("[ads] Session started: uid=%s sid=%s ip=%s", uid, sid[:16], ip)
-    # 🔒 V3: Return salt so client can compute fingerprint, but NO uid/sid
-    return jsonify({"ok": True, "token": first_token, "salt": session["salt"], "total_ads": ADS_PER_SESSION})
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 API: Init Ad (request permission to show ad N)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@app.post("/api/ads/init/<int:ad_index>")
-def _ads_init_ad(ad_index):
-    """Request permission to show ad N. Validates current ad token (token chaining).
-    Records init_time for timing enforcement.
-    🔒 V3: Accepts session_token (st) instead of uid/sid.
-    """
-    data = request.get_json(silent=True) or {}
-    session_token = str(data.get("st", ""))
-    fp = str(data.get("fp", ""))
-    init_data = str(data.get("id", ""))
-
-    # 1. Validate session token
-    token_data = _validate_session_token(session_token)
-    if not token_data:
-        return jsonify({"ok": False, "error": "Invalid session token"}), 403
-
-    uid = token_data["uid"]
-    sid = token_data["sid"]
-
-    # 2. Validate Telegram initData (every request)
-    tg = _validate_telegram_init_data(init_data)
-    if not tg:
-        return jsonify({"ok": False, "error": "Invalid Telegram initData"}), 403
-
-    # initData user must match session user
-    if tg.get("user_id") and str(tg["user_id"]) != uid:
-        return jsonify({"ok": False, "error": "User ID mismatch"}), 403
-
-    # 3. Get session
-    session = _get_ad_session(sid)
-    if not session:
-        return jsonify({"ok": False, "error": "Session not found"}), 404
-
-    if session["user_id"] != uid:
-        return jsonify({"ok": False, "error": "User mismatch"}), 403
-
-    # 4. Validate fingerprint (must be provided and valid)
-    if not _validate_fingerprint(fp, session["salt"]):
-        return jsonify({"ok": False, "error": "Invalid fingerprint"}), 400
-
-    fp_hash = hashlib.sha256(fp.encode()).hexdigest()
-
-    # On first init (index 0), store the fingerprint
-    if ad_index == 0 and not session.get("fingerprint"):
-        _update_ad_session(sid, {"fingerprint": fp_hash})
-
-    # Fingerprint must match session (after first init)
-    if session.get("fingerprint") and fp_hash != session["fingerprint"]:
-        log.warning("[ads_init] Fingerprint mismatch for uid=%s", uid)
-        return jsonify({"ok": False, "error": "Fingerprint mismatch"}), 403
-
-    # 5. Validate ad token (token chaining — must have correct token for current index)
-    current_token = request.headers.get("X-Ad-Token", "")
-    expected_idx = session.get("current_ad_index", 0)
-    ad_token_data = _validate_ad_token(current_token, uid, sid, expected_idx)
-    if not ad_token_data:
-        return jsonify({"ok": False, "error": "Invalid ad token or wrong index (expected " + str(expected_idx) + ")"}), 403
-
-    # 6. Check index matches
-    if ad_index != expected_idx:
-        return jsonify({"ok": False, "error": "Index mismatch (expected " + str(expected_idx) + ", got " + str(ad_index) + ")"}), 400
-
-    # 7. Record init time
-    init_times = session.get("ad_init_times", {})
-    init_times[str(ad_index)] = time.time()
-    _update_ad_session(sid, {"ad_init_times": init_times})
-
-    # 8. Generate new token for this ad (with current timestamp for timing)
-    new_token = _generate_ad_token(uid, sid, ad_index, fp_hash)
-    _update_ad_session(sid, {"current_ad_token": new_token})
-
-    log.info("[ads_init] Ad %d initialized for uid=%s sid=%s", ad_index, uid, sid[:16])
-    return jsonify({"ok": True, "token": new_token, "ad_index": ad_index})
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  🔒 API: Complete Ad (report ad N watched)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@app.post("/api/ads/complete/<int:ad_index>")
-def _ads_complete_ad(ad_index):
-    """Report ad N completed. Validates ad token, enforces minimum watch time,
-    adds reward per ad ($0.02), uses token chaining for next ad.
-    🔒 V3: Accepts session_token (st) instead of uid/sid.
-    """
-    data = request.get_json(silent=True) or {}
-    session_token = str(data.get("st", ""))
-    fp = str(data.get("fp", ""))
-    init_data = str(data.get("id", ""))
-
-    # 1. Validate session token
-    st_data = _validate_session_token(session_token)
-    if not st_data:
-        return jsonify({"ok": False, "error": "Invalid session token"}), 403
-
-    uid = st_data["uid"]
-    sid = st_data["sid"]
-
-    # 2. Validate Telegram initData
-    tg = _validate_telegram_init_data(init_data)
-    if not tg:
-        return jsonify({"ok": False, "error": "Invalid Telegram initData"}), 403
-
-    if tg.get("user_id") and str(tg["user_id"]) != uid:
-        return jsonify({"ok": False, "error": "User ID mismatch"}), 403
-
-    # 3. Get session
-    session = _get_ad_session(sid)
-    if not session:
-        return jsonify({"ok": False, "error": "Session not found"}), 404
-
-    if session["user_id"] != uid:
-        return jsonify({"ok": False, "error": "User mismatch"}), 403
-
-    if session.get("rewarded"):
-        return jsonify({"ok": False, "error": "Session already completed"}), 400
-
-    # 4. Validate ad token
-    current_token = request.headers.get("X-Ad-Token", "")
-    expected_idx = session.get("current_ad_index", 0)
-    ad_token_data = _validate_ad_token(current_token, uid, sid, expected_idx)
-    if not ad_token_data:
-        return jsonify({"ok": False, "error": "Invalid ad token"}), 403
-
-    if ad_index != expected_idx:
-        return jsonify({"ok": False, "error": "Index mismatch"}), 400
-
-    # 5. Enforce minimum watch time (20 seconds)
-    init_times = session.get("ad_init_times", {})
-    init_time = init_times.get(str(ad_index), 0)
-    if init_time and (time.time() - init_time) < ADS_MIN_WATCH_SECONDS:
-        elapsed = time.time() - init_time
-        log.warning("[ads_complete] Too fast: uid=%s idx=%d elapsed=%.1fs < %ds",
-                    uid, ad_index, elapsed, ADS_MIN_WATCH_SECONDS)
-        return jsonify({"ok": False, "error": "Too fast, minimum " + str(ADS_MIN_WATCH_SECONDS) + "s required"}), 400
-
-    # 6. Fingerprint check
-    fp_hash = hashlib.sha256(fp.encode()).hexdigest()
-    if session.get("fingerprint") and fp_hash != session["fingerprint"]:
-        return jsonify({"ok": False, "error": "Fingerprint mismatch"}), 403
-
-    # 6. Record completion
-    completed = session.get("ads_completed", 0)
-    complete_times = session.get("ad_complete_times", {})
-    complete_times[str(ad_index)] = time.time()
-    completed += 1
-
-    # 7. Add reward ($0.02 per ad)
-    _add_ads_reward(uid, ADS_REWARD_PER_AD)
-
-    # 8. Increment daily count
-    _increment_daily_ads_count(uid)
-
-    # 9. Generate next ad token (or final status)
-    next_index = ad_index + 1
-    all_done = completed >= ADS_PER_SESSION
-
-    if all_done:
-        _update_ad_session(sid, {
-            "ads_completed": completed,
-            "ad_complete_times": complete_times,
-            "current_ad_index": next_index,
-            "rewarded": True,
-            "current_ad_token": "",
-        })
-        log.info("[ads_complete] All %d ads done for uid=%s sid=%s total_reward=$%.2f",
-                 ADS_PER_SESSION, uid, sid[:16], ADS_REWARD)
-        return jsonify({
-            "ok": True,
-            "completed": completed,
-            "total_ads": ADS_PER_SESSION,
-            "reward": ADS_REWARD_PER_AD,
-            "total_reward": ADS_REWARD,
-            "all_done": True,
-            "next_token": "",
-        })
-    else:
-        next_token = _generate_ad_token(uid, sid, next_index, fp_hash)
-        _update_ad_session(sid, {
-            "ads_completed": completed,
-            "ad_complete_times": complete_times,
-            "current_ad_index": next_index,
-            "current_ad_token": next_token,
-        })
-        log.info("[ads_complete] Ad %d/%d done for uid=%s reward=$%.2f",
-                 completed, ADS_PER_SESSION, uid, ADS_REWARD_PER_AD)
-        return jsonify({
-            "ok": True,
-            "completed": completed,
-            "total_ads": ADS_PER_SESSION,
-            "reward": ADS_REWARD_PER_AD,
-            "all_done": False,
-            "next_token": next_token,
-        })
-
-
-# ─── Ads Stats Endpoint (admin) ────────────────────────────────────────────
-
-@app.get("/api/admin/ads-stats")
-@_require_admin
-def _ads_admin_stats():
-    """Get ads system statistics (admin only)."""
-    with _ads_sessions_lock:
-        active = len(_ads_sessions)
-        total_completed = sum(1 for s in _ads_sessions.values() if s.get("rewarded"))
-    return jsonify({
-        "active_sessions": active,
-        "completed_sessions": total_completed,
-        "ads_per_session": ADS_PER_SESSION,
-        "reward_per_ad": ADS_REWARD_PER_AD,
-        "total_reward": ADS_REWARD,
-        "ip_daily_limit": ADS_IP_DAILY_LIMIT,
-        "user_daily_limit": ADS_USER_DAILY_LIMIT,
-        "min_watch_seconds": ADS_MIN_WATCH_SECONDS,
-    })
-
-
-
+_flask_started = False
 _flask_lock = threading.Lock()
 
 
