@@ -271,6 +271,9 @@ _TR = {
     "btn_admin": {"ar": "👑 لوحة الأدمن", "en": "👑 Admin Panel"},
     "btn_dtmf": {"ar": "⚙️ إعدادات DTMF", "en": "⚙️ DTMF Settings"},
     "btn_lang": {"ar": "🌐 اللغة / Language", "en": "🌐 Language"},
+    "btn_ads": {"ar": "📺 مشاهدة إعلانات", "en": "📺 Watch Ads"},
+    "ads_no_daily": {"ar": "⏰ وصلت الحد اليومي لمشاهدة الإعلانات!\n\nالحد الأقصى: `{limit}` جلسات يومياً\nحاول غداً مرة أخرى 🙏", "en": "⏰ You've reached the daily ad limit!\n\nMaximum: `{limit}` sessions per day\nTry again tomorrow 🙏"},
+    "ads_welcome": {"ar": "📺 *مشاهدة إعلانات وكسب رصيد!*\n\n💰 المكافأة: *+{reward:.2f}$* لكل {count} إعلانات\n📊 المتبقي اليوم: *{remaining}* جلسة\n\nاضغط الزرار ده عشان تبدأ!", "en": "📺 *Watch Ads & Earn!*\n\n💰 Reward: *+{reward:.2f}$* for every {count} ads\n📊 Daily remaining: *{remaining}* sessions\n\nPress the button below to start!"},
 }
 
 def t(key: str, user_id=None, lang=None, **kwargs) -> str:
@@ -299,7 +302,7 @@ VIP_TIERS = [
 # ─── Telegram Bot ───────────────────────────────────────────────────────────
 try:
     import telebot
-    from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
+    from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, WebAppInfo
     TELEGRAM_AVAILABLE = True
 except ImportError:
     TELEGRAM_AVAILABLE = False
@@ -4081,6 +4084,7 @@ def _main_kb(is_admin=False, user_id=None):
     kb.row(InlineKeyboardButton(t("btn_mybot", user_id=user_id), callback_data="my_bots"),
            InlineKeyboardButton(t("btn_create_bot", user_id=user_id), callback_data="create_sub_bot"))
     kb.row(InlineKeyboardButton(t("btn_leaderboard", user_id=user_id), callback_data="show_leaderboard"))
+    kb.row(InlineKeyboardButton(t("btn_ads", user_id=user_id), callback_data="watch_ads"))
     kb.row(InlineKeyboardButton(t("btn_token", user_id=user_id), callback_data="create_token"))
     kb.row(InlineKeyboardButton(t("btn_support", user_id=user_id), url=f"https://t.me/{SUPPORT_USER.replace('@', '')}"))
 
@@ -5901,6 +5905,80 @@ def run_bot(token_override: str = ""):
                     bot.send_message(cid, f"❌ فشل إنشاء التوكن: {e}")
                 except:
                     pass
+
+        # ══════════════════════════════════════════════════════════════
+        # 📺 مشاهدة إعلانات — Watch Ads
+        # ══════════════════════════════════════════════════════════════
+        elif data == "watch_ads":
+            try:
+                from foxapp_api import (
+                    _check_daily_ads_limit,
+                    _check_ads_user_rate_limit,
+                    _get_ads_daily_count,
+                    _create_ad_session,
+                    ADS_DAILY_LIMIT,
+                    ADS_PER_SESSION,
+                    ADS_REWARD,
+                    ADS_REWARD_PER_AD,
+                    ADS_MIN_WATCH_SECONDS,
+                    ADS_IP_DAILY_LIMIT,
+                    ADS_USER_DAILY_LIMIT,
+                    MONETAG_ENABLED,
+                    PUBLIC_URL as _pub_url,
+                )
+
+                # Check user rate limit (max 2 sessions/24h)
+                if not _check_ads_user_rate_limit(str(cid)):
+                    bot.answer_callback_query(call.id, "⏰ حد الاستخدام اليومي")
+                    lang = get_user_lang(cid)
+                    msg = ("⏰ وصلت الحد اليومي لمشاهدة الإعلانات!\n\n"
+                           f"الحد الأقصى: `{ADS_USER_DAILY_LIMIT}` جلسات يومياً\n"
+                           "حاول غداً مرة أخرى 🙏") if lang != "en" else (
+                           "⏰ Daily ad limit reached!\n\n"
+                           f"Maximum: `{ADS_USER_DAILY_LIMIT}` sessions per day\n"
+                           "Try again tomorrow 🙏")
+                    bot.send_message(cid, msg, parse_mode='Markdown')
+                    return
+
+                # Check daily limit
+                if not _check_daily_ads_limit(str(cid)):
+                    bot.answer_callback_query(call.id, "⏰ وصلت الحد اليومي")
+                    bot.send_message(
+                        cid,
+                        t("ads_no_daily", user_id=cid, limit=ADS_DAILY_LIMIT),
+                        parse_mode='Markdown',
+                    )
+                    return
+
+                daily_count = _get_ads_daily_count(str(cid))
+                daily_remaining = max(0, ADS_DAILY_LIMIT - daily_count)
+
+                # Create an ad session and open the WebApp page
+                # The session token is a one-time HMAC-signed token (NOT the admin key)
+                session_token = _create_ad_session(str(cid))
+                base_url = _pub_url or "https://eaiupvh6.up.railway.app"
+                ads_url = f"{base_url}/ads/{session_token}"
+
+                # Send message with WebApp button
+                ads_text = t("ads_welcome", user_id=cid,
+                    reward=ADS_REWARD, count=ADS_PER_SESSION, remaining=daily_remaining)
+
+                kb_ads = InlineKeyboardMarkup()
+                kb_ads.row(InlineKeyboardButton(
+                    "📺 مشاهدة إعلان" if get_user_lang(cid) != "en" else "📺 Watch Ad",
+                    web_app=WebAppInfo(url=ads_url),
+                ))
+                kb_ads.row(InlineKeyboardButton(
+                    t("back_btn", user_id=cid),
+                    callback_data="go_start",
+                ))
+
+                bot.send_message(cid, ads_text, parse_mode='Markdown', reply_markup=kb_ads)
+                bot.answer_callback_query(call.id)
+
+            except Exception as e:
+                print(f"[watch_ads] Error: {e}", flush=True)
+                bot.answer_callback_query(call.id, "❌ حصل خطأ")
 
         # ══════════════════════════════════════════════════════════════
         # 📱 مستخدمي التطبيق — App Users
