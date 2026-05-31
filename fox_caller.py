@@ -2944,18 +2944,201 @@ def run_auto_mode(phones):
 #                          MAIN ENTRY POINT
 # ============================================================================
 
+def run_sequential_mode(phones, directory):
+    """
+    Sequential calling mode: One account, one number at a time.
+    - Creates an account (or uses existing)
+    - Calls a random number from the list
+    - Waits until the call disconnects
+    - Then calls the next random number
+    - Tracks history in fox_call_history.json to avoid repeats
+    - No Dan.json dependency
+    - Runs infinitely (round 1, round 2, ...)
+    """
+    global accounts
+
+    available = list(phones)
+    random.shuffle(available)
+
+    stats = {"answered": 0, "no_answer": 0, "failed": 0, "blocked": 0, "busy": 0, "total": 0}
+    round_num = 1
+
+    def _print_status():
+        elapsed = time.time() - start_time
+        mins = int(elapsed) // 60
+        secs = int(elapsed) % 60
+        print(f"\r  {clr(C.BBLUE, f'[Round {round_num}]')} "
+              f"✅ {stats['answered']} | 📵 {stats['no_answer']} | "
+              f"⛔ {stats['blocked']} | 📵 {stats['busy']} | "
+              f"❌ {stats['failed']} | 📋 {stats['total']}/{len(available)} "
+              f"| ⏱️ {mins}m{secs}s", end='', flush=True)
+
+    start_time = time.time()
+    print()
+    print(f"  {clr(C.BGREEN, 'Sequential Mode Started')}")
+    print(f"  Numbers: {len(available)} | Duration: {CALL_DURATION}s | Cooldown: {CALL_COOLDOWN}s")
+    print(f"  {clr(C.DIM, 'Press Ctrl+C to stop')}")
+    print()
+
+    try:
+        while True:
+            # Pick a random cooled number
+            history = load_call_history(directory)
+            callable_nums = [p for p in available if is_number_cooled(p, history)]
+
+            if not callable_nums:
+                # All on cooldown — wait
+                print(f"\n  {clr(C.CYAN, f'All numbers on cooldown ({CALL_COOLDOWN}s), waiting...')}")
+                for _ in range(CALL_COOLDOWN + 10):
+                    time.sleep(1)
+                # Check again
+                history = load_call_history(directory)
+                callable_nums = [p for p in available if is_number_cooled(p, history)]
+                if not callable_nums:
+                    # All called — new round
+                    round_num += 1
+                    now = time.time()
+                    # Clean old entries
+                    history = {k: v for k, v in history.items() if (now - v) < CALL_COOLDOWN}
+                    save_call_history(directory, history)
+                    print(f"\n  {clr(C.BGREEN, f'=== Starting Round {round_num} ===')}")
+                    continue
+
+            phone = random.choice(callable_nums)
+
+            # Record call attempt
+            record_call_attempt(directory, phone)
+
+            # Ensure we have an account
+            acc = get_next_account()
+            if acc is None:
+                # Auto-create accounts
+                if AUTO_CREATE_ACCOUNTS:
+                    print(f"\n  {clr(C.BYELLOW, 'No accounts — auto-creating...')}")
+                    new = auto_create_accounts(directory, ACCOUNT_CREATE_BATCH, max_retries=3)
+                    if new:
+                        accounts.extend(new)
+                        acc = get_next_account()
+                    else:
+                        print(f"  {clr(C.BRED, 'Failed to create accounts!')}")
+                        time.sleep(10)
+                        continue
+                else:
+                    print(f"  {clr(C.BRED, 'No accounts available!')}")
+                    break
+
+            email = acc.get('email', '???')
+            phone_short = phone[-7:] if len(phone) > 7 else phone
+
+            print(f"\n  {clr(C.BLUE, 'CALL')} {phone} <- {email[:20]}")
+
+            # Start the call via API
+            info, email_used = start_call_with_account(phone, acc)
+
+            if info is None or info == 'no_balance' or (isinstance(info, dict) and "error" in info):
+                err_detail = ""
+                if isinstance(info, dict):
+                    err_detail = info.get('error', '')
+                elif info == 'no_balance':
+                    err_detail = 'no_balance'
+
+                if err_detail == 'call_403':
+                    stats["blocked"] += 1
+                    stats["total"] += 1
+                    print(f"  {clr(C.RED, 'BLOCKED')} {phone} (403)")
+                    time.sleep(2)
+                    continue
+                elif err_detail == 'no_balance':
+                    mark_used(email_used or email, status='used')
+                    stats["failed"] += 1
+                    stats["total"] += 1
+                    print(f"  {clr(C.RED, 'NO_BAL')} {phone}")
+                    time.sleep(2)
+                    continue
+                else:
+                    mark_used(email_used or email, status='dead')
+                    stats["failed"] += 1
+                    stats["total"] += 1
+                    print(f"  {clr(C.RED, 'API_ERR')} {phone} ({err_detail})")
+                    time.sleep(2)
+                    continue
+
+            # Execute the SIP call — wait for it to finish
+            def _seq_cb(status):
+                if status == 'ringing':
+                    print(f"  {clr(C.CYAN, 'RING')} {phone_short}")
+                elif status == 'answered':
+                    print(f"  {clr(C.BGREEN, 'UP!')} {phone_short}")
+
+            result, from_num = do_single_call(phone, CALL_DURATION, info, status_cb=_seq_cb)
+
+            # Account is consumed after call
+            mark_used(email_used or email, status='used')
+
+            stats["total"] += 1
+
+            if result == 'answered_ok':
+                stats["answered"] += 1
+                print(f"  {clr(C.BGREEN, 'ANSWERED')} {phone} ({CALL_DURATION}s)")
+            elif result == 'answered_short':
+                stats["answered"] += 1
+                print(f"  {clr(C.GREEN, 'ANS_SHORT')} {phone}")
+            elif result == 'declined':
+                stats["busy"] += 1
+                print(f"  {clr(C.BYELLOW, 'BUSY')} {phone}")
+            elif result == 'no_answer':
+                stats["no_answer"] += 1
+                print(f"  {clr(C.YELLOW, 'NO_ANS')} {phone}")
+            else:
+                stats["failed"] += 1
+                print(f"  {clr(C.RED, 'FAILED')} {phone}")
+
+            _print_status()
+
+            # Short pause between calls
+            time.sleep(2)
+
+    except KeyboardInterrupt:
+        print(f"\n\n  {clr(C.BYELLOW, 'Stopped by user')}")
+
+    # Final stats
+    elapsed = time.time() - start_time
+    print()
+    print(f"  {clr(C.BCYAN, '=' * 50)}")
+    print(f"  {clr(C.BWHITE, 'Final Stats:')}")
+    print(f"  ✅ Answered: {stats['answered']}")
+    print(f"  📵 No answer: {stats['no_answer']}")
+    print(f"  ⛔ Blocked: {stats['blocked']}")
+    print(f"  📵 Busy: {stats['busy']}")
+    print(f"  ❌ Failed: {stats['failed']}")
+    print(f"  📋 Total: {stats['total']}")
+    print(f"  🔄 Rounds: {round_num}")
+    print(f"  ⏱️ Time: {int(elapsed)//60}m {int(elapsed)%60}s")
+    print(f"  {clr(C.BCYAN, '=' * 50)}")
+    print()
+
+
 def main():
-    """Fully automatic: python3 fox_caller.py <file.xlsx> [directory]
+    """Fully automatic: python3 fox_caller.py [file.xlsx] [directory] [--seq]
+    
+    Modes:
+      --seq   Sequential mode: one call at a time, wait for disconnect, then next
+    
     No menus, no prompts — just give it a file and it starts calling.
     """
     print_banner()
+
+    # --- Step 0: Parse mode flag ---
+    sequential_mode = '--seq' in sys.argv or '--sequential' in sys.argv
 
     # --- Step 1: Get file and directory ---
     directory = os.getcwd()
     selected_file = None
 
-    # Parse arguments: fox_caller.py [file.xlsx] [directory]
+    # Parse arguments: fox_caller.py [file.xlsx] [directory] [--seq]
     for arg in sys.argv[1:]:
+        if arg in ('--seq', '--sequential'):
+            continue
         if arg.endswith(('.xlsx', '.txt', '.csv')):
             selected_file = os.path.abspath(arg)
         else:
@@ -3006,63 +3189,75 @@ def main():
     # --- Step 3: Load accounts ---
     global accounts
 
-    # Find Dan.json
-    dan_path = None
-    for candidate in ["Dan.json", "dan.json"]:
-        for d in [directory, os.path.join(directory, "upload"), os.path.dirname(os.path.abspath(__file__))]:
-            fp = os.path.join(d, candidate) if d else None
-            if fp and os.path.exists(fp):
-                dan_path = fp
-                break
-        if dan_path:
-            break
+    if sequential_mode:
+        # Sequential mode — doesn't need Dan.json, creates accounts on-the-fly
+        print(f"  {clr(C.BCYAN, 'Sequential Mode:')} accounts will be created automatically")
+        print(f"  {clr(C.DIM, 'No Dan.json needed — accounts are created per-call')}")
+        print()
+        mark_used.cache_dir = directory
 
-    raw_accounts = []
-    if dan_path and os.path.exists(dan_path):
-        try:
-            raw_accounts = load_dan_json(dan_path)
-            print(f"  {clr(C.GREEN, 'Accounts loaded:')} {len(raw_accounts)}")
-        except Exception as e:
-            print(f"  {clr(C.BYELLOW, 'Dan.json error:')} {e}")
-            raw_accounts = []
+        # --- Step 4: GO! Sequential mode ---
+        run_sequential_mode(phones, directory)
     else:
-        if AUTO_CREATE_ACCOUNTS:
-            print(f"  {clr(C.BYELLOW, 'No Dan.json — will auto-create accounts')}")
+        # Auto mode — uses Dan.json accounts if available
+
+        # Find Dan.json
+        dan_path = None
+        for candidate in ["Dan.json", "dan.json"]:
+            for d in [directory, os.path.join(directory, "upload"), os.path.dirname(os.path.abspath(__file__))]:
+                fp = os.path.join(d, candidate) if d else None
+                if fp and os.path.exists(fp):
+                    dan_path = fp
+                    break
+            if dan_path:
+                break
+
+        raw_accounts = []
+        if dan_path and os.path.exists(dan_path):
+            try:
+                raw_accounts = load_dan_json(dan_path)
+                print(f"  {clr(C.GREEN, 'Accounts loaded:')} {len(raw_accounts)}")
+            except Exception as e:
+                print(f"  {clr(C.BYELLOW, 'Dan.json error:')} {e}")
+                raw_accounts = []
         else:
-            print(f"  {clr(C.BRED, 'No Dan.json found! Enable AUTO_CREATE_ACCOUNTS.')}")
+            if AUTO_CREATE_ACCOUNTS:
+                print(f"  {clr(C.BYELLOW, 'No Dan.json — will auto-create accounts')}")
+            else:
+                print(f"  {clr(C.BRED, 'No Dan.json found! Enable AUTO_CREATE_ACCOUNTS.')}")
+                sys.exit(1)
+
+        # --- Step 4: Initialize accounts ---
+        print()
+        print(f"  {clr(C.BCYAN, 'Initializing accounts...')}")
+        accounts = init_all_accounts(raw_accounts, directory)
+        if not accounts and AUTO_CREATE_ACCOUNTS:
+            print(f"  {clr(C.BYELLOW, 'Auto-creating accounts...')}")
+            new = auto_create_accounts(directory, ACCOUNT_CREATE_BATCH, max_retries=3)
+            if new:
+                accounts.extend(new)
+
+        if not accounts:
+            print(f"  {clr(C.BRED, 'No accounts available!')}")
             sys.exit(1)
 
-    # --- Step 4: Initialize accounts ---
-    print()
-    print(f"  {clr(C.BCYAN, 'Initializing accounts...')}")
-    accounts = init_all_accounts(raw_accounts, directory)
-    if not accounts and AUTO_CREATE_ACCOUNTS:
-        print(f"  {clr(C.BYELLOW, 'Auto-creating accounts...')}")
-        new = auto_create_accounts(directory, ACCOUNT_CREATE_BATCH, max_retries=3)
-        if new:
-            accounts.extend(new)
+        mark_used.cache_dir = directory
+        print(f"  {clr(C.BGREEN, 'Ready accounts:')} {len(accounts)}")
+        print()
 
-    if not accounts:
-        print(f"  {clr(C.BRED, 'No accounts available!')}")
-        sys.exit(1)
+        # --- Step 5: GO! Auto mode only, no prompts ---
+        print(f"  {clr(C.BGREEN, 'Starting auto calling mode...')}")
+        print(f"  Numbers: {len(phones)} | Accounts: {len(accounts)} | Workers: {NUM_WORKERS}")
+        print()
 
-    mark_used.cache_dir = directory
-    print(f"  {clr(C.BGREEN, 'Ready accounts:')} {len(accounts)}")
-    print()
+        run_auto_mode(phones)
 
-    # --- Step 5: GO! Auto mode only, no prompts ---
-    print(f"  {clr(C.BGREEN, 'Starting auto calling mode...')}")
-    print(f"  Numbers: {len(phones)} | Accounts: {len(accounts)} | Workers: {NUM_WORKERS}")
-    print()
-
-    run_auto_mode(phones)
-
-    # Save cache
-    print()
-    print(f"  {clr(C.BLUE, 'Saving cache...')}")
-    save_accounts_cache(directory, accounts, used_emails, set())
-    print(f"  {clr(C.BGREEN, 'Done!')}")
-    print()
+        # Save cache
+        print()
+        print(f"  {clr(C.BLUE, 'Saving cache...')}")
+        save_accounts_cache(directory, accounts, used_emails, set())
+        print(f"  {clr(C.BGREEN, 'Done!')}")
+        print()
 
 
 if __name__ == "__main__":

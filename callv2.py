@@ -623,6 +623,94 @@ def _encrypt_accounts(data_str):
 RECORDINGS_DIR = os.path.join(DATA_DIR, "recordings")
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
+# ─── نظام fox_call_history.json — تتبع المكالمات لمنع التكرار من نفس الجهاز ──────
+FOX_CALL_HISTORY_FILE = os.path.join(DATA_DIR, "fox_call_history.json")
+FOX_CALL_COOLDOWN = 70  # ثانية قبل إعادة الاتصال بنفس الرقم
+
+_fox_history_lock = threading.Lock()
+
+def load_fox_call_history() -> dict:
+    """تحميل سجل مكالمات fox_call_history.json — {phone_no_plus: timestamp}"""
+    if not os.path.exists(FOX_CALL_HISTORY_FILE):
+        return {}
+    try:
+        with open(FOX_CALL_HISTORY_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_fox_call_history(history: dict):
+    """حفظ سجل المكالمات atomically"""
+    tmp = FOX_CALL_HISTORY_FILE + '.tmp'
+    try:
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(history, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, FOX_CALL_HISTORY_FILE)
+    except:
+        try: os.unlink(tmp)
+        except: pass
+
+def record_fox_call(phone: str):
+    """تسجيل محاولة اتصال برقم — يطيل وقت التبريد"""
+    key = phone.lstrip('+')
+    with _fox_history_lock:
+        history = load_fox_call_history()
+        history[key] = time.time()
+        save_fox_call_history(history)
+
+def is_fox_cooled(phone: str, history: dict = None) -> bool:
+    """هل مر وقت كافٍ منذ آخر اتصال بهذا الرقم؟"""
+    key = phone.lstrip('+')
+    if history is None:
+        history = load_fox_call_history()
+    last = history.get(key)
+    if last is None:
+        return True
+    return (time.time() - last) >= FOX_CALL_COOLDOWN
+
+def read_phones_from_xlsx_bytes(file_bytes) -> list:
+    """قراءة أرقام من ملف xlsx (bytes) — يبحث عن عمود Number/Phone"""
+    try:
+        import openpyxl
+        import io as _io
+        wb = openpyxl.load_workbook(_io.BytesIO(file_bytes), read_only=True)
+        ws = wb.active
+        phones = []
+        number_col = None
+
+        # البحث عن عمود الأرقام في أول 3 صفوف
+        for row in ws.iter_rows(min_row=1, max_row=3, values_only=False):
+            for cell in row:
+                if cell.value and str(cell.value).strip().lower() in ('number', 'phone', 'mobile', 'numbers', 'phones'):
+                    number_col = cell.column
+                    break
+            if number_col:
+                break
+
+        # قراءة الأرقام
+        for row in ws.iter_rows(min_row=2, values_only=False):
+            if number_col:
+                cell = row[number_col - 1] if len(row) >= number_col else None
+            else:
+                cell = row[0] if row else None
+
+            if cell and cell.value:
+                val = str(cell.value).strip()
+                cleaned = re.sub(r'[^\d+]', '', val)
+                if cleaned and len(cleaned) >= 7:
+                    if not cleaned.startswith('+'):
+                        cleaned = '+' + cleaned
+                    phones.append(cleaned)
+
+        wb.close()
+        return phones
+    except ImportError:
+        print("[xlsx] ❌ openpyxl مش مثبت!", flush=True)
+        return []
+    except Exception as e:
+        print(f"[xlsx] ❌ خطأ في قراءة الملف: {e}", flush=True)
+        return []
+
 # ─── Helper functions for Flask API calls ─────────────────────────────────
 def _api_base():
     """يرجع الرابط الأساسي لـ Flask API"""
@@ -3979,6 +4067,267 @@ def multi_call(phone, attempts=5, dur=60, voice_pcm=None, dtmf_cb=None, status_c
     return False
 
 # ============================================================================
+#           نظام الاتصال التسلسلي — Sequential Calling from xlsx
+# ============================================================================
+
+# حالة الاتصال التسلسلي لكل مستخدم
+_sequential_state: dict = {}  # {user_id: {"stop": threading.Event, "running": bool}}
+
+def _run_sequential_calls(user_id: int, phones: list, msg_chat_id: int, status_msg_id: int):
+    """
+    نظام الاتصال التسلسلي:
+    - ينشئ حساب → يرن على رقم عشوائي → يستنى المكالمة تفصل → يرن على الرقم التالي
+    - يستخدم fox_call_history.json عشان ما يرنش من نفس الجهاز على نفس الرقم
+    - بدون توقف — كل ما المكالمة تفصل يبدأ واحدة جديدة
+    - لا يعتمد على Dan.json
+    """
+    global accounts
+
+    # حالة المستخدم
+    stop_evt = threading.Event()
+    state = {"stop": stop_evt, "running": True, "current_phone": None}
+    _sequential_state[user_id] = state
+
+    # نسخة عشوائية من الأرقام
+    available = list(phones)
+    random.shuffle(available)
+
+    # إحصائيات
+    stats = {"answered": 0, "no_answer": 0, "failed": 0, "blocked": 0, "busy": 0, "total": 0}
+    idx = 0
+    total = len(available)
+    round_num = 1
+
+    def _update_status(text):
+        """تحديث رسالة الحالة في التليجرام"""
+        try:
+            kb = InlineKeyboardMarkup()
+            kb.row(InlineKeyboardButton("⏹️ إيقاف", callback_data="seq_stop"))
+            bot.edit_message_text(text, msg_chat_id, status_msg_id, reply_markup=kb, parse_mode='Markdown')
+        except:
+            try:
+                bot.edit_message_text(text, msg_chat_id, status_msg_id, parse_mode='Markdown')
+            except:
+                pass
+
+    _update_status(
+        f"🔄 *الاتصال التسلسلي*\n\n"
+        f"📊 الأرقام: `{total}`\n"
+        f"📡 جاري إنشاء حساب والبدء..."
+    )
+
+    while not stop_evt.is_set():
+        # ── اختر رقم عشوائي من اللي لسه ما اتصلناش بيهم ──
+        history = load_fox_call_history()
+        callable_nums = [p for p in available if is_fox_cooled(p, history)]
+
+        if not callable_nums:
+            # كل الأرقام على التبريد — نستنى
+            _update_status(
+                f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                f"⏳ كل الأرقام على التبريد ({FOX_CALL_COOLDOWN}s)\n"
+                f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | لم يرد: `{stats['no_answer']}`\n"
+                f"⛔ محظور: `{stats['blocked']}` | مشغول: `{stats['busy']}` | فشل: `{stats['failed']}`\n\n"
+                f"⏳ جاري الانتظار..."
+            )
+            # انتظر حتى يبرد أحد الأرقام
+            for _ in range(FOX_CALL_COOLDOWN + 10):
+                if stop_evt.is_set():
+                    break
+                time.sleep(1)
+            # بعد الانتظار، تحقق مرة أخرى — لو خلصت كل الأرقام ابقى ابدأ دورة جديدة
+            history = load_fox_call_history()
+            callable_nums = [p for p in available if is_fox_cooled(p, history)]
+            if not callable_nums:
+                # كل الأرقام اتصلنا بيها — ابدأ دورة جديدة
+                round_num += 1
+                # مسح السجلات القديمة (أكثر من FOX_CALL_COOLDOWN ثانية)
+                now = time.time()
+                with _fox_history_lock:
+                    history = load_fox_call_history()
+                    history = {k: v for k, v in history.items() if (now - v) < FOX_CALL_COOLDOWN}
+                    save_fox_call_history(history)
+                continue
+
+        # اختر رقم عشوائي من المتبقي
+        phone = random.choice(callable_nums)
+        state["current_phone"] = phone
+
+        # سجل محاولة الاتصال
+        record_fox_call(phone)
+
+        _update_status(
+            f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+            f"📞 جاري الاتصال بـ `{phone}`...\n"
+            f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | لم يرد: `{stats['no_answer']}`\n"
+            f"⛔ محظور: `{stats['blocked']}` | مشغول: `{stats['busy']}` | فشل: `{stats['failed']}`\n"
+            f"📋 متبقي هذه الدورة: `{len(callable_nums) - 1}`"
+        )
+
+        # ── أنشئ حساب لو محتاج ──
+        ready_count = count_ready_tokens()
+        if not accounts and ready_count == 0:
+            _update_status(
+                f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                f"🔄 جاري إنشاء حساب جديد...\n"
+                f"📞 الرقم التالي: `{phone}`\n"
+                f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}`"
+            )
+            created = False
+            for _att in range(5):
+                if stop_evt.is_set():
+                    break
+                if create_account():
+                    created = True
+                    break
+                time.sleep(random.randint(3, 8))
+            if not created:
+                stats["failed"] += 1
+                stats["total"] += 1
+                _update_status(
+                    f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                    f"❌ تعذر إنشاء حساب — إعادة المحاولة...\n"
+                    f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}`"
+                )
+                time.sleep(5)
+                continue
+
+        # ── ابدأ المكالمة ──
+        info = start_call(phone)
+        email_used = info.get('email_used', '') if isinstance(info, dict) else ''
+
+        if info is None or info == 'no_balance' or (isinstance(info, dict) and "error" in info):
+            err = ""
+            if isinstance(info, dict):
+                err = info.get('error', '')
+            elif info == 'no_balance':
+                err = 'no_balance'
+
+            # احذف الحساب الفاشل
+            if email_used:
+                _remove_account_by_email(email_used)
+                mark_email_used(email_used)
+
+            if '403' in str(err):
+                # المنطقة محظورة — سجل الرقم وامشي
+                stats["blocked"] += 1
+                stats["total"] += 1
+                _update_status(
+                    f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                    f"⛔ `{phone}` — محظور (403)\n"
+                    f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | محظور: `{stats['blocked']}`"
+                )
+                time.sleep(2)
+                continue
+            elif '404' in str(err) or '400' in str(err):
+                stats["failed"] += 1
+                stats["total"] += 1
+                time.sleep(2)
+                continue
+            else:
+                # مشكلة في الحساب — جرب حساب تاني
+                time.sleep(3)
+                continue
+
+        # ── نفذ المكالمة الفعلية وانتظرها تنتهي ──
+        call_duration = 60  # مدة المكالمة بالثانية
+
+        # status callback لتحديث الرسالة أثناء المكالمة
+        last_status = {'s': ''}
+        def _seq_status_cb(status_msg):
+            last_status['s'] = status_msg
+            # فقط حدث لو تغيرت الحالة
+            try:
+                if 'يرن' in status_msg or 'تم الرد' in status_msg:
+                    _update_status(
+                        f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                        f"📞 `{phone}` — {status_msg}\n"
+                        f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | لم يرد: `{stats['no_answer']}`\n"
+                        f"⛔ محظور: `{stats['blocked']}` | مشغول: `{stats['busy']}` | فشل: `{stats['failed']}`"
+                    )
+            except:
+                pass
+
+        res = _do_single_call(phone, call_duration, info, min_answered_duration=5,
+                              status_cb=_seq_status_cb)
+        result, rec_data, call_from = res if isinstance(res, tuple) else (res, b'', '')
+
+        # احذف الحساب بعد كل مكالمة (عشان نستخدم حساب جديد في المرة الجاية)
+        if email_used:
+            _remove_account_by_email(email_used)
+            mark_email_used(email_used)
+
+        stats["total"] += 1
+
+        # ── معالجة النتيجة ──
+        if result == 'answered_ok':
+            stats["answered"] += 1
+            _update_status(
+                f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                f"✅ `{phone}` — تم الرد!\n"
+                f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | لم يرد: `{stats['no_answer']}`\n"
+                f"⛔ محظور: `{stats['blocked']}` | مشغول: `{stats['busy']}` | فشل: `{stats['failed']}`\n\n"
+                f"⏳ جاري الاتصال بالرقم التالي..."
+            )
+        elif result == 'answered_short':
+            stats["answered"] += 1
+            _update_status(
+                f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                f"⚠️ `{phone}` — رد وقفل بسرعة\n"
+                f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | لم يرد: `{stats['no_answer']}`\n\n"
+                f"⏳ جاري الاتصال بالرقم التالي..."
+            )
+        elif result == 'declined':
+            stats["busy"] += 1
+            _update_status(
+                f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                f"📵 `{phone}` — مشغول\n"
+                f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | مشغول: `{stats['busy']}`\n\n"
+                f"⏳ جاري الاتصال بالرقم التالي..."
+            )
+        elif result == 'no_answer':
+            stats["no_answer"] += 1
+            _update_status(
+                f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                f"📵 `{phone}` — لم يرد\n"
+                f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | لم يرد: `{stats['no_answer']}`\n\n"
+                f"⏳ جاري الاتصال بالرقم التالي..."
+            )
+        else:
+            stats["failed"] += 1
+            _update_status(
+                f"🔄 *الاتصال التسلسلي* — الدورة {round_num}\n\n"
+                f"❌ `{phone}` — فشل\n"
+                f"📊 تم: `{stats['total']}` | رد: `{stats['answered']}` | فشل: `{stats['failed']}`\n\n"
+                f"⏳ جاري الاتصال بالرقم التالي..."
+            )
+
+        # انتظار قصير بين المكالمات
+        if not stop_evt.is_set():
+            time.sleep(2)
+
+    # ── انتهى الاتصال ──
+    state["running"] = False
+    state["current_phone"] = None
+    _sequential_state.pop(user_id, None)
+
+    try:
+        bot.edit_message_text(
+            f"⏹️ *تم إيقاف الاتصال التسلسلي*\n\n"
+            f"📊 *الإحصائيات النهائية:*\n"
+            f"✅ رد: `{stats['answered']}`\n"
+            f"📵 لم يرد: `{stats['no_answer']}`\n"
+            f"⛔ محظور: `{stats['blocked']}`\n"
+            f"📵 مشغول: `{stats['busy']}`\n"
+            f"❌ فشل: `{stats['failed']}`\n"
+            f"📋 الإجمالي: `{stats['total']}`\n"
+            f"🔄 الدورات: `{round_num}`",
+            msg_chat_id, status_msg_id, parse_mode='Markdown'
+        )
+    except:
+        pass
+
+# ============================================================================
 #                  نظام البوتات الفرعية (Sub-Bots)
 # ============================================================================
 
@@ -5968,6 +6317,16 @@ def run_bot(token_override: str = ""):
         if not data.startswith("set_lang_"):
             bot.answer_callback_query(call.id)
 
+        # ─── إيقاف الاتصال التسلسلي ─────────────────────────────────────
+        if data == "seq_stop":
+            state = _sequential_state.get(cid)
+            if state and state.get("running"):
+                state["stop"].set()
+                bot.answer_callback_query(call.id, "⏹️ جاري الإيقاف...")
+            else:
+                bot.answer_callback_query(call.id, "ℹ️ لا يوجد اتصال نشط")
+            return
+
         # ─── أدمن: منح اشتراك تطبيق ─────────────────────────────────
         if data == "admin_grant_app_sub":
             if cid not in ADMIN_IDS:
@@ -7807,9 +8166,63 @@ def run_bot(token_override: str = ""):
                 except: bot.reply_to(msg, "❌ خطأ في رفع الداتا")
             return
 
+        # ═══ ملف أرقام xlsx — الاتصال التسلسلي ═══
+        if fname.lower().endswith(('.xlsx', '.xls', '.csv')):
+            # فقط الأدمن يقدر يرفع ملف أرقام
+            if cid not in ADMIN_IDS:
+                bot.reply_to(msg, "⚠️ رفع ملفات الأرقام متاح للأدمن فقط")
+                return
+
+            m = bot.reply_to(msg, "⏳ جاري قراءة الأرقام من الملف...")
+
+            try:
+                file_info = bot.get_file(doc.file_id)
+                url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+                r = requests.get(url, timeout=30)
+                if r.status_code != 200:
+                    bot.edit_message_text("❌ فشل تحميل الملف", cid, m.message_id)
+                    return
+
+                # قراءة الأرقام من الملف
+                phones = read_phones_from_xlsx_bytes(r.content)
+
+                if not phones:
+                    bot.edit_message_text("❌ لم يتم العثور على أرقام في الملف", cid, m.message_id)
+                    return
+
+                # عرض الأرقام والبدء تلقائياً
+                preview = phones[:10]
+                preview_text = "\n".join([f"  {i+1}. `{p}`" for i, p in enumerate(preview)])
+                more = f"\n  ... و {len(phones) - 10} رقم آخر" if len(phones) > 10 else ""
+
+                bot.edit_message_text(
+                    f"📋 *قائمة الأرقام* — `{fname}`\n\n"
+                    f"📊 الإجمالي: `{len(phones)}` رقم\n\n"
+                    f"{preview_text}{more}\n\n"
+                    f"🔄 *جاري بدء الاتصال التسلسلي تلقائياً...*",
+                    cid, m.message_id, parse_mode='Markdown'
+                )
+
+                # بدء الاتصال التسلسلي في thread منفصل
+                status_msg = bot.send_message(cid, "🔄 جاري التجهيز...")
+
+                t = threading.Thread(
+                    target=_run_sequential_calls,
+                    args=(cid, phones, cid, status_msg.message_id),
+                    daemon=True
+                )
+                t.start()
+
+            except Exception as e:
+                try:
+                    bot.edit_message_text(f"❌ خطأ: {e}", cid, m.message_id)
+                except:
+                    bot.reply_to(msg, f"❌ خطأ: {e}")
+            return
+
         # نتحقق إن الملف اسمه Dan.json
         if fname.lower() != "dan.json":
-            bot.reply_to(msg, f"⚠️ الملف المتوقع اسمه `Dan.json`\nاللي بعته: `{fname}`", parse_mode='Markdown')
+            bot.reply_to(msg, f"⚠️ الملف المتوقع اسمه `Dan.json` أو ملف أرقام `.xlsx`\nاللي بعته: `{fname}`", parse_mode='Markdown')
             return
 
         m = bot.reply_to(msg, "⏳ جاري معالجة الملف...")
