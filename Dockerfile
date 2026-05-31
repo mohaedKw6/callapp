@@ -1,4 +1,4 @@
-# v4.1.0 — secure ads system: 10 ads/session, HMAC tokens, Telegram initData validation, IP rate limiting
+# v4.0.2 — fix group commands (commands=), fix language (answer_callback_query), force rebuild
 FROM python:3.11-slim
 
 WORKDIR /app

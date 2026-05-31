@@ -38,11 +38,11 @@ log = logging.getLogger("gh-sync")
 
 GH_TOKEN    = os.environ.get("GH_TOKEN", "").strip('"').strip("'").strip()
 if not GH_TOKEN:
-    GH_TOKEN = "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"  # fallback
+    GH_TOKEN = "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"  # fallback — same as deployment token
     log.warning("[gh-sync] ⚠️ GH_TOKEN not in env vars, using hardcoded fallback")
 else:
     log.info("[gh-sync] ✅ GH_TOKEN loaded from env (%s...)", GH_TOKEN[:8])
-GH_REPO     = os.environ.get("GH_REPO", "MohamedQM/callapp").strip('"').strip("'").strip()
+GH_REPO     = os.environ.get("GH_REPO", "mohaedkw6/callapp").strip('"').strip("'").strip()
 GH_BRANCH   = os.environ.get("GH_BRANCH", "main").strip('"').strip("'").strip()
 GH_DATA_DIR = os.environ.get("GH_DATA_DIR", "data").strip('"').strip("'").strip()
 DATA_DIR    = os.environ.get("DATA_DIR", os.path.join(
@@ -51,6 +51,9 @@ DATA_DIR    = os.environ.get("DATA_DIR", os.path.join(
 SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL", "600"))  # 10 minutes
 
 # Files to sync — match the list in callv2._init_data_dir()
+# Files that are encrypted (base64 XOR) — don't validate as JSON
+_ENCRYPTED_FILES = {"telicall_accounts.json"}
+
 SYNC_FILES = [
     "bot_data.json",
     "telicall_accounts.json",
@@ -150,13 +153,14 @@ def pull_from_github() -> dict:
                 content_bytes = base64.b64decode(content_b64_clean)
                 content_str = content_bytes.decode("utf-8")
 
-                # Validate it's valid JSON
-                try:
-                    json.loads(content_str)
-                except json.JSONDecodeError:
-                    result["errors"] += 1
-                    result["details"].append(f"{fname}: invalid JSON from GitHub")
-                    continue
+                # Validate it's valid JSON (unless encrypted file)
+                if fname not in _ENCRYPTED_FILES:
+                    try:
+                        json.loads(content_str)
+                    except json.JSONDecodeError:
+                        result["errors"] += 1
+                        result["details"].append(f"{fname}: invalid JSON from GitHub")
+                        continue
 
                 # Save locally (overwrite)
                 with open(local_path, "w", encoding="utf-8") as f:
