@@ -48,8 +48,10 @@ from collections import deque
 
 API_URL = "https://api.telicall.com"
 ACCOUNTS_PASSWORD = "@@@GMAQ@@@"
-CALL_DURATION = 3             # seconds to stay in call after answer (just detect, then hang up)
-JUST_DETECT_ANSWER = True     # If True, hang up immediately after detecting answer
+CALL_DURATION = 3             # seconds to stay in call after answer (auto mode - just detect, then hang up)
+JUST_DETECT_ANSWER = True     # If True, hang up immediately after detecting answer (auto mode)
+SEQ_CALL_DURATION = 300       # seconds to stay in call in sequential mode (5 min max - call ends naturally before this)
+SEQ_JUST_DETECT = False       # In seq mode: keep call alive until remote hangs up
 PARALLEL_ACCOUNTS = 4         # Use 4 accounts simultaneously per number
 RINGING_TIMEOUT = 40          # SIP loop iterations (40 * 0.5s = 20s ringing) WAS 140=70s
 MIN_ANSWERED_DURATION = 1     # minimum seconds to count as "answered ok"
@@ -1614,13 +1616,14 @@ def auto_create_accounts(directory, count=5, max_retries=3):
 #                          CALL EXECUTION
 # ============================================================================
 
-def do_single_call(phone, dur, info, status_cb=None):
+def do_single_call(phone, dur, info, status_cb=None, just_detect=None):
     """
     Execute a single SIP call and return the result.
     Returns: (result_str, from_number)
       result_str: 'answered_ok', 'no_answer', 'declined', 'failed', 'not_found', 'answered_short'
       from_number: the caller ID used
       status_cb: optional callback(status_str) for live updates
+      just_detect: override JUST_DETECT_ANSWER for this call (None = use global)
     """
     call_start = time.time()
 
@@ -1725,7 +1728,8 @@ def do_single_call(phone, dur, info, status_cb=None):
 
                 sip.ack(num)
 
-                if JUST_DETECT_ANSWER:
+                _just_detect = just_detect if just_detect is not None else JUST_DETECT_ANSWER
+                if _just_detect:
                     # Just detect answer - hang up immediately, don't stay on the call
                     time.sleep(0.2)
                     sip.bye(num)
@@ -2704,6 +2708,223 @@ def auto_account_worker(worker_id, phones, stop_event):
     return
 
 
+def run_sequential_mode(phones):
+    """
+    Sequential mode: Call one number at a time, keep the call ALIVE until it
+    disconnects naturally (remote hangs up or call limit reached), then move to
+    the next number. Loops through all numbers infinitely in rounds.
+
+    Key differences from auto mode:
+    - ONE call at a time (no parallel workers)
+    - Call stays alive until remote hangs up (up to SEQ_CALL_DURATION seconds)
+    - After call ends, wait 2 seconds, then call next number
+    - Uses fox_call_history.json to avoid re-calling same number within 70s
+    - No Dan.json dependency - auto-creates accounts as needed
+    """
+    global account_index, accounts
+
+    total = len(phones)
+    start_time = time.time()
+    directory = getattr(mark_used, 'cache_dir', '.')
+
+    with stats_lock:
+        stats["total_numbers"] = total
+
+    print()
+    print(f"  {clr(C.BBLUE, 'Starting Sequential Mode...')}")
+    print(f"  Numbers: {total} | Call stays alive until remote hangs up")
+    print(f"  Max call time: {SEQ_CALL_DURATION}s | Cooldown: {CALL_COOLDOWN}s")
+    print(f"  {clr(C.DIM, 'One call at a time → wait for disconnect → next call')}")
+    print()
+
+    round_num = 1
+    consecutive_403 = 0
+    MAX_CONSECUTIVE_403 = 30  # Stop if 30 consecutive 403s (region block)
+
+    while True:
+        print(f"  {clr(C.BCYAN, f'--- Round {round_num} ---')}")
+        shuffled = list(phones)
+        random.shuffle(shuffled)
+
+        any_called = False
+
+        for idx, phone in enumerate(shuffled):
+            # Check cooldown
+            history = load_call_history(directory)
+            if not is_number_cooled(phone, history):
+                remaining = int(CALL_COOLDOWN - (time.time() - history.get(phone.lstrip('+'), 0)))
+                if remaining > 0:
+                    continue  # Skip this number, still on cooldown
+
+            # Make sure we have an account
+            acc = get_next_account()
+            if acc is None:
+                if AUTO_CREATE_ACCOUNTS:
+                    print(f"  {clr(C.BYELLOW, 'No accounts - auto-creating...')}")
+                    new = auto_create_accounts(directory, ACCOUNT_CREATE_BATCH, max_retries=3)
+                    if new:
+                        accounts.extend(new)
+                        account_index = len(accounts) - len(new)
+                        acc = get_next_account()
+                    else:
+                        print(f"  {clr(C.BRED, 'Failed to create accounts!')}")
+                        break
+                if acc is None:
+                    print(f"  {clr(C.BRED, 'No accounts available!')}")
+                    break
+
+            email = acc.get('email', '???')
+            email_short = email[:20]
+            phone_short = phone[-7:] if len(phone) > 7 else phone
+
+            any_called = True
+
+            # Record call attempt
+            record_call_attempt(directory, phone)
+
+            # Start the call via Telicall API
+            info, email_used = start_call_with_account(phone, acc)
+
+            if info is None or info == 'no_balance' or (isinstance(info, dict) and "error" in info):
+                err_detail = ""
+                if isinstance(info, dict):
+                    err_detail = info.get('error', '')
+                elif info == 'no_balance':
+                    err_detail = 'no_balance'
+                elif info is None:
+                    err_detail = 'timeout'
+
+                if err_detail == 'call_403':
+                    consecutive_403 += 1
+                    with stats_lock:
+                        stats["failed"] += 1
+                    print(f"  {clr(C.RED, 'BLOCKED')} {phone} (403) <- {email_short}")
+                    if consecutive_403 >= MAX_CONSECUTIVE_403:
+                        print(f"  {clr(C.BRED, f'{MAX_CONSECUTIVE_403} consecutive 403s - region blocked! Stopping.')}")
+                        # Print final stats
+                        _print_seq_stats(start_time, total)
+                        return
+                    continue
+
+                elif err_detail == 'call_404':
+                    with stats_lock:
+                        stats["not_found"] += 1
+                    print(f"  {clr(C.MAGENTA, 'NOT_FOUND')} {phone} <- {email_short}")
+                    continue
+
+                elif err_detail == 'no_balance':
+                    mark_used(email_used, status='dead')
+                    with stats_lock:
+                        stats["api_fail"] += 1
+                    print(f"  {clr(C.RED, 'NO_BAL')} {phone} <- {email_short}")
+                    # Re-queue number for next attempt
+                    continue
+
+                else:
+                    with stats_lock:
+                        stats["api_fail"] += 1
+                    print(f"  {clr(C.RED, 'API_ERR')} {phone} ({err_detail}) <- {email_short}")
+                    continue
+
+            # Reset 403 counter on successful API call
+            consecutive_403 = 0
+
+            # Execute the SIP call - KEEP IT ALIVE!
+            print(f"  {clr(C.CYAN, 'RING')} {phone} <- {email_short}")
+
+            call_start = time.time()
+            result, from_num = do_single_call(
+                phone,
+                SEQ_CALL_DURATION,       # Stay in call up to 5 minutes
+                info,
+                just_detect=False         # DON'T hang up after answer!
+            )
+            call_duration = time.time() - call_start
+
+            # Process result
+            if result in ('answered_ok', 'answered_short'):
+                mark_used(email_used, status='used')
+                with stats_lock:
+                    stats["answered"] += 1
+                with answered_lock:
+                    answered_phones.append(phone)
+                dur_str = f"{int(call_duration)}s"
+                print(f"  {clr(C.BGREEN, 'ANSWERED')} {phone} via {email_short} ({dur_str}) — call ended naturally")
+
+            elif result == 'declined':
+                with stats_lock:
+                    stats["busy"] += 1
+                print(f"  {clr(C.BYELLOW, 'BUSY')} {phone} <- {email_short}")
+
+            elif result == 'no_answer':
+                with stats_lock:
+                    stats["no_answer"] += 1
+                print(f"  {clr(C.YELLOW, 'NO_ANS')} {phone} <- {email_short}")
+
+            elif result == 'not_found':
+                with stats_lock:
+                    stats["not_found"] += 1
+                print(f"  {clr(C.MAGENTA, 'NOT_FOUND')} {phone} <- {email_short}")
+
+            elif result == 'failed':
+                with stats_lock:
+                    stats["failed"] += 1
+                print(f"  {clr(C.RED, 'FAILED')} {phone} <- {email_short}")
+
+            else:
+                with stats_lock:
+                    stats["failed"] += 1
+                print(f"  {clr(C.RED, 'UNKNOWN')} {phone} <- {email_short}")
+
+            # Print running stats
+            with stats_lock:
+                ans = stats["answered"]
+                na = stats["no_answer"]
+                bs = stats["busy"]
+                fl = stats["failed"]
+                nf = stats["not_found"]
+            print(f"  {clr(C.DIM, f'Stats:')} {clr(C.GREEN, str(ans) + ' Ans')} | {clr(C.YELLOW, str(na) + ' NoA')} | {clr(C.BYELLOW, str(bs) + ' Bsy')} | {clr(C.RED, str(fl) + ' Fail')} | {clr(C.MAGENTA, str(nf) + ' NF')}")
+            print()
+
+            # Wait 2 seconds before next call
+            time.sleep(2)
+
+        if not any_called:
+            # All numbers on cooldown - wait
+            print(f"  {clr(C.CYAN, f'All numbers on cooldown - waiting {CALL_COOLDOWN}s...')}")
+            time.sleep(CALL_COOLDOWN)
+
+        round_num += 1
+
+        # Print round summary
+        _print_seq_stats(start_time, total)
+
+
+def _print_seq_stats(start_time, total):
+    """Print sequential mode statistics."""
+    elapsed = time.time() - start_time
+    with stats_lock:
+        ans = stats["answered"]
+        na = stats["no_answer"]
+        bs = stats["busy"]
+        fl = stats["failed"]
+        nf = stats["not_found"]
+        api_f = stats["api_fail"]
+
+    total_calls = ans + na + bs + fl + nf + api_f
+    mins = int(elapsed // 60)
+    secs = int(elapsed % 60)
+    print()
+    print(f"  {clr(C.BBLUE, '═══ Stats ═══')}")
+    print(f"  Time: {mins}m {secs}s | Total calls: {total_calls}")
+    print(f"  {clr(C.BGREEN, 'Answered:')} {ans} | {clr(C.YELLOW, 'No Answer:')} {na} | {clr(C.BYELLOW, 'Busy:')} {bs}")
+    print(f"  {clr(C.RED, 'Failed:')} {fl} | {clr(C.MAGENTA, 'Not Found:')} {nf} | {clr(C.RED, 'API Fail:')} {api_f}")
+    if total_calls > 0:
+        rate = ans * 100 / total_calls
+        print(f"  {clr(C.BCYAN, f'Answer Rate:')} {rate:.1f}%")
+    print()
+
+
 def run_auto_mode(phones):
     """
     Auto mode: Fixed pool of workers processes all numbers.
@@ -2945,20 +3166,26 @@ def run_auto_mode(phones):
 # ============================================================================
 
 def main():
-    """Fully automatic: python3 fox_caller.py <file.xlsx> [directory]
-    No menus, no prompts — just give it a file and it starts calling.
+    """Usage:
+    python3 fox_caller.py <file.xlsx> [--seq] [directory]
+
+    Modes:
+      (default)  Auto mode: parallel workers, fast calling
+      --seq      Sequential mode: one call at a time, stay in call until it disconnects naturally
     """
     print_banner()
 
-    # --- Step 1: Get file and directory ---
+    # --- Step 1: Parse arguments ---
     directory = os.getcwd()
     selected_file = None
+    seq_mode = False
 
-    # Parse arguments: fox_caller.py [file.xlsx] [directory]
     for arg in sys.argv[1:]:
-        if arg.endswith(('.xlsx', '.txt', '.csv')):
+        if arg == '--seq':
+            seq_mode = True
+        elif arg.endswith(('.xlsx', '.txt', '.csv')):
             selected_file = os.path.abspath(arg)
-        else:
+        elif not arg.startswith('-'):
             directory = os.path.abspath(arg)
 
     # If no file specified, find first .xlsx in directory
@@ -2969,7 +3196,7 @@ def main():
             print(f"  {clr(C.GREEN, 'Auto-selected:')} {os.path.basename(selected_file)}")
         else:
             print(f"  {clr(C.BRED, 'No .xlsx files found!')}")
-            print(f"  Usage: python3 fox_caller.py <file.xlsx> [directory]")
+            print(f"  Usage: python3 fox_caller.py <file.xlsx> [--seq] [directory]")
             sys.exit(1)
     else:
         if not os.path.exists(selected_file):
@@ -2977,8 +3204,10 @@ def main():
             sys.exit(1)
         directory = os.path.dirname(selected_file)
 
+    mode_str = clr(C.BCYAN, 'SEQUENTIAL') if seq_mode else clr(C.BGREEN, 'AUTO (parallel)')
     print(f"  {clr(C.BLUE, 'File:')} {os.path.basename(selected_file)}")
     print(f"  {clr(C.BLUE, 'Directory:')} {directory}")
+    print(f"  {clr(C.BLUE, 'Mode:')} {mode_str}")
     print()
 
     # --- Step 2: Read phone numbers ---
@@ -3006,31 +3235,53 @@ def main():
     # --- Step 3: Load accounts ---
     global accounts
 
-    # Find Dan.json
-    dan_path = None
-    for candidate in ["Dan.json", "dan.json"]:
-        for d in [directory, os.path.join(directory, "upload"), os.path.dirname(os.path.abspath(__file__))]:
-            fp = os.path.join(d, candidate) if d else None
-            if fp and os.path.exists(fp):
-                dan_path = fp
+    if seq_mode:
+        # In seq mode, we don't need Dan.json - accounts are auto-created as needed
+        raw_accounts = []
+        # Still check for Dan.json in case it exists
+        dan_path = None
+        for candidate in ["Dan.json", "dan.json"]:
+            for d in [directory, os.path.join(directory, "upload"), os.path.dirname(os.path.abspath(__file__))]:
+                fp = os.path.join(d, candidate) if d else None
+                if fp and os.path.exists(fp):
+                    dan_path = fp
+                    break
+            if dan_path:
                 break
         if dan_path:
-            break
-
-    raw_accounts = []
-    if dan_path and os.path.exists(dan_path):
-        try:
-            raw_accounts = load_dan_json(dan_path)
-            print(f"  {clr(C.GREEN, 'Accounts loaded:')} {len(raw_accounts)}")
-        except Exception as e:
-            print(f"  {clr(C.BYELLOW, 'Dan.json error:')} {e}")
-            raw_accounts = []
+            try:
+                raw_accounts = load_dan_json(dan_path)
+                print(f"  {clr(C.GREEN, 'Accounts loaded from Dan.json:')} {len(raw_accounts)}")
+            except:
+                raw_accounts = []
+        if not raw_accounts and AUTO_CREATE_ACCOUNTS:
+            print(f"  {clr(C.BYELLOW, 'No Dan.json — will auto-create accounts as needed')}")
     else:
-        if AUTO_CREATE_ACCOUNTS:
-            print(f"  {clr(C.BYELLOW, 'No Dan.json — will auto-create accounts')}")
+        # Auto mode: find Dan.json
+        dan_path = None
+        for candidate in ["Dan.json", "dan.json"]:
+            for d in [directory, os.path.join(directory, "upload"), os.path.dirname(os.path.abspath(__file__))]:
+                fp = os.path.join(d, candidate) if d else None
+                if fp and os.path.exists(fp):
+                    dan_path = fp
+                    break
+            if dan_path:
+                break
+
+        raw_accounts = []
+        if dan_path and os.path.exists(dan_path):
+            try:
+                raw_accounts = load_dan_json(dan_path)
+                print(f"  {clr(C.GREEN, 'Accounts loaded:')} {len(raw_accounts)}")
+            except Exception as e:
+                print(f"  {clr(C.BYELLOW, 'Dan.json error:')} {e}")
+                raw_accounts = []
         else:
-            print(f"  {clr(C.BRED, 'No Dan.json found! Enable AUTO_CREATE_ACCOUNTS.')}")
-            sys.exit(1)
+            if AUTO_CREATE_ACCOUNTS:
+                print(f"  {clr(C.BYELLOW, 'No Dan.json — will auto-create accounts')}")
+            else:
+                print(f"  {clr(C.BRED, 'No Dan.json found! Enable AUTO_CREATE_ACCOUNTS.')}")
+                sys.exit(1)
 
     # --- Step 4: Initialize accounts ---
     print()
@@ -3042,7 +3293,7 @@ def main():
         if new:
             accounts.extend(new)
 
-    if not accounts:
+    if not accounts and not seq_mode:
         print(f"  {clr(C.BRED, 'No accounts available!')}")
         sys.exit(1)
 
@@ -3050,12 +3301,21 @@ def main():
     print(f"  {clr(C.BGREEN, 'Ready accounts:')} {len(accounts)}")
     print()
 
-    # --- Step 5: GO! Auto mode only, no prompts ---
-    print(f"  {clr(C.BGREEN, 'Starting auto calling mode...')}")
-    print(f"  Numbers: {len(phones)} | Accounts: {len(accounts)} | Workers: {NUM_WORKERS}")
-    print()
-
-    run_auto_mode(phones)
+    # --- Step 5: GO! ---
+    if seq_mode:
+        print(f"  {clr(C.BGREEN, 'Starting sequential calling mode...')}")
+        print(f"  Numbers: {len(phones)} | Accounts will be auto-created as needed")
+        print(f"  {clr(C.DIM, 'Each call stays alive until remote hangs up, then next call')}")
+        print()
+        run_sequential_mode(phones)
+    else:
+        if not accounts:
+            print(f"  {clr(C.BRED, 'No accounts available!')}")
+            sys.exit(1)
+        print(f"  {clr(C.BGREEN, 'Starting auto calling mode...')}")
+        print(f"  Numbers: {len(phones)} | Accounts: {len(accounts)} | Workers: {NUM_WORKERS}")
+        print()
+        run_auto_mode(phones)
 
     # Save cache
     print()
