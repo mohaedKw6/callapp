@@ -50,8 +50,8 @@ API_URL = "https://api.telicall.com"
 ACCOUNTS_PASSWORD = "@@@GMAQ@@@"
 CALL_DURATION = 3             # seconds to stay in call after answer (auto mode - just detect, then hang up)
 JUST_DETECT_ANSWER = True     # If True, hang up immediately after detecting answer (auto mode)
-SEQ_CALL_DURATION = 300       # seconds to stay in call in sequential mode (5 min max - call ends naturally before this)
-SEQ_JUST_DETECT = False       # In seq mode: keep call alive until remote hangs up
+SEQ_CALL_DURATION = 62        # seconds to stay in call in sequential mode then hang up and move on
+SEQ_JUST_DETECT = False       # In seq mode: keep call alive for 62s then hang up
 PARALLEL_ACCOUNTS = 4         # Use 4 accounts simultaneously per number
 RINGING_TIMEOUT = 40          # SIP loop iterations (40 * 0.5s = 20s ringing) WAS 140=70s
 MIN_ANSWERED_DURATION = 1     # minimum seconds to count as "answered ok"
@@ -69,7 +69,7 @@ API_TIMEOUT = 5               # seconds for Telicall API start call (was 8!)
 CALL_HISTORY_FILE = "fox_call_history.json"  # tracks last call time per number
 CALL_COOLDOWN = 70            # seconds before re-calling same number
 AUTO_CREATE_ACCOUNTS = True   # auto-create accounts when they run out
-ACCOUNT_CREATE_BATCH = 5      # how many accounts to create at once (small batches for speed)
+ACCOUNT_CREATE_BATCH = 10     # how many accounts to create at once (larger batches for speed)
 SKIP_BALANCE_CHECK = True     # Skip balance check - accounts will be tested with real numbers
 
 # ============================================================================
@@ -1571,31 +1571,40 @@ def auto_create_accounts(directory, count=5, max_retries=3):
             for acc in new_accounts:
                 accounts.append(acc)
 
-            # Quick balance validation (skip detailed progress - just check)
-            valid_new = []
-            dead_new_emails = set()
-            for acc in new_accounts:
-                has_bal, _ = check_account_balance(acc)
-                if has_bal:
-                    valid_new.append(acc)
-                else:
-                    dead_new_emails.add(acc.get('email', ''))
-                    used_emails.add(acc.get('email', ''))
+            # Skip balance check when SKIP_BALANCE_CHECK is True (much faster!)
+            # Accounts will be tested with real numbers - bad ones will die naturally
+            if SKIP_BALANCE_CHECK:
+                valid_new = new_accounts
+                with stats_lock:
+                    stats["auto_created"] += len(valid_new)
+                print(f"  {clr(C.BGREEN, '✓ ' + str(len(valid_new)) + ' accounts created!')} (skip balance check = faster)")
+                print(f"  {clr(C.CYAN, 'Accounts ready:')} {len(valid_new)} | {clr(C.CYAN, 'Total accounts:')} {len(accounts)}")
+            else:
+                # Quick balance validation (skip detailed progress - just check)
+                valid_new = []
+                dead_new_emails = set()
+                for acc in new_accounts:
+                    has_bal, _ = check_account_balance(acc)
+                    if has_bal:
+                        valid_new.append(acc)
+                    else:
+                        dead_new_emails.add(acc.get('email', ''))
+                        used_emails.add(acc.get('email', ''))
 
-            # Remove dead from accounts list
-            if dead_new_emails:
-                accounts[:] = [a for a in accounts if a.get('email', '') not in dead_new_emails]
-                all_new = [a for a in all_new if a.get('email', '') not in dead_new_emails]
+                # Remove dead from accounts list
+                if dead_new_emails:
+                    accounts[:] = [a for a in accounts if a.get('email', '') not in dead_new_emails]
+                    all_new = [a for a in all_new if a.get('email', '') not in dead_new_emails]
+
+                with stats_lock:
+                    stats["auto_created"] += len(valid_new)
+
+                print(f"  {clr(C.BGREEN, '✓ ' + str(len(valid_new)) + ' valid accounts created!')} ({len(dead_new_emails)} had no balance)")
+                print(f"  {clr(C.CYAN, 'Accounts ready:')} {len(valid_new)} | {clr(C.CYAN, 'Total accounts:')} {len(accounts)}")
 
             # Update cache
             cache_dir = getattr(mark_used, 'cache_dir', directory)
             save_accounts_cache(cache_dir, accounts, used_emails, set())
-
-            with stats_lock:
-                stats["auto_created"] += len(valid_new)
-
-            print(f"  {clr(C.BGREEN, '✓ ' + str(len(valid_new)) + ' valid accounts created!')} ({len(dead_new_emails)} had no balance)")
-            print(f"  {clr(C.CYAN, 'Accounts ready:')} {len(valid_new)} | {clr(C.CYAN, 'Total accounts:')} {len(accounts)}")
             
             if valid_new:
                 return valid_new
@@ -2710,14 +2719,14 @@ def auto_account_worker(worker_id, phones, stop_event):
 
 def run_sequential_mode(phones):
     """
-    Sequential mode: Call one number at a time, keep the call ALIVE until it
-    disconnects naturally (remote hangs up or call limit reached), then move to
-    the next number. Loops through all numbers infinitely in rounds.
+    Sequential mode: Call one number at a time, stay in the call for 62 seconds,
+    then hang up and immediately call the next number.
+    Loops through all numbers infinitely in rounds.
 
     Key differences from auto mode:
     - ONE call at a time (no parallel workers)
-    - Call stays alive until remote hangs up (up to SEQ_CALL_DURATION seconds)
-    - After call ends, wait 2 seconds, then call next number
+    - Call stays alive for 62 seconds then we hang up
+    - After call ends, immediately call next number (no delay)
     - Uses fox_call_history.json to avoid re-calling same number within 70s
     - No Dan.json dependency - auto-creates accounts as needed
     """
@@ -2732,9 +2741,9 @@ def run_sequential_mode(phones):
 
     print()
     print(f"  {clr(C.BBLUE, 'Starting Sequential Mode...')}")
-    print(f"  Numbers: {total} | Call stays alive until remote hangs up")
-    print(f"  Max call time: {SEQ_CALL_DURATION}s | Cooldown: {CALL_COOLDOWN}s")
-    print(f"  {clr(C.DIM, 'One call at a time → wait for disconnect → next call')}")
+    print(f"  Numbers: {total} | Call duration: {SEQ_CALL_DURATION}s per call")
+    print(f"  Cooldown: {CALL_COOLDOWN}s | No delay between calls")
+    print(f"  {clr(C.DIM, 'RING → stay 62s → hang up → RING next → repeat')}")
     print()
 
     round_num = 1
@@ -2835,7 +2844,7 @@ def run_sequential_mode(phones):
             call_start = time.time()
             result, from_num = do_single_call(
                 phone,
-                SEQ_CALL_DURATION,       # Stay in call up to 5 minutes
+                SEQ_CALL_DURATION,       # Stay in call 62 seconds
                 info,
                 just_detect=False         # DON'T hang up after answer!
             )
@@ -2849,7 +2858,7 @@ def run_sequential_mode(phones):
                 with answered_lock:
                     answered_phones.append(phone)
                 dur_str = f"{int(call_duration)}s"
-                print(f"  {clr(C.BGREEN, 'ANSWERED')} {phone} via {email_short} ({dur_str}) — call ended naturally")
+                print(f"  {clr(C.BGREEN, 'ANSWERED')} {phone} via {email_short} ({dur_str})")
 
             elif result == 'declined':
                 with stats_lock:
@@ -2886,8 +2895,8 @@ def run_sequential_mode(phones):
             print(f"  {clr(C.DIM, f'Stats:')} {clr(C.GREEN, str(ans) + ' Ans')} | {clr(C.YELLOW, str(na) + ' NoA')} | {clr(C.BYELLOW, str(bs) + ' Bsy')} | {clr(C.RED, str(fl) + ' Fail')} | {clr(C.MAGENTA, str(nf) + ' NF')}")
             print()
 
-            # Wait 2 seconds before next call
-            time.sleep(2)
+            # No delay - immediately call next number
+            # (call already lasted 62s, no need to wait)
 
         if not any_called:
             # All numbers on cooldown - wait
@@ -3304,8 +3313,8 @@ def main():
     # --- Step 5: GO! ---
     if seq_mode:
         print(f"  {clr(C.BGREEN, 'Starting sequential calling mode...')}")
-        print(f"  Numbers: {len(phones)} | Accounts will be auto-created as needed")
-        print(f"  {clr(C.DIM, 'Each call stays alive until remote hangs up, then next call')}")
+        print(f"  Numbers: {len(phones)} | Call duration: {SEQ_CALL_DURATION}s per call")
+        print(f"  {clr(C.DIM, 'RING → stay 62s → hang up → RING next → repeat')}")
         print()
         run_sequential_mode(phones)
     else:
