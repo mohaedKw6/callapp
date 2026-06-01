@@ -50,15 +50,15 @@ API_URL = "https://api.telicall.com"
 ACCOUNTS_PASSWORD = "@@@GMAQ@@@"
 CALL_DURATION = 3             # seconds to stay in call after answer (auto mode - just detect, then hang up)
 JUST_DETECT_ANSWER = True     # If True, hang up immediately after detecting answer (auto mode)
-SEQ_CALL_DURATION = 62        # seconds to stay in call in sequential mode then hang up and move on
-SEQ_JUST_DETECT = False       # In seq mode: keep call alive for 62s then hang up
+SEQ_CALL_DURATION = 65       # seconds to stay in call in sequential mode (5 min max - call ends naturally before this)
+SEQ_JUST_DETECT = False       # In seq mode: keep call alive until remote hangs up
 PARALLEL_ACCOUNTS = 4         # Use 4 accounts simultaneously per number
 RINGING_TIMEOUT = 40          # SIP loop iterations (40 * 0.5s = 20s ringing) WAS 140=70s
 MIN_ANSWERED_DURATION = 1     # minimum seconds to count as "answered ok"
 INSTANT_BYE_CHECKS = 3        # checks for instant BYE after answer (3 * 0.2s = 0.6s)
 MAX_RETRIES_PER_NUMBER = 10   # max account attempts for the same number (auto mode)
 SINGLE_MAX_RETRIES = 50       # max account attempts for single mode
-MAX_CONCURRENT_CALLS = 300    # max parallel calls in auto mode
+MAX_CONCURRENT_CALLS = 65    # max parallel calls in auto mode
 INIT_BATCH_SIZE = 20          # how many accounts to init in parallel
 CACHE_FILENAME = "fox_accounts_cache.json"  # cache file for ready accounts
 NUM_WORKERS = 50              # number of persistent worker threads
@@ -67,9 +67,10 @@ RECV_TIMEOUT = 4              # seconds for SIP REGISTER/INVITE recv (was 10!)
 MAX_CALL_TIME = 30            # overall max seconds for a SIP call attempt (new!)
 API_TIMEOUT = 5               # seconds for Telicall API start call (was 8!)
 CALL_HISTORY_FILE = "fox_call_history.json"  # tracks last call time per number
-CALL_COOLDOWN = 70            # seconds before re-calling same number
+CALL_COOLDOWN = 5            # seconds before re-calling same number
+
 AUTO_CREATE_ACCOUNTS = True   # auto-create accounts when they run out
-ACCOUNT_CREATE_BATCH = 15     # how many accounts to create at once (larger batches for speed)
+ACCOUNT_CREATE_BATCH = 5      # how many accounts to create at once (small batches for speed)
 SKIP_BALANCE_CHECK = True     # Skip balance check - accounts will be tested with real numbers
 
 # ============================================================================
@@ -1571,40 +1572,31 @@ def auto_create_accounts(directory, count=5, max_retries=3):
             for acc in new_accounts:
                 accounts.append(acc)
 
-            # Skip balance check when SKIP_BALANCE_CHECK is True (much faster!)
-            # Accounts will be tested with real numbers - bad ones will die naturally
-            if SKIP_BALANCE_CHECK:
-                valid_new = new_accounts
-                with stats_lock:
-                    stats["auto_created"] += len(valid_new)
-                print(f"  {clr(C.BGREEN, '✓ ' + str(len(valid_new)) + ' accounts created!')} (skip balance check = faster)")
-                print(f"  {clr(C.CYAN, 'Accounts ready:')} {len(valid_new)} | {clr(C.CYAN, 'Total accounts:')} {len(accounts)}")
-            else:
-                # Quick balance validation (skip detailed progress - just check)
-                valid_new = []
-                dead_new_emails = set()
-                for acc in new_accounts:
-                    has_bal, _ = check_account_balance(acc)
-                    if has_bal:
-                        valid_new.append(acc)
-                    else:
-                        dead_new_emails.add(acc.get('email', ''))
-                        used_emails.add(acc.get('email', ''))
+            # Quick balance validation (skip detailed progress - just check)
+            valid_new = []
+            dead_new_emails = set()
+            for acc in new_accounts:
+                has_bal, _ = check_account_balance(acc)
+                if has_bal:
+                    valid_new.append(acc)
+                else:
+                    dead_new_emails.add(acc.get('email', ''))
+                    used_emails.add(acc.get('email', ''))
 
-                # Remove dead from accounts list
-                if dead_new_emails:
-                    accounts[:] = [a for a in accounts if a.get('email', '') not in dead_new_emails]
-                    all_new = [a for a in all_new if a.get('email', '') not in dead_new_emails]
-
-                with stats_lock:
-                    stats["auto_created"] += len(valid_new)
-
-                print(f"  {clr(C.BGREEN, '✓ ' + str(len(valid_new)) + ' valid accounts created!')} ({len(dead_new_emails)} had no balance)")
-                print(f"  {clr(C.CYAN, 'Accounts ready:')} {len(valid_new)} | {clr(C.CYAN, 'Total accounts:')} {len(accounts)}")
+            # Remove dead from accounts list
+            if dead_new_emails:
+                accounts[:] = [a for a in accounts if a.get('email', '') not in dead_new_emails]
+                all_new = [a for a in all_new if a.get('email', '') not in dead_new_emails]
 
             # Update cache
             cache_dir = getattr(mark_used, 'cache_dir', directory)
             save_accounts_cache(cache_dir, accounts, used_emails, set())
+
+            with stats_lock:
+                stats["auto_created"] += len(valid_new)
+
+            print(f"  {clr(C.BGREEN, '✓ ' + str(len(valid_new)) + ' valid accounts created!')} ({len(dead_new_emails)} had no balance)")
+            print(f"  {clr(C.CYAN, 'Accounts ready:')} {len(valid_new)} | {clr(C.CYAN, 'Total accounts:')} {len(accounts)}")
             
             if valid_new:
                 return valid_new
@@ -2717,17 +2709,16 @@ def auto_account_worker(worker_id, phones, stop_event):
     return
 
 
-def run_sequential_mode(phones, num_workers=3):
+def run_sequential_mode(phones):
     """
-    Concurrent Sequential mode: N workers call numbers simultaneously.
-    Each answered call stays alive for 62 seconds (after the person answers),
-    then hangs up and immediately calls the next available number.
-    Loops through all numbers infinitely in rounds.
+    Sequential mode: Call one number at a time, keep the call ALIVE until it
+    disconnects naturally (remote hangs up or call limit reached), then move to
+    the next number. Loops through all numbers infinitely in rounds.
 
     Key differences from auto mode:
-    - N concurrent calls (configurable via --workers, default 3)
-    - Call stays alive for 62 seconds AFTER ANSWER then we hang up
-    - After call ends, worker immediately calls next available number
+    - ONE call at a time (no parallel workers)
+    - Call stays alive until remote hangs up (up to SEQ_CALL_DURATION seconds)
+    - After call ends, wait 2 seconds, then call next number
     - Uses fox_call_history.json to avoid re-calling same number within 70s
     - No Dan.json dependency - auto-creates accounts as needed
     """
@@ -2741,104 +2732,53 @@ def run_sequential_mode(phones, num_workers=3):
         stats["total_numbers"] = total
 
     print()
-    print(f"  {clr(C.BBLUE, 'Starting Concurrent Sequential Mode...')}")
-    print(f"  Numbers: {total} | Workers: {num_workers} | Call duration: {SEQ_CALL_DURATION}s after answer")
-    print(f"  Cooldown: {CALL_COOLDOWN}s | No delay between calls")
-    print(f"  {clr(C.DIM, f'{num_workers}x RING -> answer -> stay 62s -> hang up -> RING next -> repeat')}")
+    print(f"  {clr(C.BBLUE, 'Starting Sequential Mode...')}")
+    print(f"  Numbers: {total} | Call stays alive until remote hangs up")
+    print(f"  Max call time: {SEQ_CALL_DURATION}s | Cooldown: {CALL_COOLDOWN}s")
+    print(f"  {clr(C.DIM, 'One call at a time → wait for disconnect → next call')}")
     print()
 
-    # Shared number queue
-    phone_queue = deque(list(phones))
-    random.shuffle(phone_queue)
-    queue_lock = threading.Lock()
-    refill_lock = threading.Lock()
+    round_num = 1
+    consecutive_403 = 0
+    MAX_CONSECUTIVE_403 = 30  # Stop if 30 consecutive 403s (region block)
 
-    # Shared 403 tracking
-    consecutive_403 = [0]
-    c403_lock = threading.Lock()
-    MAX_CONSECUTIVE_403 = 30
+    while True:
+        print(f"  {clr(C.BCYAN, f'--- Round {round_num} ---')}")
+        shuffled = list(phones)
+        random.shuffle(shuffled)
 
-    # Stop flag
-    stop_flag = [False]
+        any_called = False
 
-    # Round tracking
-    round_num = [1]
-
-    def get_next_phone():
-        """Get next available phone from queue (not on cooldown)."""
-        with queue_lock:
+        for idx, phone in enumerate(shuffled):
+            # Check cooldown
             history = load_call_history(directory)
-            tried = 0
-            total_in_q = len(phone_queue)
-            while tried < total_in_q:
-                phone = phone_queue.popleft()
-                if is_number_cooled(phone, history):
-                    return phone
-                else:
-                    phone_queue.append(phone)
-                    tried += 1
-            return None  # All on cooldown or queue empty
+            if not is_number_cooled(phone, history):
+                remaining = int(CALL_COOLDOWN - (time.time() - history.get(phone.lstrip('+'), 0)))
+                if remaining > 0:
+                    continue  # Skip this number, still on cooldown
 
-    def refill_queue():
-        """Refill queue with all numbers (shuffled) for new round."""
-        with refill_lock:
-            with queue_lock:
-                phone_queue.clear()
-                shuffled = list(phones)
-                random.shuffle(shuffled)
-                phone_queue.extend(shuffled)
-            round_num[0] += 1
-            print(f"  {clr(C.BCYAN, f'--- Round {round_num[0]} ---')}")
-
-    def worker(worker_id):
-        """Worker thread - makes calls one at a time, stays 62s per answered call."""
-        while not stop_flag[0]:
-            # Get next phone number
-            phone = get_next_phone()
-            if phone is None:
-                # All on cooldown or queue empty
-                # Check if ALL numbers are on cooldown
-                history = load_call_history(directory)
-                all_cooled = all(not is_number_cooled(p, history) for p in phones)
-                if all_cooled:
-                    # Find minimum wait time
-                    min_wait = CALL_COOLDOWN
-                    for p in phones:
-                        key = p.lstrip('+')
-                        last = history.get(key, 0)
-                        wait = CALL_COOLDOWN - (time.time() - last)
-                        if wait < min_wait:
-                            min_wait = wait
-                    wait_time = max(int(min_wait) + 1, 2)
-                    print(f"  {clr(C.CYAN, f'[W{worker_id}] All numbers on cooldown - waiting {wait_time}s...')}")
-                    time.sleep(wait_time)
-                # Refill queue for next round
-                refill_queue()
-                continue
-
-            # Get an account
+            # Make sure we have an account
             acc = get_next_account()
             if acc is None:
                 if AUTO_CREATE_ACCOUNTS:
-                    print(f"  {clr(C.BYELLOW, f'[W{worker_id}] No accounts - auto-creating...')}")
+                    print(f"  {clr(C.BYELLOW, 'No accounts - auto-creating...')}")
                     new = auto_create_accounts(directory, ACCOUNT_CREATE_BATCH, max_retries=3)
                     if new:
-                        with account_lock:
-                            accounts.extend(new)
-                            account_index = len(accounts) - len(new)
+                        accounts.extend(new)
+                        account_index = len(accounts) - len(new)
                         acc = get_next_account()
                     else:
-                        print(f"  {clr(C.BRED, f'[W{worker_id}] Failed to create accounts!')}")
-                        stop_flag[0] = True
-                        return
+                        print(f"  {clr(C.BRED, 'Failed to create accounts!')}")
+                        break
                 if acc is None:
-                    print(f"  {clr(C.BRED, f'[W{worker_id}] No accounts available!')}")
-                    stop_flag[0] = True
-                    return
+                    print(f"  {clr(C.BRED, 'No accounts available!')}")
+                    break
 
             email = acc.get('email', '???')
             email_short = email[:20]
             phone_short = phone[-7:] if len(phone) > 7 else phone
+
+            any_called = True
 
             # Record call attempt
             record_call_attempt(directory, phone)
@@ -2856,55 +2796,49 @@ def run_sequential_mode(phones, num_workers=3):
                     err_detail = 'timeout'
 
                 if err_detail == 'call_403':
-                    with c403_lock:
-                        consecutive_403[0] += 1
-                        if consecutive_403[0] >= MAX_CONSECUTIVE_403:
-                            print(f"  {clr(C.BRED, f'{MAX_CONSECUTIVE_403} consecutive 403s - region blocked! Stopping.')}")
-                            stop_flag[0] = True
-                            return
+                    consecutive_403 += 1
                     with stats_lock:
                         stats["failed"] += 1
-                    print(f"  {clr(C.RED, f'[W{worker_id}] BLOCKED')} {phone} (403) <- {email_short}")
+                    print(f"  {clr(C.RED, 'BLOCKED')} {phone} (403) <- {email_short}")
+                    if consecutive_403 >= MAX_CONSECUTIVE_403:
+                        print(f"  {clr(C.BRED, f'{MAX_CONSECUTIVE_403} consecutive 403s - region blocked! Stopping.')}")
+                        # Print final stats
+                        _print_seq_stats(start_time, total)
+                        return
                     continue
 
                 elif err_detail == 'call_404':
-                    with c403_lock:
-                        consecutive_403[0] = 0
                     with stats_lock:
                         stats["not_found"] += 1
-                    print(f"  {clr(C.MAGENTA, f'[W{worker_id}] NOT_FOUND')} {phone} <- {email_short}")
+                    print(f"  {clr(C.MAGENTA, 'NOT_FOUND')} {phone} <- {email_short}")
                     continue
 
                 elif err_detail == 'no_balance':
                     mark_used(email_used, status='dead')
-                    with c403_lock:
-                        consecutive_403[0] = 0
                     with stats_lock:
                         stats["api_fail"] += 1
-                    print(f"  {clr(C.RED, f'[W{worker_id}] NO_BAL')} {phone} <- {email_short}")
+                    print(f"  {clr(C.RED, 'NO_BAL')} {phone} <- {email_short}")
+                    # Re-queue number for next attempt
                     continue
 
                 else:
-                    with c403_lock:
-                        consecutive_403[0] = 0
                     with stats_lock:
                         stats["api_fail"] += 1
-                    print(f"  {clr(C.RED, f'[W{worker_id}] API_ERR')} {phone} ({err_detail}) <- {email_short}")
+                    print(f"  {clr(C.RED, 'API_ERR')} {phone} ({err_detail}) <- {email_short}")
                     continue
 
             # Reset 403 counter on successful API call
-            with c403_lock:
-                consecutive_403[0] = 0
+            consecutive_403 = 0
 
-            # Execute the SIP call - KEEP IT ALIVE for 62s after answer!
-            print(f"  {clr(C.CYAN, f'[W{worker_id}] RING')} {phone} <- {email_short}")
+            # Execute the SIP call - KEEP IT ALIVE!
+            print(f"  {clr(C.CYAN, 'RING')} {phone} <- {email_short}")
 
             call_start = time.time()
             result, from_num = do_single_call(
                 phone,
-                SEQ_CALL_DURATION,       # Stay in call 62 seconds AFTER answer
+                SEQ_CALL_DURATION,       # Stay in call up to 5 minutes
                 info,
-                just_detect=False         # DON'T hang up after answer - stay 62s!
+                just_detect=False         # DON'T hang up after answer!
             )
             call_duration = time.time() - call_start
 
@@ -2916,32 +2850,32 @@ def run_sequential_mode(phones, num_workers=3):
                 with answered_lock:
                     answered_phones.append(phone)
                 dur_str = f"{int(call_duration)}s"
-                print(f"  {clr(C.BGREEN, f'[W{worker_id}] ANSWERED')} {phone} via {email_short} ({dur_str})")
+                print(f"  {clr(C.BGREEN, 'ANSWERED')} {phone} via {email_short} ({dur_str}) — call ended naturally")
 
             elif result == 'declined':
                 with stats_lock:
                     stats["busy"] += 1
-                print(f"  {clr(C.BYELLOW, f'[W{worker_id}] BUSY')} {phone} <- {email_short}")
+                print(f"  {clr(C.BYELLOW, 'BUSY')} {phone} <- {email_short}")
 
             elif result == 'no_answer':
                 with stats_lock:
                     stats["no_answer"] += 1
-                print(f"  {clr(C.YELLOW, f'[W{worker_id}] NO_ANS')} {phone} <- {email_short}")
+                print(f"  {clr(C.YELLOW, 'NO_ANS')} {phone} <- {email_short}")
 
             elif result == 'not_found':
                 with stats_lock:
                     stats["not_found"] += 1
-                print(f"  {clr(C.MAGENTA, f'[W{worker_id}] NOT_FOUND')} {phone} <- {email_short}")
+                print(f"  {clr(C.MAGENTA, 'NOT_FOUND')} {phone} <- {email_short}")
 
             elif result == 'failed':
                 with stats_lock:
                     stats["failed"] += 1
-                print(f"  {clr(C.RED, f'[W{worker_id}] FAILED')} {phone} <- {email_short}")
+                print(f"  {clr(C.RED, 'FAILED')} {phone} <- {email_short}")
 
             else:
                 with stats_lock:
                     stats["failed"] += 1
-                print(f"  {clr(C.RED, f'[W{worker_id}] UNKNOWN')} {phone} <- {email_short}")
+                print(f"  {clr(C.RED, 'UNKNOWN')} {phone} <- {email_short}")
 
             # Print running stats
             with stats_lock:
@@ -2950,39 +2884,21 @@ def run_sequential_mode(phones, num_workers=3):
                 bs = stats["busy"]
                 fl = stats["failed"]
                 nf = stats["not_found"]
-            print(f"  {clr(C.DIM, f'[W{worker_id}] Stats:')} {clr(C.GREEN, str(ans) + ' Ans')} | {clr(C.YELLOW, str(na) + ' NoA')} | {clr(C.BYELLOW, str(bs) + ' Bsy')} | {clr(C.RED, str(fl) + ' Fail')} | {clr(C.MAGENTA, str(nf) + ' NF')}")
+            print(f"  {clr(C.DIM, f'Stats:')} {clr(C.GREEN, str(ans) + ' Ans')} | {clr(C.YELLOW, str(na) + ' NoA')} | {clr(C.BYELLOW, str(bs) + ' Bsy')} | {clr(C.RED, str(fl) + ' Fail')} | {clr(C.MAGENTA, str(nf) + ' NF')}")
             print()
 
-            # No delay - immediately call next number
-            # (answered calls already lasted 62s, no need to wait)
+            # Wait 2 seconds before next call
+            time.sleep(2)
 
-    # Launch worker threads
-    print(f"  {clr(C.BCYAN, f'Launching {num_workers} workers...')}")
-    print()
-    threads = []
-    for i in range(num_workers):
-        t = threading.Thread(target=worker, args=(i + 1,), daemon=True)
-        t.start()
-        threads.append(t)
-        time.sleep(0.3)  # Stagger workers slightly to avoid API burst
+        if not any_called:
+            # All numbers on cooldown - wait
+            print(f"  {clr(C.CYAN, f'All numbers on cooldown - waiting {CALL_COOLDOWN}s...')}")
+            time.sleep(CALL_COOLDOWN)
 
-    # Monitor loop - print stats periodically
-    last_stats_time = time.time()
-    while not stop_flag[0]:
-        if all(not t.is_alive() for t in threads):
-            break
-        # Print stats every 30 seconds
-        if time.time() - last_stats_time >= 30:
-            _print_seq_stats(start_time, total)
-            last_stats_time = time.time()
-        time.sleep(1)
+        round_num += 1
 
-    # Wait for workers to finish
-    for t in threads:
-        t.join(timeout=5)
-
-    # Final stats
-    _print_seq_stats(start_time, total)
+        # Print round summary
+        _print_seq_stats(start_time, total)
 
 
 def _print_seq_stats(start_time, total):
@@ -3252,12 +3168,11 @@ def run_auto_mode(phones):
 
 def main():
     """Usage:
-    python3 fox_caller.py <file.xlsx> [--seq] [--workers N] [directory]
+    python3 fox_caller.py <file.xlsx> [--seq] [directory]
 
     Modes:
       (default)  Auto mode: parallel workers, fast calling
-      --seq      Concurrent sequential mode: N workers, stay 62s per answered call
-      --workers  Number of concurrent workers in seq mode (default: 3)
+      --seq      Sequential mode: one call at a time, stay in call until it disconnects naturally
     """
     print_banner()
 
@@ -3265,24 +3180,14 @@ def main():
     directory = os.getcwd()
     selected_file = None
     seq_mode = False
-    num_workers = 3
 
-    argv = sys.argv[1:]
-    i = 0
-    while i < len(argv):
-        arg = argv[i]
+    for arg in sys.argv[1:]:
         if arg == '--seq':
             seq_mode = True
-        elif arg == '--workers':
-            if i + 1 < len(argv) and argv[i + 1].isdigit():
-                num_workers = int(argv[i + 1])
-                num_workers = max(1, min(num_workers, 20))  # Clamp 1-20
-                i += 1
         elif arg.endswith(('.xlsx', '.txt', '.csv')):
             selected_file = os.path.abspath(arg)
         elif not arg.startswith('-'):
             directory = os.path.abspath(arg)
-        i += 1
 
     # If no file specified, find first .xlsx in directory
     if not selected_file:
@@ -3300,7 +3205,7 @@ def main():
             sys.exit(1)
         directory = os.path.dirname(selected_file)
 
-    mode_str = clr(C.BCYAN, f'SEQUENTIAL ({num_workers} workers)') if seq_mode else clr(C.BGREEN, 'AUTO (parallel)')
+    mode_str = clr(C.BCYAN, 'SEQUENTIAL') if seq_mode else clr(C.BGREEN, 'AUTO (parallel)')
     print(f"  {clr(C.BLUE, 'File:')} {os.path.basename(selected_file)}")
     print(f"  {clr(C.BLUE, 'Directory:')} {directory}")
     print(f"  {clr(C.BLUE, 'Mode:')} {mode_str}")
@@ -3399,11 +3304,11 @@ def main():
 
     # --- Step 5: GO! ---
     if seq_mode:
-        print(f"  {clr(C.BGREEN, 'Starting concurrent sequential calling mode...')}")
-        print(f"  Numbers: {len(phones)} | Workers: {num_workers} | Call duration: {SEQ_CALL_DURATION}s after answer")
-        print(f"  {clr(C.DIM, f'{num_workers}x RING -> answer -> stay 62s -> hang up -> RING next -> repeat')}")
+        print(f"  {clr(C.BGREEN, 'Starting sequential calling mode...')}")
+        print(f"  Numbers: {len(phones)} | Accounts will be auto-created as needed")
+        print(f"  {clr(C.DIM, 'Each call stays alive until remote hangs up, then next call')}")
         print()
-        run_sequential_mode(phones, num_workers=num_workers)
+        run_sequential_mode(phones)
     else:
         if not accounts:
             print(f"  {clr(C.BRED, 'No accounts available!')}")

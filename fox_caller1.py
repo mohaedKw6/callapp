@@ -50,8 +50,8 @@ NUM_WORKERS = 3                                   # Concurrent workers
 MAX_CONSECUTIVE_403 = 30                          # Stop after this many SIP 403s
 HISTORY_FILE = "fox_call_history.json"
 REPORT_TO_SERVER = True                           # Report results to server for tracking/bot
-REFRESH_TOKENS = True            # Refresh tokens via /init before calling (CRITICAL for avoiding SIP 403)
-DEBUG_SIP = True                # Print detailed SIP responses for debugging
+REFRESH_TOKENS = False           # Don't refresh tokens - the original fox_caller.py doesn't do this and it works
+DEBUG_SIP = False                # Reduce noise in output
 
 # SIP Configuration
 SIP_CONNECT_TIMEOUT = 10
@@ -191,48 +191,11 @@ def update_history_with_result(directory, phone, result, duration=0):
 #                     TELICALL API (Account Creation + Call Start)
 # ============================================================================
 
-# Egyptian IP ranges for x-real-ip header
-_EG_RANGES = [
-    (41, 32), (41, 33), (41, 34), (41, 35), (41, 36),
-    (41, 37), (41, 38), (41, 39), (41, 40), (41, 41),
-    (41, 42), (41, 43), (41, 44), (41, 45), (41, 46),
-    (41, 47), (41, 48), (41, 49), (41, 50), (41, 51),
-    (41, 52), (41, 53), (41, 54), (41, 55), (41, 56),
-    (41, 57), (41, 58), (41, 59), (41, 60), (41, 61),
-    (156, 192), (156, 193), (156, 194), (156, 195),
-    (156, 196), (156, 197), (156, 198), (156, 199),
-    (156, 200), (156, 201), (156, 202), (156, 203),
-    (197, 32), (197, 33), (197, 34), (197, 35),
-    (197, 36), (197, 37), (197, 38), (197, 39),
-    (197, 40), (197, 41), (197, 42), (197, 43),
-]
-
-_ip_lock = threading.Lock()
-_used_ips = set()
-
-def rand_eg_ip():
-    """Generate a random Egyptian IP for x-real-ip header."""
-    with _ip_lock:
-        for _ in range(50):
-            a, b = random.choice(_EG_RANGES)
-            c = random.randint(1, 254)
-            d = random.randint(1, 254)
-            ip = f"{a}.{b}.{c}.{d}"
-            if ip not in _used_ips:
-                _used_ips.add(ip)
-                return ip
-        _used_ips.clear()
-        a, b = random.choice(_EG_RANGES)
-        c = random.randint(1, 254)
-        d = random.randint(1, 254)
-        return f"{a}.{b}.{c}.{d}"
-
-
-def get_telicall_headers(token=None, device_id=None):
-    """Get Telicall API headers with Egyptian IP spoofing."""
+def get_headers(token=None, device_id=None):
+    """Build Telicall API request headers - EXACT SAME as original fox_caller.py.
+    NO x-real-ip, NO x-currency - those break the API and cause SIP_403!"""
     if not device_id:
         device_id = ''.join(random.choices('0123456789abcdef', k=16))
-    eg_ip = rand_eg_ip()
     return {
         "host": "api.telicall.com",
         "x-request-id": str(uuid.uuid4()),
@@ -245,9 +208,7 @@ def get_telicall_headers(token=None, device_id=None):
         "x-req-timestamp": str(int(time.time() * 1000)),
         "x-req-signature": "-1",
         "content-type": "application/json",
-        "x-token": token or "",
-        "x-currency": "EGP",
-        "x-real-ip": eg_ip,
+        "x-token": token or ""
     }
 
 
@@ -255,7 +216,7 @@ def telicall_start_call(phone, call_token, call_device_id):
     """Start a call via Telicall API and return SIP credentials."""
     if not phone.startswith('+'):
         phone = '+' + phone
-    headers = get_telicall_headers(token=call_token, device_id=call_device_id)
+    headers = get_headers(token=call_token, device_id=call_device_id)
     try:
         r = requests.post(
             f"{API_URL}/call/outbound/start",
@@ -370,10 +331,11 @@ def get_otp_from_mail(jwt):
     return None
 
 
-def init_session_with_ip():
-    ip = rand_eg_ip()
-    device = ''.join(random.choices('0123456789abcdef', k=16))
-    h = get_telicall_headers(device_id=device)
+def init_session(device_id=None):
+    """Call POST /init to get a session token - matches original fox_caller.py."""
+    if not device_id:
+        device_id = ''.join(random.choices('0123456789abcdef', k=16))
+    h = get_headers(device_id=device_id)
     h["x-token"] = ""
     body = {
         "countryCode": "eg", "deviceName": "Infinix X698",
@@ -382,31 +344,27 @@ def init_session_with_ip():
         "timeZone": "Africa/Cairo", "localizationKey": ""
     }
     try:
-        h["x-request-id"] = str(uuid.uuid4())
-        h["x-req-timestamp"] = str(int(time.time() * 1000))
         r = requests.post(f"{API_URL}/init", json=body, headers=h, timeout=10)
         if r.status_code == 200:
             tok = r.json().get('result', {}).get('token')
             if tok:
                 h["x-token"] = tok
-                return tok, device, h
+                return tok, device_id, h
             else:
-                print(f"    {clr(C.RED, 'init [' + ip + ']: no token')}", flush=True)
+                print(f"    {clr(C.RED, 'init: no token')}", flush=True)
         else:
-            print(f"    {clr(C.RED, 'init [' + ip + ']: HTTP ' + str(r.status_code))}", flush=True)
+            print(f"    {clr(C.RED, 'init: HTTP ' + str(r.status_code))}", flush=True)
     except Exception as e:
-        print(f"    {clr(C.RED, 'init [' + ip + ']: ' + str(e)[:50])}", flush=True)
+        print(f"    {clr(C.RED, 'init: ' + str(e)[:50])}", flush=True)
     return None, None, None
 
 
 def send_verify_email(email, headers_or_token, device_id=None):
     if isinstance(headers_or_token, dict):
         h = headers_or_token.copy()
-        h["x-request-id"] = str(uuid.uuid4())
-        h["x-req-timestamp"] = str(int(time.time() * 1000))
     else:
         device_id = device_id or ''.join(random.choices('0123456789abcdef', k=16))
-        h = get_telicall_headers(token=headers_or_token, device_id=device_id)
+        h = get_headers(token=headers_or_token, device_id=device_id)
     try:
         r = requests.post(f"{API_URL}/auth/send-email", json={'email': email}, headers=h, timeout=10)
         if r.status_code == 200:
@@ -421,11 +379,9 @@ def send_verify_email(email, headers_or_token, device_id=None):
 def verify_otp_code(ref, code, headers_or_token, device_id=None):
     if isinstance(headers_or_token, dict):
         h = headers_or_token.copy()
-        h["x-request-id"] = str(uuid.uuid4())
-        h["x-req-timestamp"] = str(int(time.time() * 1000))
     else:
         device_id = device_id or ''.join(random.choices('0123456789abcdef', k=16))
-        h = get_telicall_headers(token=headers_or_token, device_id=device_id)
+        h = get_headers(token=headers_or_token, device_id=device_id)
     try:
         r = requests.post(f"{API_URL}/auth/verify-identity",
                           json={'reference': ref, 'code': str(code)},
@@ -445,7 +401,7 @@ def create_one_account_fast():
     if not mail:
         return None
 
-    tok, device, headers = init_session_with_ip()
+    tok, device, headers = init_session()
     if not tok:
         return None
 
@@ -564,25 +520,21 @@ def _save_to_dan(directory, new_accounts):
 
 def refresh_account_token(acc):
     """Refresh an account's token by calling POST /init with the same device_id.
-    This is CRITICAL - old tokens from Dan.json are often expired and cause SIP 403."""
+    Uses the SAME get_headers() as original fox_caller.py - no IP spoofing!"""
     if not REFRESH_TOKENS:
         return acc
     device_id = acc.get('x-client-device-id', '')
     if not device_id:
         return acc
     try:
-        ip = rand_eg_ip()
-        h = get_telicall_headers(device_id=device_id)
+        h = get_headers(device_id=device_id)
         h["x-token"] = ""
-        h["x-real-ip"] = ip
         body = {
             "countryCode": "eg", "deviceName": "Infinix X698",
             "notificationToken": "", "oldToken": "",
             "peerKey": str(random.randint(100, 999)),
             "timeZone": "Africa/Cairo", "localizationKey": ""
         }
-        h["x-request-id"] = str(uuid.uuid4())
-        h["x-req-timestamp"] = str(int(time.time() * 1000))
         r = requests.post(f"{API_URL}/init", json=body, headers=h, timeout=10)
         if r.status_code == 200:
             tok = r.json().get('result', {}).get('token')
