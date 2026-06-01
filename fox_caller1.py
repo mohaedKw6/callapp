@@ -50,6 +50,8 @@ NUM_WORKERS = 3                                   # Concurrent workers
 MAX_CONSECUTIVE_403 = 30                          # Stop after this many SIP 403s
 HISTORY_FILE = "fox_call_history.json"
 REPORT_TO_SERVER = True                           # Report results to server for tracking/bot
+REFRESH_TOKENS = True            # Refresh tokens via /init before calling (CRITICAL for avoiding SIP 403)
+DEBUG_SIP = True                # Print detailed SIP responses for debugging
 
 # SIP Configuration
 SIP_CONNECT_TIMEOUT = 10
@@ -264,6 +266,8 @@ def telicall_start_call(phone, call_token, call_device_id):
         if r.status_code == 200 and r.json().get('result'):
             sip = r.json()['result'].get('sip', {})
             from_num = r.json()['result'].get('from', {}).get('msisdn', '')
+            if DEBUG_SIP:
+                print(f"    [API] SIP creds: domain={sip.get('domain')} port={sip.get('port')} proto={sip.get('protocol')} from={from_num}", flush=True)
             return {
                 'user': sip.get('username'),
                 'pass': sip.get('password'),
@@ -279,14 +283,24 @@ def telicall_start_call(phone, call_token, call_device_id):
             err_text = r.text.lower()
             if 'balance' in err_text:
                 return 'no_balance'
+            if DEBUG_SIP:
+                print(f"    [API] 400: {r.text[:100]}", flush=True)
             return {'error': 'call_400'}
         elif r.status_code == 404:
+            if DEBUG_SIP:
+                print(f"    [API] 404: number not found", flush=True)
             return {'error': 'call_404'}
         elif r.status_code == 403:
+            if DEBUG_SIP:
+                print(f"    [API] 403: {r.text[:100]}", flush=True)
             return {'error': 'call_403'}
         else:
+            if DEBUG_SIP:
+                print(f"    [API] HTTP {r.status_code}: {r.text[:100]}", flush=True)
             return {'error': f'call_{r.status_code}'}
     except Exception as e:
+        if DEBUG_SIP:
+            print(f"    [API] Exception: {str(e)[:60]}", flush=True)
         return None
 
 
@@ -548,8 +562,41 @@ def _save_to_dan(directory, new_accounts):
 #                       ACCOUNT MANAGEMENT
 # ============================================================================
 
+def refresh_account_token(acc):
+    """Refresh an account's token by calling POST /init with the same device_id.
+    This is CRITICAL - old tokens from Dan.json are often expired and cause SIP 403."""
+    if not REFRESH_TOKENS:
+        return acc
+    device_id = acc.get('x-client-device-id', '')
+    if not device_id:
+        return acc
+    try:
+        ip = rand_eg_ip()
+        h = get_telicall_headers(device_id=device_id)
+        h["x-token"] = ""
+        h["x-real-ip"] = ip
+        body = {
+            "countryCode": "eg", "deviceName": "Infinix X698",
+            "notificationToken": "", "oldToken": "",
+            "peerKey": str(random.randint(100, 999)),
+            "timeZone": "Africa/Cairo", "localizationKey": ""
+        }
+        h["x-request-id"] = str(uuid.uuid4())
+        h["x-req-timestamp"] = str(int(time.time() * 1000))
+        r = requests.post(f"{API_URL}/init", json=body, headers=h, timeout=10)
+        if r.status_code == 200:
+            tok = r.json().get('result', {}).get('token')
+            if tok:
+                acc['x-token'] = tok
+                return acc
+    except Exception as e:
+        if DEBUG_SIP:
+            print(f"    {clr(C.YELLOW, 'token refresh: ' + str(e)[:50])}", flush=True)
+    return acc  # Return original account even if refresh fails
+
+
 def get_next_account():
-    """Get the next available account."""
+    """Get the next available account with FRESH token."""
     global account_index
     with account_lock:
         while account_index < len(accounts):
@@ -557,6 +604,10 @@ def get_next_account():
             account_index += 1
             email = acc.get('email', '')
             if email not in used_emails and acc.get('x-token'):
+                # Refresh token before returning
+                acc = refresh_account_token(acc)
+                if not acc.get('x-token'):
+                    continue  # Token refresh failed, skip
                 return acc
         return None
 
@@ -920,6 +971,10 @@ def execute_sip_call(phone, sip_info, call_duration=CALL_DURATION):
     sip_domain = sip_info.get('domain', '?')
     sip_port = sip_info.get('port', 5060)
     sip_user = sip_info.get('user', '?')[:10]
+    sip_proto = sip_info.get('proto', 'tcp')
+
+    if DEBUG_SIP:
+        print(f"    [SIP] Connecting to {sip_domain}:{sip_port}/{sip_proto} as {sip_user}...", flush=True)
 
     sip = SIP(sip_info['user'], sip_info['pass'], sip_info['domain'],
               sip_info['port'], sip_info['proto'])
@@ -929,6 +984,10 @@ def execute_sip_call(phone, sip_info, call_duration=CALL_DURATION):
     if not sip.conn():
         return ('sip_conn_fail', 0, '', f'Cannot connect to {sip_domain}:{sip_port}')
 
+    local_ip = sip._get_local_ip()
+    if DEBUG_SIP:
+        print(f"    [SIP] Connected! Local IP: {local_ip}", flush=True)
+
     # REGISTER (without auth first)
     sip.register(auth=False)
     r = sip.recv(RECV_TIMEOUT)
@@ -936,6 +995,8 @@ def execute_sip_call(phone, sip_info, call_duration=CALL_DURATION):
     if r:
         p = sip.parse(r)
         reg_code = p['code'] if p else 0
+        if DEBUG_SIP:
+            print(f"    [SIP] REGISTER -> {reg_code}", flush=True)
         if p and reg_code == 401:
             sip._pauth(p['headers'].get('www-authenticate', ''))
             sip.register(auth=True)
@@ -949,9 +1010,14 @@ def execute_sip_call(phone, sip_info, call_duration=CALL_DURATION):
             reg_ok = True
 
     if not reg_ok:
+        if DEBUG_SIP:
+            print(f"    [SIP] REGISTRATION FAILED!", flush=True)
         sip.close()
         return ('sip_reg_fail', time.time() - call_start, sip._from_num or '',
                 'SIP registration failed')
+
+    if DEBUG_SIP:
+        print(f"    [SIP] Registered OK, sending INVITE to {phone}...", flush=True)
 
     # INVITE (without auth first)
     num = phone.replace('+', '')
@@ -965,6 +1031,10 @@ def execute_sip_call(phone, sip_info, call_duration=CALL_DURATION):
     p = sip.parse(r)
     inv_code = p['code'] if p else 0
 
+    if DEBUG_SIP:
+        print(f"    [SIP] INVITE -> {inv_code}", flush=True)
+
+    # Handle non-401 responses to first INVITE
     if not p or inv_code != 401:
         if inv_code == 200:
             sip.remote_tag = p['to_tag']
@@ -974,6 +1044,19 @@ def execute_sip_call(phone, sip_info, call_duration=CALL_DURATION):
                 sip.ack(num)
                 sip.close()
                 return ('answered_ok', time.time() - call_start, sip._from_num or '', 'direct 200 OK')
+        # Print full SIP response for debugging
+        if DEBUG_SIP and inv_code >= 400:
+            # Extract reason phrase from first line
+            first_line = r.split('\r\n')[0] if r else ''
+            reason = first_line.split(' ', 2)[2] if len(first_line.split(' ', 2)) > 2 else ''
+            # Extract Warning or Reason header if present
+            warn_hdr = p['headers'].get('warning', '') if p else ''
+            reason_hdr = p['headers'].get('reason', '') if p else ''
+            print(f"    [SIP] INVITE REJECTED: {inv_code} {reason}", flush=True)
+            if warn_hdr:
+                print(f"    [SIP] Warning: {warn_hdr}", flush=True)
+            if reason_hdr:
+                print(f"    [SIP] Reason: {reason_hdr}", flush=True)
         sip.close()
         return ('failed', time.time() - call_start, sip._from_num or '',
                 f'INVITE unexpected {inv_code}')
@@ -1034,15 +1117,44 @@ def execute_sip_call(phone, sip_info, call_duration=CALL_DURATION):
                 break
 
             elif code in (486, 487, 603):
+                if DEBUG_SIP:
+                    print(f"    [SIP] DECLINED: {code}", flush=True)
                 sip.close()
                 return ('declined', time.time() - call_start, sip._from_num or '', f'SIP {code}')
             elif code == 404:
+                if DEBUG_SIP:
+                    print(f"    [SIP] NOT FOUND: 404", flush=True)
                 sip.close()
                 return ('not_found', time.time() - call_start, sip._from_num or '', 'SIP 404')
             elif code in (408, 480):
+                if DEBUG_SIP:
+                    print(f"    [SIP] NO ANSWER: {code}", flush=True)
                 sip.close()
                 return ('no_answer', time.time() - call_start, sip._from_num or '', f'SIP {code}')
+            elif code == 403:
+                # SIP 403 Forbidden - print FULL debug info
+                if DEBUG_SIP:
+                    first_line = r.split('\r\n')[0] if r else ''
+                    reason = first_line.split(' ', 2)[2] if len(first_line.split(' ', 2)) > 2 else ''
+                    warn_hdr = p['headers'].get('warning', '') if p else ''
+                    reason_hdr = p['headers'].get('reason', '') if p else ''
+                    print(f"    [SIP] *** 403 FORBIDDEN *** {reason}", flush=True)
+                    if warn_hdr:
+                        print(f"    [SIP] Warning: {warn_hdr}", flush=True)
+                    if reason_hdr:
+                        print(f"    [SIP] Reason: {reason_hdr}", flush=True)
+                    # Print first 3 lines of response for analysis
+                    resp_lines = r.split('\r\n')[:5] if r else []
+                    for rl in resp_lines:
+                        if rl.strip():
+                            print(f"    [SIP] {rl}", flush=True)
+                sip.close()
+                return (f'sip_{code}', time.time() - call_start, sip._from_num or '',
+                        f'SIP 403 Forbidden')
             elif code >= 400:
+                if DEBUG_SIP:
+                    first_line = r.split('\r\n')[0] if r else ''
+                    print(f"    [SIP] ERROR: {code} - {first_line}", flush=True)
                 sip.close()
                 return (f'sip_{code}', time.time() - call_start, sip._from_num or '',
                         f'SIP error {code}')
