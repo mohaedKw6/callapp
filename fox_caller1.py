@@ -809,6 +809,9 @@ def run(phones, server_url, num_workers, directory):
                     # Update history with result
                     update_history_with_result(directory, phone, result, duration)
 
+                    # Get SIP debug info
+                    sip_debug = call_info.get('sip_debug', '')
+
                     # Update stats
                     with stats_lock:
                         stats["active_calls"] -= 1
@@ -823,6 +826,9 @@ def run(phones, server_url, num_workers, directory):
                         elif result == 'no_balance':
                             stats["no_balance"] += 1
                             used_emails.add(email)
+                        elif result.startswith('sip_'):
+                            # SIP error codes like sip_403, sip_503, sip_reg_fail, sip_conn_fail
+                            stats["failed"] += 1
                         elif result == 'call_403':
                             with c403_lock:
                                 consecutive_403[0] += 1
@@ -849,10 +855,13 @@ def run(phones, server_url, num_workers, directory):
                         'no_answer': C.YELLOW, 'declined': C.BYELLOW,
                         'not_found': C.MAGENTA, 'no_balance': C.RED,
                         'call_403': C.RED, 'failed': C.RED,
+                        'sip_conn_fail': C.BRED, 'sip_reg_fail': C.BRED,
+                        'api_timeout': C.RED,
                     }
-                    c = result_colors.get(result, C.RED)
+                    c = result_colors.get(result, C.RED if result.startswith('sip_') else C.RED)
                     dur_str = f"{duration}s" if duration else "?"
-                    print(f"  {clr(c, f'[W{worker_id}] {result.upper()}')} {phone} ({dur_str}) <- {email_short}")
+                    debug_str = f" [{clr(C.DIM, sip_debug)}]" if sip_debug else ""
+                    print(f"  {clr(c, f'[W{worker_id}] {result.upper()}')} {phone} ({dur_str}) <- {email_short}{debug_str}")
 
                     # Print running stats
                     _print_stats(start_time)

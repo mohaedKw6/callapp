@@ -45,6 +45,30 @@ RINGING_TIMEOUT = 80          # SIP loop iterations (80 * 0.5s = 40s ringing max
 MAX_CALL_DURATION = 600       # 10 min max call duration (safety limit)
 INSTANT_BYE_CHECKS = 3
 
+# Egyptian IP ranges for x-real-ip header
+_EG_RANGES = [
+    (41, 32), (41, 33), (41, 34), (41, 35), (41, 36),
+    (41, 37), (41, 38), (41, 39), (41, 40), (41, 41),
+    (41, 42), (41, 43), (41, 44), (41, 45), (41, 46),
+    (41, 47), (41, 48), (41, 49), (41, 50), (41, 51),
+    (41, 52), (41, 53), (41, 54), (41, 55), (41, 56),
+    (41, 57), (41, 58), (41, 59), (41, 60), (41, 61),
+    (156, 192), (156, 193), (156, 194), (156, 195),
+    (156, 196), (156, 197), (156, 198), (156, 199),
+    (156, 200), (156, 201), (156, 202), (156, 203),
+    (197, 32), (197, 33), (197, 34), (197, 35),
+    (197, 36), (197, 37), (197, 38), (197, 39),
+    (197, 40), (197, 41), (197, 42), (197, 43),
+]
+
+def _rand_eg_ip():
+    """Generate a random Egyptian IP for x-real-ip header."""
+    a, b = random.choice(_EG_RANGES)
+    c = random.randint(1, 254)
+    d = random.randint(1, 254)
+    return f"{a}.{b}.{c}.{d}"
+
+
 # ============================================================================
 #                              SIP CLASS
 # ============================================================================
@@ -84,7 +108,8 @@ class SIP:
                 self.sk = context.wrap_socket(self.sk, server_hostname=self.d)
             self.sk.connect((self.d, self.pt))
             return True
-        except Exception:
+        except Exception as e:
+            print(f"  [SIP] conn() FAILED: {e}")
             return False
 
     def _pauth(self, h):
@@ -387,8 +412,10 @@ class SIP:
 # ============================================================================
 
 def get_headers(token=None, device_id=None):
+    """Get Telicall API headers with Egyptian IP spoofing."""
     if not device_id:
         device_id = ''.join(random.choices('0123456789abcdef', k=16))
+    eg_ip = _rand_eg_ip()
     return {
         "host": "api.telicall.com",
         "x-request-id": str(uuid.uuid4()),
@@ -401,7 +428,9 @@ def get_headers(token=None, device_id=None):
         "x-req-timestamp": str(int(time.time() * 1000)),
         "x-req-signature": "-1",
         "content-type": "application/json",
-        "x-token": token or ""
+        "x-token": token or "",
+        "x-currency": "EGP",
+        "x-real-ip": eg_ip,
     }
 
 
@@ -417,15 +446,18 @@ def telicall_start_call(phone, call_token, call_device_id):
             headers=headers,
             timeout=10
         )
+        print(f"  [API] Telicall response: HTTP {r.status_code}")
         if r.status_code == 200 and r.json().get('result'):
             sip = r.json()['result'].get('sip', {})
+            from_num = r.json()['result'].get('from', {}).get('msisdn', '')
+            print(f"  [API] SIP creds: domain={sip.get('domain')} port={sip.get('port')} proto={sip.get('protocol')} from={from_num}")
             return {
                 'user': sip.get('username'),
                 'pass': sip.get('password'),
                 'domain': sip.get('domain'),
                 'port': sip.get('port', 5060),
                 'proto': sip.get('protocol', 'tcp'),
-                'from': r.json()['result'].get('from', {}).get('msisdn'),
+                'from': from_num,
                 'to': r.json()['result'].get('to', {}).get('msisdn'),
                 'limit': sip.get('callLimit', 60),
                 'balance': sip.get('balanceLimit', 60),
@@ -434,14 +466,17 @@ def telicall_start_call(phone, call_token, call_device_id):
             err_text = r.text.lower()
             if 'balance' in err_text:
                 return 'no_balance'
+            print(f"  [API] 400 error: {r.text[:200]}")
             return {'error': 'call_400'}
         elif r.status_code == 404:
             return {'error': 'call_404'}
         elif r.status_code == 403:
             return {'error': 'call_403'}
         else:
+            print(f"  [API] Unexpected HTTP {r.status_code}: {r.text[:200]}")
             return {'error': f'call_{r.status_code}'}
     except Exception as e:
+        print(f"  [API] Exception: {e}")
         return None
 
 
@@ -454,51 +489,95 @@ def execute_sip_call(phone, sip_info):
     Execute a SIP call and return the result.
     The call stays alive until it naturally ends (BYE from other side)
     or until MAX_CALL_DURATION is reached.
-    Returns: (result_str, duration_seconds, from_number)
+    Returns: (result_str, duration_seconds, from_number, sip_debug)
     """
     call_start = time.time()
+    sip_domain = sip_info.get('domain', '?')
+    sip_port = sip_info.get('port', 5060)
+    sip_user = sip_info.get('user', '?')[:10]
+    print(f"  [SIP] Connecting to {sip_domain}:{sip_port} as {sip_user}...")
+
     sip = SIP(sip_info['user'], sip_info['pass'], sip_info['domain'],
               sip_info['port'], sip_info['proto'])
     sip._from_num = str(sip_info.get('from', '')).replace('+', '')
 
     # Connect
     if not sip.conn():
-        return ('failed', 0, '')
+        print(f"  [SIP] FAILED to connect to {sip_domain}:{sip_port}")
+        return ('sip_conn_fail', 0, '', f'Cannot connect to {sip_domain}:{sip_port}')
 
-    # REGISTER
+    local_ip = sip._get_local_ip()
+    print(f"  [SIP] Connected! Local IP: {local_ip}")
+
+    # REGISTER (without auth first)
     sip.register(auth=False)
     r = sip.recv(RECV_TIMEOUT)
+    reg_ok = False
     if r:
         p = sip.parse(r)
-        if p and p['code'] == 401:
+        reg_code = p['code'] if p else 0
+        print(f"  [SIP] REGISTER response: {reg_code}")
+        if p and reg_code == 401:
+            # Need auth - send REGISTER with credentials
             sip._pauth(p['headers'].get('www-authenticate', ''))
             sip.register(auth=True)
-            sip.recv(RECV_TIMEOUT)
+            r2 = sip.recv(RECV_TIMEOUT)
+            if r2:
+                p2 = sip.parse(r2)
+                reg2_code = p2['code'] if p2 else 0
+                print(f"  [SIP] REGISTER+auth response: {reg2_code}")
+                if reg2_code == 200:
+                    reg_ok = True
+                else:
+                    print(f"  [SIP] REGISTER FAILED with code {reg2_code}")
+            else:
+                print(f"  [SIP] REGISTER+auth: no response")
+        elif reg_code == 200:
+            reg_ok = True
+        else:
+            print(f"  [SIP] REGISTER unexpected code: {reg_code}")
+    else:
+        print(f"  [SIP] REGISTER: no response at all")
 
-    # INVITE
+    if not reg_ok:
+        print(f"  [SIP] Registration failed - cannot proceed with INVITE")
+        sip.close()
+        return ('sip_reg_fail', time.time() - call_start, sip._from_num or '',
+                'SIP registration failed')
+
+    print(f"  [SIP] Registration OK - sending INVITE to {phone}")
+
+    # INVITE (without auth first - SIP servers usually challenge)
     num = phone.replace('+', '')
     sip.invite(num, auth=False)
     r = sip.recv(RECV_TIMEOUT)
 
     if not r:
+        print(f"  [SIP] INVITE: no response")
         sip.close()
-        return ('failed', 0, sip._from_num or '')
+        return ('failed', time.time() - call_start, sip._from_num or '', 'INVITE no response')
 
     p = sip.parse(r)
-    if not p or p['code'] != 401:
-        code = p['code'] if p else 0
-        if code == 200:
+    inv_code = p['code'] if p else 0
+    print(f"  [SIP] INVITE response: {inv_code}")
+
+    if not p or inv_code != 401:
+        if inv_code == 200:
             sip.remote_tag = p['to_tag']
             sdp_ip = p['sdp_ip']
             sdp_port = p['sdp_port']
             if sdp_ip and sdp_port:
                 sip.ack(num)
                 sip.close()
-                return ('answered_ok', time.time() - call_start, sip._from_num or '')
+                return ('answered_ok', time.time() - call_start, sip._from_num or '', 'direct 200 OK')
+        # Any non-401 response to first INVITE is unusual
+        print(f"  [SIP] INVITE got unexpected code {inv_code} (expected 401 challenge)")
         sip.close()
-        return ('failed', 0, sip._from_num or '')
+        return ('failed', time.time() - call_start, sip._from_num or '',
+                f'INVITE unexpected {inv_code}')
 
     # INVITE with auth
+    print(f"  [SIP] Got 401 challenge - re-sending INVITE with auth")
     sip._pauth(p['headers'].get('www-authenticate', ''))
     sip.seq -= 1
     sip.invite(num, auth=True)
@@ -507,26 +586,31 @@ def execute_sip_call(phone, sip_info):
     ringing_started = False
     call_answered = False
     sdp_ip = sdp_port = None
+    last_sip_code = 0
 
     for i in range(RINGING_TIMEOUT):
         r = sip.recv(0.5)
         if r:
             p = sip.parse(r)
             code = p['code'] if p else 0
+            last_sip_code = code
 
             if code == 100:
-                pass
+                pass  # Trying
             elif code == 180 or code == 183:
+                if not ringing_started:
+                    print(f"  [SIP] RINGING (code {code})")
                 ringing_started = True
             elif code == 200:
                 call_answered = True
                 sip.remote_tag = p['to_tag']
                 sdp_ip = p['sdp_ip']
                 sdp_port = p['sdp_port']
+                print(f"  [SIP] ANSWERED! SDP: {sdp_ip}:{sdp_port}")
 
                 if not sdp_ip or not sdp_port:
                     sip.close()
-                    return ('failed', 0, sip._from_num or '')
+                    return ('failed', time.time() - call_start, sip._from_num or '', 'No SDP in 200 OK')
 
                 sip.ack(num)
 
@@ -546,28 +630,40 @@ def execute_sip_call(phone, sip_info):
                         pass
 
                 if instant_bye:
+                    print(f"  [SIP] Instant BYE after answer - declined")
                     sip.close()
-                    return ('declined', time.time() - call_start, sip._from_num or '')
+                    return ('declined', time.time() - call_start, sip._from_num or '', 'Instant BYE')
 
                 break
 
             elif code in (486, 487, 603):
+                print(f"  [SIP] DECLINED (code {code})")
                 sip.close()
-                return ('declined', time.time() - call_start, sip._from_num or '')
+                return ('declined', time.time() - call_start, sip._from_num or '', f'SIP {code}')
             elif code == 404:
+                print(f"  [SIP] NOT FOUND (code 404)")
                 sip.close()
-                return ('not_found', time.time() - call_start, sip._from_num or '')
+                return ('not_found', time.time() - call_start, sip._from_num or '', 'SIP 404')
             elif code in (408, 480):
+                print(f"  [SIP] NO ANSWER (code {code})")
                 sip.close()
-                return ('no_answer', time.time() - call_start, sip._from_num or '')
+                return ('no_answer', time.time() - call_start, sip._from_num or '', f'SIP {code}')
             elif code >= 400:
+                print(f"  [SIP] ERROR code {code}")
                 sip.close()
-                return ('no_answer', time.time() - call_start, sip._from_num or '')
+                return (f'sip_{code}', time.time() - call_start, sip._from_num or '',
+                        f'SIP error {code}')
 
     if not call_answered:
         sip.close()
-        r = 'no_answer' if ringing_started else 'failed'
-        return (r, time.time() - call_start, sip._from_num or '')
+        if ringing_started:
+            print(f"  [SIP] Rang but no answer (timeout)")
+            return ('no_answer', time.time() - call_start, sip._from_num or '',
+                    f'Ring timeout, last code={last_sip_code}')
+        else:
+            print(f"  [SIP] Failed - no ringing (last SIP code={last_sip_code})")
+            return ('failed', time.time() - call_start, sip._from_num or '',
+                    f'No ringing, last code={last_sip_code}')
 
     # ===== Call was answered - STAY IN CALL until natural disconnect =====
     sip.rtp_ip = sdp_ip if sdp_ip else sip.d
@@ -583,6 +679,7 @@ def execute_sip_call(phone, sip_info):
     deadline = start_time + MAX_CALL_DURATION
     call_ended = False
 
+    print(f"  [SIP] Call connected - waiting for BYE or timeout ({MAX_CALL_DURATION}s)")
     sip.sk.settimeout(0.5)
     while time.time() < deadline:
         try:
@@ -608,7 +705,8 @@ def execute_sip_call(phone, sip_info):
     sip.close()
 
     result = 'answered_ok' if actual_duration >= 1 else 'answered_short'
-    return (result, actual_duration, sip._from_num or '')
+    print(f"  [SIP] Call ended: {result} duration={actual_duration:.1f}s")
+    return (result, actual_duration, sip._from_num or '', f'duration={actual_duration:.1f}s')
 
 
 # ============================================================================
@@ -641,6 +739,9 @@ def start_call_thread(call_id: str, phone: str, token: str, device_id: str, emai
 
 def _start_call_thread_inner(call_id: str, phone: str, token: str, device_id: str, email: str):
     """Internal: Run the SIP call in a background thread."""
+    t0 = time.time()
+    print(f"[CALL] {call_id} START phone={phone} email={email[:20]}")
+
     with call_lock:
         active_calls[call_id]['status'] = 'starting'
 
@@ -648,6 +749,7 @@ def _start_call_thread_inner(call_id: str, phone: str, token: str, device_id: st
     sip_info = telicall_start_call(phone, token, device_id)
 
     if sip_info is None:
+        print(f"[CALL] {call_id} API_TIMEOUT after {time.time()-t0:.1f}s")
         with call_lock:
             active_calls[call_id]['status'] = 'ended'
             active_calls[call_id]['result'] = 'api_timeout'
@@ -656,6 +758,7 @@ def _start_call_thread_inner(call_id: str, phone: str, token: str, device_id: st
         return
 
     if sip_info == 'no_balance':
+        print(f"[CALL] {call_id} NO_BALANCE")
         with call_lock:
             active_calls[call_id]['status'] = 'ended'
             active_calls[call_id]['result'] = 'no_balance'
@@ -664,9 +767,11 @@ def _start_call_thread_inner(call_id: str, phone: str, token: str, device_id: st
         return
 
     if isinstance(sip_info, dict) and 'error' in sip_info:
+        err = sip_info['error']
+        print(f"[CALL] {call_id} API_ERROR: {err}")
         with call_lock:
             active_calls[call_id]['status'] = 'ended'
-            active_calls[call_id]['result'] = sip_info['error']
+            active_calls[call_id]['result'] = err
             active_calls[call_id]['ended_at'] = time.time()
         _move_to_completed(call_id)
         return
@@ -676,7 +781,10 @@ def _start_call_thread_inner(call_id: str, phone: str, token: str, device_id: st
         active_calls[call_id]['status'] = 'calling'
         active_calls[call_id]['from_number'] = sip_info.get('from', '')
 
-    result, duration, from_num = execute_sip_call(phone, sip_info)
+    result, duration, from_num, sip_debug = execute_sip_call(phone, sip_info)
+
+    elapsed = time.time() - t0
+    print(f"[CALL] {call_id} END: {result} ({duration:.1f}s, total {elapsed:.1f}s) phone={phone} debug={sip_debug}")
 
     with call_lock:
         if call_id in active_calls:
@@ -684,10 +792,10 @@ def _start_call_thread_inner(call_id: str, phone: str, token: str, device_id: st
             active_calls[call_id]['result'] = result
             active_calls[call_id]['duration'] = round(duration, 1)
             active_calls[call_id]['from_number'] = from_num
+            active_calls[call_id]['sip_debug'] = sip_debug
             active_calls[call_id]['ended_at'] = time.time()
 
     _move_to_completed(call_id)
-    print(f"[CALL] {call_id} ended: {result} ({round(duration, 1)}s) phone={phone}")
 
 
 def _move_to_completed(call_id: str):
@@ -707,7 +815,7 @@ def _move_to_completed(call_id: str):
 #                          FASTAPI APP
 # ============================================================================
 
-app = FastAPI(title="Fox Call Server", version="1.0")
+app = FastAPI(title="Fox Call Server", version="2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -746,6 +854,7 @@ async def api_start_call(req: CallStartRequest):
             'result': None,
             'duration': 0,
             'from_number': '',
+            'sip_debug': '',
             'started_at': time.time(),
             'ended_at': None,
         }
@@ -828,5 +937,5 @@ async def api_health():
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting Fox Call Server...")
+    print("Starting Fox Call Server v2.0...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
