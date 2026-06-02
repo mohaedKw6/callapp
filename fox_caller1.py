@@ -870,7 +870,7 @@ def create_and_call(duration):
 # ─── Main ─────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 def main():
-    global _start_time, _phone_queue
+    global _start_time, _phone_queue, PROXY_FILE
 
     parser = argparse.ArgumentParser(description="Fox Caller v5.0 - Fixed Call Launcher")
     parser.add_argument("file", help="Phone numbers file (.xlsx or .txt)")
@@ -883,7 +883,6 @@ def main():
     args = parser.parse_args()
 
     # Override proxy file if specified
-    global PROXY_FILE
     PROXY_FILE = args.proxies
 
     # Read numbers
