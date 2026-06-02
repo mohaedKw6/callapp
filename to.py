@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v1.1 - Bulk TelliCall Account Creator
+Fox Caller v2.0 - Bulk TelliCall Account Creator
 =================================================
-Fixed: Rate limiting for temp-mail.org to avoid getting blocked.
+Fixed: Multi-provider email system to avoid rate limiting.
 
-Key fixes:
-  - Global rate limiter: max 1 email request per 2 seconds
-  - Circuit breaker: pauses all email creation after 5 consecutive failures
-  - Reduced burst pool: 15 instead of 50
-  - Added cooldown between burst rounds
-  - Exponential backoff on rate limit (429) responses
+Email providers (in order):
+  1. tempmail.lol (PRIMARY) — many domains, no rate limit
+  2. temp-mail.org web2 (FALLBACK) — works but rate-limits
+  3. temp-mail.org mob2 (LAST RESORT)
+
+Key fixes from v1.1:
+  - tempmail.lol as primary provider (unlimited requests)
+  - Automatic failover: if primary fails → try next provider
+  - Per-provider rate limiting + circuit breaker
+  - Domain filtering: skip blocklisted domains, accept only verified ones
+  - Reduced concurrency to avoid burning providers
 """
 
 import requests
@@ -36,7 +41,7 @@ PASSWORD = "@@@GMAQ@@@"
 
 THREADS = 10
 BATCH_SIZE = 10
-EMAIL_POOL_SIZE   = 15   # reduced from 30
+EMAIL_POOL_SIZE   = 15
 SESSION_POOL_SIZE = 20
 
 # ─── Egyptian IP Rotation ──────────────────────────────
@@ -74,7 +79,14 @@ def rand_eg_ip():
         d = random.randint(1, 254)
         return f"{a}.{b}.{c}.{d}"
 
-# ─── Temp-Mail.org Config ──────────────────────────────
+# ═══════════════════════════════════════════════════════
+# ─── Multi-Provider Email System ─────────────────────
+# ═══════════════════════════════════════════════════════
+
+# ─── Provider 1: tempmail.lol (PRIMARY) ──────────────
+TEMPMAIL_LOL_URL = "https://api.tempmail.lol"
+
+# ─── Provider 2: temp-mail.org web2 (FALLBACK) ───────
 WEB2_BASE_URL = "https://web2.temp-mail.org"
 WEB2_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36',
@@ -84,6 +96,7 @@ WEB2_HEADERS = {
     'Content-Type': 'application/json'
 }
 
+# ─── Provider 3: temp-mail.org mob2 (LAST RESORT) ────
 MOB2_BASE_URL = "https://mob2.temp-mail.org"
 MOB2_HEADERS = {
     'Accept': 'application/json',
@@ -92,19 +105,37 @@ MOB2_HEADERS = {
 }
 
 # ─── Domain Filtering ──────────────────────────────
-WORKING_DOMAINS = {'ifcoat.com', 'doreact.com', 'googxs.com', 'hitzcart.com', 'matkind.com'}
-BLOCKLISTED_DOMAINS = {'wshu.net', '4nly.com', 'alf5.com', 'mtupu.com'}
+# الدومينات اللي بتشتغل مع Telicall
+WORKING_DOMAINS = {
+    # tempmail.lol
+    'blaizesmp.net', 'chillart.org', 'dogmrp.com',
+    'for4u.net', 'basketrise.com', 'autofixmax.com',
+    # temp-mail.org
+    'ifcoat.com', 'doreact.com', 'googxs.com', 'hitzcart.com', 'matkind.com',
+}
 
-# ─── Rate Limiter & Circuit Breaker ────────────────────
-class RateLimiter:
-    """بيحدد عدد الطلبات في الدقيقة — عشان متحصلش rate limit"""
-    def __init__(self, min_interval=2.0):
-        self.min_interval = min_interval  # ثانية بين كل طلب
+# الدومينات المحظورة من Telicall
+BLOCKLISTED_DOMAINS = {'wshu.net', '4nly.com', 'alf5.com', 'mtupu.com',
+                       'guerrillamailblock.com', 'guerrillamail.com', 'guerrillamail.de'}
+
+# ─── Per-Provider Rate Limiter ──────────────────────
+class ProviderRateLimiter:
+    """بيحدد عدد الطلبات لكل مزود خدمة"""
+    def __init__(self, name, min_interval=1.0, max_fails=5, cooldown=30):
+        self.name = name
+        self.min_interval = min_interval
+        self.max_fails = max_fails
+        self.cooldown = cooldown
         self.lock = threading.Lock()
         self.last_request = 0.0
+        self.consecutive_fails = 0
+        self.is_blocked = False
+        self.blocked_at = 0.0
+        self.total_requests = 0
+        self.total_success = 0
+        self.total_fails = 0
 
     def wait(self):
-        """استنى قبل ما تبعث طلب جديد"""
         with self.lock:
             now = time.time()
             elapsed = now - self.last_request
@@ -112,56 +143,47 @@ class RateLimiter:
                 wait_time = self.min_interval - elapsed
                 time.sleep(wait_time)
             self.last_request = time.time()
-
-class CircuitBreaker:
-    """لو temp-mail.org رفض كتير → يوقف شوية وبعدين يكمل"""
-    def __init__(self, failure_threshold=5, cooldown=30):
-        self.failure_threshold = failure_threshold  # عدد الفشل المتتالي قبل الإيقاف
-        self.cooldown = cooldown                    # ثانية انتظار قبل المحاولة تاني
-        self.lock = threading.Lock()
-        self.consecutive_failures = 0
-        self.is_open = False         # لو True → كل الطلبات بتترفض مؤقتاً
-        self.opened_at = 0.0
-
-    def record_failure(self):
-        with self.lock:
-            self.consecutive_failures += 1
-            if self.consecutive_failures >= self.failure_threshold:
-                self.is_open = True
-                self.opened_at = time.time()
-                print(f"  🔴 Circuit Breaker فتح! ({self.consecutive_failures} فشل متتالي) — انتظار {self.cooldown} ثانية...", flush=True)
+            self.total_requests += 1
 
     def record_success(self):
         with self.lock:
-            self.consecutive_failures = 0
-            self.is_open = False
+            self.consecutive_fails = 0
+            self.is_blocked = False
+            self.total_success += 1
 
-    def can_proceed(self):
-        """بيشوف ممكن نكمل ولا لازم نستنى"""
+    def record_failure(self):
         with self.lock:
-            if not self.is_open:
+            self.consecutive_fails += 1
+            self.total_fails += 1
+            if self.consecutive_fails >= self.max_fails:
+                self.is_blocked = True
+                self.blocked_at = time.time()
+                print(f"  🔴 {self.name} اتحظر! ({self.consecutive_fails} فشل) — استنى {self.cooldown} ثانية", flush=True)
+
+    def is_available(self):
+        with self.lock:
+            if not self.is_blocked:
                 return True
-            # شوف هل الـ cooldown خلص
-            elapsed = time.time() - self.opened_at
+            elapsed = time.time() - self.blocked_at
             if elapsed >= self.cooldown:
-                self.is_open = False
-                self.consecutive_failures = 0
-                print(f"  🟢 Circuit Breaker أغلق — جاري المحاولة تاني", flush=True)
+                self.is_blocked = False
+                self.consecutive_fails = 0
+                print(f"  🟢 {self.name} رجع يشتغل!", flush=True)
                 return True
             return False
 
-    def wait_if_open(self):
-        """يستنى لو الـ circuit breaker مفتوح"""
-        while not self.can_proceed():
-            remaining = self.cooldown - (time.time() - self.opened_at)
+    def wait_if_blocked(self):
+        while not self.is_available():
+            remaining = self.cooldown - (time.time() - self.blocked_at)
             if remaining > 0:
                 time.sleep(min(remaining, 5))
             else:
                 break
 
-# إنشاء الـ rate limiter و circuit breaker
-_email_rate_limiter = RateLimiter(min_interval=2.0)   # طلب كل 2 ثانية
-_email_circuit_breaker = CircuitBreaker(failure_threshold=5, cooldown=30)
+# إنشاء rate limiters لكل مزود
+_provider_lol = ProviderRateLimiter("tempmail.lol", min_interval=0.5, max_fails=10, cooldown=20)
+_provider_web2 = ProviderRateLimiter("temp-mail.org/web2", min_interval=2.0, max_fails=5, cooldown=45)
+_provider_mob2 = ProviderRateLimiter("temp-mail.org/mob2", min_interval=2.0, max_fails=5, cooldown=45)
 
 _file_lock    = threading.Lock()
 _counter_lock = threading.Lock()
@@ -232,22 +254,55 @@ def save_account(email, device, tok):
             _accounts_cache = current
         return total
 
-# ─── البريد المؤقت — temp-mail.org (مع Rate Limiting) ──────
+# ═══════════════════════════════════════════════════════
+# ─── Email Creation — Multi-Provider ─────────────────
+# ═══════════════════════════════════════════════════════
 
-def create_email_web2():
-    """بيعمل ايميل على temp-mail.org (web2) مع rate limiting + circuit breaker"""
-    for attempt in range(5):
-        # استنى الـ circuit breaker
-        _email_circuit_breaker.wait_if_open()
+def create_email_tempmail_lol():
+    """Provider 1: tempmail.lol — دومينات كتير ومفيش rate limit"""
+    for attempt in range(3):
+        _provider_lol.wait_if_blocked()
         if _stop_flag.is_set():
             return None
+        _provider_lol.wait()
 
-        # استنى الـ rate limiter
-        _email_rate_limiter.wait()
+        try:
+            r = requests.get(f"{TEMPMAIL_LOL_URL}/generate", timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                email = data.get('address')
+                token = data.get('token')
+                if email and token:
+                    domain = email.split('@')[1] if '@' in email else ''
+                    if domain in BLOCKLISTED_DOMAINS:
+                        if attempt < 2:
+                            time.sleep(0.5)
+                            continue
+                    _provider_lol.record_success()
+                    return {
+                        'email': email,
+                        'token': token,
+                        'api_type': 'tempmail_lol',
+                    }
+            else:
+                _provider_lol.record_failure()
+                time.sleep(2)
+        except Exception as e:
+            _provider_lol.record_failure()
+            print(f"  ⚠️ tempmail.lol error: {e}", flush=True)
+            time.sleep(2)
+    return None
+
+def create_email_web2():
+    """Provider 2: temp-mail.org web2 — احتياطي"""
+    for attempt in range(5):
+        _provider_web2.wait_if_blocked()
+        if _stop_flag.is_set():
+            return None
+        _provider_web2.wait()
 
         try:
             r = requests.post(f"{WEB2_BASE_URL}/mailbox", headers=WEB2_HEADERS, timeout=15)
-
             if r.status_code in [200, 201]:
                 data = r.json()
                 email = data.get('mailbox')
@@ -258,34 +313,33 @@ def create_email_web2():
                         if attempt < 4:
                             time.sleep(1)
                             continue
-                    _email_circuit_breaker.record_success()
+                    _provider_web2.record_success()
                     return {
                         'email': email,
                         'token': token,
                         'api_type': 'web2',
                     }
             elif r.status_code == 429:
-                # Rate limited — backoff تدريجي
                 wait = 15 * (attempt + 1)
-                print(f"  ⚠️ web2 rate limited (429) — انتظار {wait} ثانية...", flush=True)
-                _email_circuit_breaker.record_failure()
+                print(f"  ⚠️ web2 rate limited (429) — استنى {wait} ثانية", flush=True)
+                _provider_web2.record_failure()
                 time.sleep(wait)
             else:
-                _email_circuit_breaker.record_failure()
+                _provider_web2.record_failure()
                 time.sleep(3)
         except Exception as e:
-            _email_circuit_breaker.record_failure()
+            _provider_web2.record_failure()
             print(f"  ⚠️ web2 error: {e}", flush=True)
             time.sleep(3)
     return None
 
 def create_email_mob2():
-    """بيعمل ايميل على temp-mail.org (mob2) كاحتياطي"""
+    """Provider 3: temp-mail.org mob2 — ملاذ أخير"""
     for attempt in range(3):
-        _email_circuit_breaker.wait_if_open()
+        _provider_mob2.wait_if_blocked()
         if _stop_flag.is_set():
             return None
-        _email_rate_limiter.wait()
+        _provider_mob2.wait()
 
         try:
             r = requests.post(f"{MOB2_BASE_URL}/mailbox", headers=MOB2_HEADERS, timeout=10)
@@ -299,7 +353,7 @@ def create_email_mob2():
                         if attempt < 2:
                             time.sleep(1)
                             continue
-                    _email_circuit_breaker.record_success()
+                    _provider_mob2.record_success()
                     return {
                         'email': email,
                         'token': token,
@@ -307,25 +361,61 @@ def create_email_mob2():
                     }
             elif r.status_code == 429:
                 wait = 15 * (attempt + 1)
-                print(f"  ⚠️ mob2 rate limited (429) — انتظار {wait} ثانية...", flush=True)
-                _email_circuit_breaker.record_failure()
+                print(f"  ⚠️ mob2 rate limited (429) — استنى {wait} ثانية", flush=True)
+                _provider_mob2.record_failure()
                 time.sleep(wait)
             else:
-                _email_circuit_breaker.record_failure()
+                _provider_mob2.record_failure()
                 time.sleep(3)
         except Exception as e:
-            _email_circuit_breaker.record_failure()
+            _provider_mob2.record_failure()
             print(f"  ⚠️ mob2 error: {e}", flush=True)
             time.sleep(3)
     return None
 
 def create_email():
-    """بيعمل ايميل مؤقت — بيجرب web2 الأول وبعدين mob2"""
-    result = create_email_web2()
+    """
+    بيعمل ايميل مؤقت — بيجرب المزودين بالترتيب:
+    1. tempmail.lol (أساسي — دومينات كتير + مفيش rate limit)
+    2. temp-mail.org web2 (احتياطي)
+    3. temp-mail.org mob2 (ملاذ أخير)
+    """
+    # Provider 1: tempmail.lol
+    result = create_email_tempmail_lol()
     if result:
         return result
-    print("  ⚠️ web2 فشل، جاري تجربة mob2...", flush=True)
-    return create_email_mob2()
+
+    # Provider 2: web2
+    if _provider_web2.is_available():
+        print("  ⚠️ tempmail.lol فشل، جاري تجربة temp-mail.org web2...", flush=True)
+        result = create_email_web2()
+        if result:
+            return result
+
+    # Provider 3: mob2
+    if _provider_mob2.is_available():
+        print("  ⚠️ web2 فشل، جاري تجربة mob2...", flush=True)
+        result = create_email_mob2()
+        if result:
+            return result
+
+    return None
+
+# ═══════════════════════════════════════════════════════
+# ─── Inbox Checking — Multi-Provider ─────────────────
+# ═══════════════════════════════════════════════════════
+
+def check_inbox_tempmail_lol(email_token):
+    """بيشيك inbox على tempmail.lol"""
+    try:
+        r = requests.get(f"{TEMPMAIL_LOL_URL}/auth/{email_token}", timeout=15)
+        if r.status_code == 200:
+            data = r.json()
+            # tempmail.lol returns {"email": [...messages...]}
+            return data.get('email', [])
+    except Exception as e:
+        print(f"  ⚠️ tempmail.lol inbox: {e}", flush=True)
+    return []
 
 def check_web2_inbox(email_token):
     """بيشيك inbox على temp-mail.org (web2)"""
@@ -354,20 +444,22 @@ def check_mob2_inbox(email_token):
     return []
 
 def get_otp(api_type, jwt):
-    """بيستنى OTP من temp-mail.org"""
+    """بيستنى OTP من مزود البريد المناسب"""
     deadline = time.time() + 90
     while time.time() < deadline:
         if _stop_flag.is_set():
             return None
         try:
-            if api_type == 'web2':
+            if api_type == 'tempmail_lol':
+                messages = check_inbox_tempmail_lol(jwt)
+            elif api_type == 'web2':
                 messages = check_web2_inbox(jwt)
             else:
                 messages = check_mob2_inbox(jwt)
             for msg in messages:
                 sender  = msg.get('from', '').lower()
                 subject = msg.get('subject', '').lower()
-                body    = msg.get('bodyPreview', msg.get('body', msg.get('textBody', '')))
+                body    = msg.get('bodyPreview', msg.get('body', msg.get('textBody', msg.get('bodyHtml', ''))))
                 content = f"{sender} {subject} {body}".lower()
                 if 'teli' in content or 'verification' in subject or 'verify' in subject or 'تحقق' in subject or 'رمز' in subject:
                     m = re.search(r'\b(\d{6})\b', str(body))
@@ -384,7 +476,7 @@ _email_pool   = queue.Queue(maxsize=EMAIL_POOL_SIZE)
 _session_pool = queue.Queue(maxsize=SESSION_POOL_SIZE)
 
 def _email_pool_filler():
-    """بيملا الـ pool بإيميلات — بس بيتحكم فيه الـ rate limiter"""
+    """بيملا الـ pool بإيميلات من كل المزودين"""
     while not _stop_flag.is_set():
         if _email_pool.qsize() < EMAIL_POOL_SIZE:
             mail = create_email()
@@ -397,8 +489,8 @@ def _email_pool_filler():
                 except queue.Full:
                     pass
             else:
-                # لو فشل في إنشاء ايميل → استنى شوية
-                time.sleep(5)
+                # لو كل المزودين فشلوا → استنى أكتر
+                time.sleep(8)
         else:
             time.sleep(1)
 
@@ -416,7 +508,7 @@ def _session_pool_filler():
 
 def get_email_from_pool() -> dict:
     try:
-        mail = _email_pool.get(timeout=12)
+        mail = _email_pool.get(timeout=15)
         domain = mail['email'].split('@')[1] if '@' in mail['email'] else ''
         if domain in BLOCKLISTED_DOMAINS:
             return create_email()
@@ -432,9 +524,10 @@ def get_session_from_pool():
         return (tok, device, headers) if tok else (None, None, None)
 
 def start_pools():
-    # pool filler واحد بس للإيميلات (عشان الـ rate limiter يشتغل صح)
-    t = threading.Thread(target=_email_pool_filler, daemon=True)
-    t.start()
+    # 2 fillers للإيميلات (عشان tempmail.lol يقدر يملّي بسرعة)
+    for _ in range(2):
+        t = threading.Thread(target=_email_pool_filler, daemon=True)
+        t.start()
     # 3 fillers للـ sessions
     for _ in range(3):
         t = threading.Thread(target=_session_pool_filler, daemon=True)
@@ -525,12 +618,13 @@ def create_one_account():
     # 1. إنشاء ايميل
     mail = get_email_from_pool()
     if not mail:
-        print(f"[{tid}] ❌ فشل إنشاء البريد", flush=True)
+        print(f"[{tid}] ❌ فشل إنشاء البريد من كل المزودين", flush=True)
         return False, "فشل البريد"
 
     email_addr = mail['email']
     domain = email_addr.split('@')[1] if '@' in email_addr else ''
-    print(f"[{tid}] 📧 {email_addr} ({domain})", flush=True)
+    provider = mail['api_type']
+    print(f"[{tid}] 📧 {email_addr} ({domain}) [{provider}]", flush=True)
 
     if domain in BLOCKLISTED_DOMAINS:
         print(f"[{tid}] ⚠️ دومين محظور ({domain})، جاري المحاولة بدومين آخر...", flush=True)
@@ -540,7 +634,8 @@ def create_one_account():
             return False, "دومين محظور"
         email_addr = mail['email']
         domain = email_addr.split('@')[1] if '@' in email_addr else ''
-        print(f"[{tid}] 📧 بديل: {email_addr} ({domain})", flush=True)
+        provider = mail['api_type']
+        print(f"[{tid}] 📧 بديل: {email_addr} ({domain}) [{provider}]", flush=True)
 
     # 2. عمل session
     tok, device, headers = init_session()
@@ -573,13 +668,12 @@ def create_one_account():
     print(f"[{tid}] ✅ تم! الإجمالي: {total}", flush=True)
     return True, total
 
-# ─── Burst Pool (reduced) ────────────────────────────
-_burst_pool = ThreadPoolExecutor(max_workers=15)  # reduced from 50
+# ─── Burst Pool ────────────────────────────────────
+_burst_pool = ThreadPoolExecutor(max_workers=10)
 
 def _do_burst():
     global _new_count
-    # 3 حسابات بالتوازي بدل 5 — عشان م نضربش temp-mail.org
-    futures = {_burst_pool.submit(create_one_account): i for i in range(3)}
+    futures = {_burst_pool.submit(create_one_account): i for i in range(2)}
     for f in as_completed(futures):
         try:
             ok, result = f.result()
@@ -607,9 +701,8 @@ def worker():
                 batch_done += 1
                 print(f"✅ حساب #{n} | batch {batch_done}/{BATCH_SIZE} | الإجمالي: {result}", flush=True)
 
-                # تأخير قبل الـ burst عشان نسيب temp-mail.org يرتاح
-                time.sleep(3)
-                print(f"[{tid}] 🔥 بيطلق 3 حسابات بالتوازي...", flush=True)
+                time.sleep(2)
+                print(f"[{tid}] 🔥 بيطلع 2 حسابات بالتوازي...", flush=True)
                 _burst_pool.submit(_do_burst)
 
         if batch_done == BATCH_SIZE:
@@ -620,10 +713,28 @@ def main():
 
     print("🌐 السكريبت بيشتغل على الـ IP بتاعك مباشرة بدون بروكسي", flush=True)
     print("🔄 بيلفّ على IPs مصرية عشوائية في x-real-ip", flush=True)
-    print("📧 خدمة البريد: temp-mail.org (web2 + mob2)", flush=True)
+    print("", flush=True)
+    print("📧 ═══ مزودين البريد ═══", flush=True)
+    print("  1️⃣  tempmail.lol (أساسي — دومينات كتير + مفيش rate limit)", flush=True)
+    print("  2️⃣  temp-mail.org/web2 (احتياطي)", flush=True)
+    print("  3️⃣  temp-mail.org/mob2 (ملاذ أخير)", flush=True)
+    print("", flush=True)
     print(f"✅ الدومينات المسموحة: {', '.join(sorted(WORKING_DOMAINS))}", flush=True)
     print(f"🚫 الدومينات المحظورة: {', '.join(sorted(BLOCKLISTED_DOMAINS))}", flush=True)
-    print("🛡️ Rate Limiter: طلب كل 2 ثانية | Circuit Breaker: إيقاف بعد 5 فشل", flush=True)
+    print("", flush=True)
+
+    # نتأكد إن tempmail.lol شغال
+    try:
+        r = requests.get(f"{TEMPMAIL_LOL_URL}/generate", timeout=10)
+        if r.status_code == 200:
+            test_email = r.json().get('address', '')
+            test_domain = test_email.split('@')[1] if '@' in test_email else ''
+            blocked = "🚫 محظور" if test_domain in BLOCKLISTED_DOMAINS else "✅ شغال"
+            print(f"📬 tempmail.lol متاح (عينة: {test_email} - {blocked})", flush=True)
+        else:
+            print(f"⚠️  tempmail.lol رجع {r.status_code}", flush=True)
+    except:
+        print("⚠️  tempmail.lol مش متاح حالياً", flush=True)
 
     # نتأكد إن temp-mail.org شغال
     try:
@@ -641,9 +752,9 @@ def main():
     _accounts_cache = existing
 
     if ex_count > 0:
-        print(f"📂 تم تحميل {ex_count} حساب موجود — سيتم الإضافة عليها", flush=True)
+        print(f"\n📂 تم تحميل {ex_count} حساب موجود — سيتم الإضافة عليها", flush=True)
 
-    print(f"🚀 تشغيل {THREADS} threads متوازية...", flush=True)
+    print(f"\n🚀 تشغيل {THREADS} threads متوازية...", flush=True)
 
     start_pools()
 
@@ -661,6 +772,11 @@ def main():
 
     for t in threads:
         t.join(timeout=5)
+
+    # إحصائيات المزودين
+    print("\n📊 ═══ إحصائيات المزودين ═══", flush=True)
+    for p in [_provider_lol, _provider_web2, _provider_mob2]:
+        print(f"  {p.name}: {p.total_success} نجح / {p.total_fails} فشل / {p.total_requests} طلب", flush=True)
 
     total = len(_accounts_cache) if _accounts_cache else 0
     if _new_count > 0:

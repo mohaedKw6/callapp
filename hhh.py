@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-TelliCall Bot v3 - مع مراقبة صندوق الوارد + خاصية التاريخ
-===========================================================
-Changes from v2:
-  - Added domain filtering: skips blocklisted domains (wshu.net, 4nly.com, alf5.com, mtupu.com)
-  - Added /date command: shows account creation dates from Dan.json
-  - Added /accounts command: shows all accounts with details
-  - Improved email creation with domain retry logic
-  - Working domains: ifcoat.com, doreact.com, googxs.com, hitzcart.com, matkind.com
+TelliCall Bot v4 - Multi-Provider Email + Inbox Watcher + Date Feature
+======================================================================
+Changes from v3:
+  - tempmail.lol as PRIMARY email provider (no rate limits!)
+  - temp-mail.org as fallback providers (web2 + mob2)
+  - Automatic failover between providers
+  - Updated domain lists with new tempmail.lol domains
+  - Fixed rate limiting issues from v3
 """
 
 import telebot
@@ -41,7 +41,14 @@ USER_AGENT = "Dalvik/2.1.0 (Linux; U; Android 11; Infinix X698 Build/RP1A.200720
 DAN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dan.json")
 PASSWORD = "@@@GMAQ@@@"
 
-# ==================== إعدادات Temp-Mail APIs ====================
+# ═══════════════════════════════════════════════════════
+# ─── Multi-Provider Email Config ─────────────────────
+# ═══════════════════════════════════════════════════════
+
+# Provider 1: tempmail.lol (PRIMARY — no rate limit)
+TEMPMAIL_LOL_URL = "https://api.tempmail.lol"
+
+# Provider 2: temp-mail.org web2 (FALLBACK)
 WEB2_BASE_URL = "https://web2.temp-mail.org"
 WEB2_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36',
@@ -51,6 +58,7 @@ WEB2_HEADERS = {
     'Content-Type': 'application/json'
 }
 
+# Provider 3: temp-mail.org mob2 (LAST RESORT)
 MOB2_BASE_URL = "https://mob2.temp-mail.org"
 MOB2_HEADERS = {
     'Accept': 'application/json',
@@ -59,11 +67,16 @@ MOB2_HEADERS = {
 }
 
 # ==================== Domain Filtering ====================
-# الدومينات اللي بتشتغل مع Telicall (مش محظورة)
-WORKING_DOMAINS = {'ifcoat.com', 'doreact.com', 'googxs.com', 'hitzcart.com', 'matkind.com'}
+WORKING_DOMAINS = {
+    # tempmail.lol
+    'blaizesmp.net', 'chillart.org', 'dogmrp.com',
+    'for4u.net', 'basketrise.com', 'autofixmax.com',
+    # temp-mail.org
+    'ifcoat.com', 'doreact.com', 'googxs.com', 'hitzcart.com', 'matkind.com',
+}
 
-# الدومينات المحظورة من Telicall
-BLOCKLISTED_DOMAINS = {'wshu.net', '4nly.com', 'alf5.com', 'mtupu.com'}
+BLOCKLISTED_DOMAINS = {'wshu.net', '4nly.com', 'alf5.com', 'mtupu.com',
+                       'guerrillamailblock.com', 'guerrillamail.com', 'guerrillamail.de'}
 
 # ==================== حالات ومراقبو البريد ====================
 active_tasks = {}     # مهام الإنشاء الجارية  {chat_id: True/False}
@@ -101,24 +114,36 @@ def load_dan_accounts():
     except:
         return []
 
-# ==================== InboxWatcher - نظام مراقبة البريد ====================
+# ═══════════════════════════════════════════════════════
+# ─── InboxWatcher - نظام مراقبة البريد ──────────────
+# ═══════════════════════════════════════════════════════
+
+def get_all_messages_tempmail_lol(email_token):
+    """جلب كل الرسائل من tempmail.lol"""
+    try:
+        response = requests.get(f"{TEMPMAIL_LOL_URL}/auth/{email_token}", timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('email', [])
+    except Exception as e:
+        print(f"[tempmail.lol fetch] {e}")
+    return []
 
 def get_all_messages_web2(email_token):
-    """جلب كل الرسائل من web2 مع ID كل رسالة"""
+    """جلب كل الرسائل من web2"""
     try:
         headers = WEB2_HEADERS.copy()
         headers['Authorization'] = f"Bearer {email_token}"
         response = requests.get(f"{WEB2_BASE_URL}/messages", headers=headers, timeout=15)
         if response.status_code == 200:
             data = response.json()
-            msgs = data if isinstance(data, list) else data.get('messages', [])
-            return msgs
+            return data if isinstance(data, list) else data.get('messages', [])
     except Exception as e:
         print(f"[web2 fetch] {e}")
     return []
 
 def get_all_messages_mob2(email_token):
-    """جلب كل الرسائل من mob2 مع ID كل رسالة"""
+    """جلب كل الرسائل من mob2"""
     try:
         headers = MOB2_HEADERS.copy()
         headers['Authorization'] = email_token
@@ -130,6 +155,15 @@ def get_all_messages_mob2(email_token):
         print(f"[mob2 fetch] {e}")
     return []
 
+def get_messages_by_api(api_type, email_token):
+    """جلب الرسائل حسب نوع المزود"""
+    if api_type == 'tempmail_lol':
+        return get_all_messages_tempmail_lol(email_token)
+    elif api_type == 'web2':
+        return get_all_messages_web2(email_token)
+    else:
+        return get_all_messages_mob2(email_token)
+
 def get_message_id(msg):
     """استخراج ID فريد للرسالة لتجنب تكرار الإشعارات"""
     return msg.get('id') or msg.get('_id') or msg.get('uid') or str(msg.get('date', '')) + msg.get('from', '')
@@ -140,7 +174,6 @@ def format_message_notification(account_email, msg, account_number=None):
     subject = msg.get('subject', 'بدون موضوع')
     body    = msg.get('bodyPreview') or msg.get('textBody') or msg.get('body', '')
     
-    # اقتطاع المحتوى لو طويل
     if len(str(body)) > 400:
         body = str(body)[:400] + "..."
     
@@ -158,20 +191,11 @@ def format_message_notification(account_email, msg, account_number=None):
     return text
 
 def inbox_watcher_loop(chat_id, account_email, email_token, api_type, account_number, stop_event):
-    """
-    الحلقة الرئيسية لمراقبة صندوق الوارد لحساب واحد.
-    تشتغل في thread منفصل بشكل لا نهائي حتى يتم إيقافها.
-    فاصل الفحص: 30 ثانية.
-    """
+    """الحلقة الرئيسية لمراقبة صندوق الوارد لحساب واحد."""
     print(f"[Watcher START] {account_email} | api={api_type} | chat={chat_id}")
     
     seen_ids = set()
-    
-    if api_type == 'web2':
-        initial_msgs = get_all_messages_web2(email_token)
-    else:
-        initial_msgs = get_all_messages_mob2(email_token)
-    
+    initial_msgs = get_messages_by_api(api_type, email_token)
     for m in initial_msgs:
         seen_ids.add(get_message_id(m))
     
@@ -189,10 +213,7 @@ def inbox_watcher_loop(chat_id, account_email, email_token, api_type, account_nu
             break
         
         try:
-            if api_type == 'web2':
-                current_msgs = get_all_messages_web2(email_token)
-            else:
-                current_msgs = get_all_messages_mob2(email_token)
+            current_msgs = get_messages_by_api(api_type, email_token)
             
             new_messages = []
             for msg in current_msgs:
@@ -228,10 +249,10 @@ def inbox_watcher_loop(chat_id, account_email, email_token, api_type, account_nu
 
 def start_inbox_watcher(chat_id, account):
     """تشغيل مراقب صندوق الوارد لحساب معين في thread منفصل"""
-    email      = account['email']
+    email       = account['email']
     email_token = account['email_token']
-    api_type   = account['api_used']
-    acct_num   = account.get('number', '?')
+    api_type    = account['api_used']
+    acct_num    = account.get('number', '?')
     
     stop_event = threading.Event()
     
@@ -278,10 +299,35 @@ def stop_all_watchers_for_chat(chat_id):
     
     return len(to_stop)
 
-# ==================== دوال Temp-Mail ====================
+# ═══════════════════════════════════════════════════════
+# ─── دوال إنشاء الإيميل — Multi-Provider ────────────
+# ═══════════════════════════════════════════════════════
+
+def create_email_tempmail_lol():
+    """Provider 1: tempmail.lol — أساسي (مفيش rate limit)"""
+    for attempt in range(3):
+        try:
+            r = requests.get(f"{TEMPMAIL_LOL_URL}/generate", timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                email = data.get('address')
+                token = data.get('token')
+                if email and token:
+                    domain = email.split('@')[1] if '@' in email else ''
+                    if domain in BLOCKLISTED_DOMAINS:
+                        if attempt < 2:
+                            time.sleep(0.5)
+                            continue
+                    return {'email': email, 'token': token, 'api': 'tempmail_lol'}
+            else:
+                time.sleep(2)
+        except Exception as e:
+            print(f"tempmail.lol error: {e}")
+            time.sleep(2)
+    return None
 
 def create_email_web2():
-    """بيعمل ايميل على temp-mail.org (web2 API) مع فلترة الدومينات"""
+    """Provider 2: temp-mail.org web2 — احتياطي"""
     for attempt in range(5):
         try:
             response = requests.post(f"{WEB2_BASE_URL}/mailbox", headers=WEB2_HEADERS, timeout=15)
@@ -291,24 +337,22 @@ def create_email_web2():
                 token = data.get('token')
                 if email and token:
                     domain = email.split('@')[1] if '@' in email else ''
-                    # لو الدومين محظور نحاول تاني
                     if domain in BLOCKLISTED_DOMAINS:
                         if attempt < 4:
                             time.sleep(1)
                             continue
-                        # آخر محاولة - نقبل أي دومين (ممكن يشتغل)
                     return {'email': email, 'token': token, 'api': 'web2'}
             elif response.status_code == 429:
                 time.sleep(10 * (attempt + 1))
             else:
-                time.sleep(2)
+                time.sleep(3)
         except Exception as e:
             print(f"web2 create error: {e}")
-            time.sleep(2)
+            time.sleep(3)
     return None
 
 def create_email_mob2():
-    """بيعمل ايميل على temp-mail.org (mob2 API) كاحتياطي"""
+    """Provider 3: temp-mail.org mob2 — ملاذ أخير"""
     for attempt in range(3):
         try:
             response = requests.post(f"{MOB2_BASE_URL}/mailbox", headers=MOB2_HEADERS, timeout=10)
@@ -325,21 +369,58 @@ def create_email_mob2():
                     return {'email': email, 'token': token, 'api': 'mob2'}
         except Exception as e:
             print(f"mob2 create error: {e}")
-            time.sleep(2)
+            time.sleep(3)
     return None
 
 def create_email_smart():
-    """بيعمل ايميل مؤقت — بيجرب web2 الأول وبعدين mob2"""
+    """
+    بيعمل ايميل مؤقت — بيجرب المزودين بالترتيب:
+    1. tempmail.lol (أساسي)
+    2. temp-mail.org web2 (احتياطي)
+    3. temp-mail.org mob2 (ملاذ أخير)
+    """
+    # Provider 1: tempmail.lol
+    result = create_email_tempmail_lol()
+    if result:
+        domain = result['email'].split('@')[1] if '@' in result['email'] else ''
+        if domain not in BLOCKLISTED_DOMAINS:
+            return result
+        print(f"⚠️ tempmail.lol أعطى دومين محظور ({domain})، جاري تجربة web2...")
+    else:
+        print("⚠️ tempmail.lol فشل، جاري تجربة web2...")
+    
+    # Provider 2: web2
     result = create_email_web2()
     if result:
-        # تحقق من الدومين
         domain = result['email'].split('@')[1] if '@' in result['email'] else ''
         if domain not in BLOCKLISTED_DOMAINS:
             return result
         print(f"⚠️ web2 أعطى دومين محظور ({domain})، جاري تجربة mob2...")
     else:
         print("⚠️ web2 فشل، جاري تجربة mob2...")
+    
+    # Provider 3: mob2
     return create_email_mob2()
+
+# ═══════════════════════════════════════════════════════
+# ─── دوال فحص الـ Inbox — Multi-Provider ────────────
+# ═══════════════════════════════════════════════════════
+
+def check_inbox_for_code_tempmail_lol(email_token, max_attempts=20, wait_seconds=5):
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests.get(f"{TEMPMAIL_LOL_URL}/auth/{email_token}", timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                msgs = data.get('email', [])
+                code = extract_verification_code(msgs)
+                if code:
+                    return code
+        except Exception as e:
+            print(f"tempmail.lol inbox: {e}")
+        if attempt < max_attempts:
+            time.sleep(wait_seconds)
+    return None
 
 def check_inbox_for_code_web2(email_token, max_attempts=20, wait_seconds=5):
     headers = WEB2_HEADERS.copy()
@@ -378,7 +459,9 @@ def check_inbox_for_code_mob2(email_token, max_attempts=20, wait_seconds=5):
     return None
 
 def check_inbox_for_code_smart(email_token, api_type, max_attempts=20, wait_seconds=5):
-    if api_type == 'web2':
+    if api_type == 'tempmail_lol':
+        return check_inbox_for_code_tempmail_lol(email_token, max_attempts, wait_seconds)
+    elif api_type == 'web2':
         return check_inbox_for_code_web2(email_token, max_attempts, wait_seconds)
     return check_inbox_for_code_mob2(email_token, max_attempts, wait_seconds)
 
@@ -386,8 +469,7 @@ def extract_verification_code(messages):
     for msg in messages:
         sender  = msg.get('from', '').lower()
         subject = msg.get('subject', '').lower()
-        body    = msg.get('bodyPreview', msg.get('body', msg.get('textBody', '')))
-        # تحقق من مصادر متعددة (عربي وإنجليزي)
+        body    = msg.get('bodyPreview', msg.get('body', msg.get('textBody', msg.get('bodyHtml', ''))))
         if 'teli' in sender or 'teli' in subject or 'verification' in subject or 'verify' in subject or 'تحقق' in subject or 'رمز' in subject:
             match = re.search(r'\b(\d{6})\b', str(body))
             if match:
@@ -496,17 +578,14 @@ def get_account_balance(tc_token):
 # ==================== إنشاء حساب واحد ====================
 
 def create_single_account(progress_callback=None):
-    """
-    إنشاء حساب TelliCall كامل.
-    يرجع dict يشمل email_token و api_used للمراقبة لاحقاً.
-    """
+    """إنشاء حساب TelliCall كامل مع multi-provider email."""
     def log(msg):
         if progress_callback:
             progress_callback(msg)
         print(msg)
 
     # الخطوة 1: إيميل مؤقت
-    log("📧 جاري إنشاء إيميل مؤقت...")
+    log("📧 جاري إنشاء إيميل مؤقت (tempmail.lol → web2 → mob2)...")
     email_data = create_email_smart()
     if not email_data:
         log("❌ فشل إنشاء الإيميل من جميع المصادر")
@@ -517,10 +596,8 @@ def create_single_account(progress_callback=None):
     api_used    = email_data['api']
     domain      = email.split('@')[1] if '@' in email else ''
     
-    # تحقق من الدومين
     if domain in BLOCKLISTED_DOMAINS:
         log(f"⚠️ الدومين {domain} محظور! جاري تجربة أخرى...")
-        # حاول مرة تانية
         email_data = create_email_smart()
         if not email_data:
             log("❌ فشل إنشاء إيميل بدومين غير محظور")
@@ -616,11 +693,12 @@ def handle_start(message):
     )
     bot.send_message(
         message.chat.id,
-        "👋 *أهلاً بك في بوت TelliCall v3!*\n\n"
+        "👋 *أهلاً بك في بوت TelliCall v4!*\n\n"
         "🤖 أنا بنشئلك حسابات TelliCall أوتوماتيك\n"
         "💰 كل حساب برصيد *$0.25*\n"
         "📬 وبراقبلك صندوق كل حساب وأبعتلك الرسائل فور وصولها\n"
         "📅 ممكن تشوف تاريخ كل الحسابات وتفاصيلها\n\n"
+        "🆕 v4: tempmail.lol كمزود أساسي — مفيش rate limit!\n\n"
         "اضغط على الزر اللي يناسبك:",
         reply_markup=markup,
         parse_mode='Markdown'
@@ -638,13 +716,11 @@ def handle_accounts_cmd(message):
 
 @bot.callback_query_handler(func=lambda c: c.data == "date_info")
 def handle_date_info(call):
-    """عرض تاريخ الحسابات من زر"""
     bot.answer_callback_query(call.id)
     _show_date_info(call.message.chat.id)
 
 @bot.callback_query_handler(func=lambda c: c.data == "all_accounts")
 def handle_all_accounts(call):
-    """عرض كل الحسابات من زر"""
     bot.answer_callback_query(call.id)
     _show_all_accounts(call.message.chat.id)
 
@@ -658,7 +734,6 @@ def _show_date_info(chat_id):
     
     total = len(accounts)
     
-    # إحصائيات حسب التاريخ
     today = datetime.now().strftime("%Y-%m-%d")
     today_count = 0
     yesterday = None
@@ -669,10 +744,7 @@ def _show_date_info(chat_id):
         pass
     yesterday_count = 0
     
-    # إحصائيات الدومينات
     domain_stats = {}
-    
-    # أقدم وأحدث حساب
     oldest = None
     newest = None
     
@@ -681,27 +753,23 @@ def _show_date_info(chat_id):
         email = acc.get('email', '')
         domain = email.split('@')[1] if '@' in email else 'غير معروف'
         
-        # إحصائيات الدومينات
         domain_stats[domain] = domain_stats.get(domain, 0) + 1
         
-        # إحصائيات اليوم
         if today in created:
             today_count += 1
         if yesterday and yesterday in created:
             yesterday_count += 1
         
-        # أقدم وأحدث
         if created:
             if oldest is None or created < oldest:
                 oldest = created
             if newest is None or created > newest:
                 newest = created
     
-    # تجميع الحسابات حسب التاريخ
     date_groups = {}
     for acc in accounts:
         created = acc.get('created', 'غير معروف')
-        date_key = created[:10] if len(created) >= 10 else created  # YYYY-MM-DD
+        date_key = created[:10] if len(created) >= 10 else created
         if date_key not in date_groups:
             date_groups[date_key] = 0
         date_groups[date_key] += 1
@@ -735,8 +803,6 @@ def _show_all_accounts(chat_id):
         return
     
     total = len(accounts)
-    
-    # عرض آخر 20 حساب كحد أقصى (لتجنب رسالة طويلة جداً)
     display_accounts = accounts[-20:] if len(accounts) > 20 else accounts
     start_idx = max(0, len(accounts) - 20)
     
@@ -756,7 +822,6 @@ def _show_all_accounts(chat_id):
         text += f"*#{idx}* {has_token} `{email}`\n"
         text += f"  📅 `{created}`\n"
     
-    # إحصائيات سريعة
     with_token = sum(1 for a in accounts if a.get('x-token'))
     without_token = total - with_token
     
@@ -777,17 +842,22 @@ def handle_about(call):
     bot.answer_callback_query(call.id)
     bot.send_message(
         call.message.chat.id,
-        "ℹ️ *عن البوت v3*\n\n"
-        "🔧 *مصادر الإيميل:*\n"
-        "• web2.temp-mail.org (أساسي)\n"
-        "• mob2.temp-mail.org (احتياطي تلقائي)\n\n"
+        "ℹ️ *عن البوت v4*\n\n"
+        "🔧 *مصادر الإيميل (3 مزودين):*\n"
+        "• tempmail.lol (أساسي — مفيش rate limit!)\n"
+        "• web2.temp-mail.org (احتياطي)\n"
+        "• mob2.temp-mail.org (ملاذ أخير)\n\n"
         "✅ *الدومينات المسموحة:*\n"
+        "• blaizesmp.net, chillart.org\n"
+        "• dogmrp.com, for4u.net\n"
+        "• basketrise.com, autofixmax.com\n"
         "• ifcoat.com, doreact.com\n"
         "• googxs.com, hitzcart.com\n"
         "• matkind.com\n\n"
         "🚫 *الدومينات المحظورة:*\n"
         "• wshu.net, 4nly.com\n"
-        "• alf5.com, mtupu.com\n\n"
+        "• alf5.com, mtupu.com\n"
+        "• guerrillamail* (كل الدومينات)\n\n"
         "📬 *المراقبة التلقائية:*\n"
         "بعد إنشاء كل حساب، البوت يراقب صندوق إيميله كل 30 ثانية\n"
         "أي رسالة جديدة تجيك فوراً في الدردشة\n\n"
@@ -858,7 +928,8 @@ def handle_create_accounts(call):
         "📊 *كم حساب تريد إنشاءه؟*\n\n"
         "⏱ كل حساب ~2 دقيقة\n"
         "📬 المراقبة تبدأ تلقائياً بعد إنشاء كل حساب\n"
-        "📅 كل حساب بيتسجل في Dan.json",
+        "📅 كل حساب بيتسجل في Dan.json\n"
+        "🆕 v4: tempmail.lol كمزود أساسي — مفيش rate limit!",
         reply_markup=markup,
         parse_mode='Markdown'
     )
@@ -913,18 +984,16 @@ def handle_confirm(call):
 # ==================== حلقة إنشاء الحسابات ====================
 
 def run_account_creation(chat_id, count):
-    """
-    تشغيل إنشاء عدة حسابات بالتسلسل.
-    بعد كل حساب ناجح، يُشغّل له مراقب inbox منفصل.
-    """
+    """تشغيل إنشاء عدة حسابات بالتسلسل مع مراقبة تلقائية."""
     successful = []
     failed = 0
     
     bot.send_message(
         chat_id,
         f"🚀 *بدء إنشاء {count} حساب...*\n"
+        f"📧 مزود البريد: tempmail.lol (أساسي) + temp-mail.org (احتياطي)\n"
         f"📬 المراقبة ستبدأ تلقائياً بعد كل حساب\n"
-        f"✅ الدومينات المسموحة: ifcoat.com, doreact.com, googxs.com, hitzcart.com, matkind.com",
+        f"✅ الدومينات: blaizesmp.net, chillart.org, dogmrp.com, for4u.net وغيرها",
         parse_mode='Markdown'
     )
     
@@ -1024,7 +1093,6 @@ def handle_admin(message):
         bot.send_message(message.chat.id, "⛔ غير مصرح")
         return
     
-    # تحميل إحصائيات Dan.json
     dan_accounts = load_dan_accounts()
     dan_count = len(dan_accounts)
     with_token = sum(1 for a in dan_accounts if a.get('x-token'))
@@ -1034,51 +1102,39 @@ def handle_admin(message):
     
     bot.send_message(
         message.chat.id,
-        f"👑 *لوحة الإدمن*\n\n"
-        f"⚡ مهام الإنشاء النشطة: *{len([v for v in active_tasks.values() if v])}*\n"
-        f"📬 إجمالي مراقبي البريد: *{total_watchers}*\n"
-        f"👥 مستخدمين لديهم مهام: *{len(active_tasks)}*\n"
-        f"📂 حسابات Dan.json: *{dan_count}* ({with_token} بها Token)\n"
-        f"✅ الدومينات المسموحة: ifcoat.com, doreact.com, googxs.com, hitzcart.com, matkind.com\n"
-        f"🚫 الدومينات المحظورة: wshu.net, 4nly.com, alf5.com, mtupu.com",
+        f"👑 *لوحة الإدمن*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📂 *Dan.json:*\n"
+        f"  • إجمالي: *{dan_count}* حساب\n"
+        f"  • بـ Token: *{with_token}*\n"
+        f"  • بدون: *{dan_count - with_token}*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📬 *المراقبة:*\n"
+        f"  • نشط: *{total_watchers}* مراقب\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📧 *مزودين البريد:*\n"
+        f"  1. tempmail.lol (أساسي)\n"
+        f"  2. temp-mail.org/web2\n"
+        f"  3. temp-mail.org/mob2",
         parse_mode='Markdown'
     )
-
-@bot.message_handler(commands=['watchers'])
-def handle_watchers_cmd(message):
-    """عرض جميع مراقبي البريد للمستخدم"""
-    with inbox_watchers_lock:
-        user_watchers = {
-            email: data for email, data in inbox_watchers.items()
-            if data['chat_id'] == message.chat.id
-        }
-    
-    if not user_watchers:
-        bot.send_message(message.chat.id, "📭 لا يوجد مراقبون نشطون")
-        return
-    
-    text = f"📬 *مراقبو البريد النشطون ({len(user_watchers)})*\n━━━━━━━━━━━━━━━━━━━━\n"
-    for email, data in user_watchers.items():
-        text += f"• `{email}` (#{data['account_number']}) - بدأ: {data['started_at']}\n"
-    
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("🔕 إيقاف الكل", callback_data="stop_all_watchers"))
-    bot.send_message(message.chat.id, text, parse_mode='Markdown', reply_markup=markup)
 
 # ==================== تشغيل البوت ====================
 
 if __name__ == "__main__":
-    print("🤖 TelliCall Bot v3 يعمل...")
-    print("📬 نظام مراقبة صندوق الوارد نشط")
-    print("📅 خاصية التاريخ متاحة (/date)")
-    print(f"✅ الدومينات المسموحة: {', '.join(sorted(WORKING_DOMAINS))}")
-    print(f"🚫 الدومينات المحظورة: {', '.join(sorted(BLOCKLISTED_DOMAINS))}")
-    print("اضغط Ctrl+C للإيقاف\n")
-    try:
-        bot.infinity_polling(timeout=10, long_polling_timeout=5)
-    except KeyboardInterrupt:
-        print("\n⚠️ تم إيقاف البوت")
-    except Exception as e:
-        print(f"❌ خطأ: {e}")
-        import traceback
-        traceback.print_exc()
+    print("=" * 50)
+    print("🤖 TelliCall Bot v4 — Multi-Provider Email")
+    print("=" * 50)
+    print(f"📧 Provider 1: tempmail.lol (PRIMARY)")
+    print(f"📧 Provider 2: temp-mail.org/web2 (FALLBACK)")
+    print(f"📧 Provider 3: temp-mail.org/mob2 (LAST RESORT)")
+    print(f"✅ Working domains: {len(WORKING_DOMAINS)}")
+    print(f"🚫 Blocklisted domains: {len(BLOCKLISTED_DOMAINS)}")
+    print("=" * 50)
+    
+    while True:
+        try:
+            bot.infinity_polling(timeout=60, long_polling_timeout=60)
+        except Exception as e:
+            print(f"Bot error: {e}")
+            time.sleep(5)
