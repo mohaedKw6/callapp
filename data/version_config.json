@@ -1,9 +1,0 @@
-{
-  "latest_version": "4.0.0",
-  "latest_version_code": 15,
-  "minimum_version_code": 15,
-  "force_update": true,
-  "download_url": "https://github.com/mohaedkw1/callapp/releases/download/v4.0.0/fox-call-v4.0.0-universal.apk",
-  "update_message_ar": "يتوفر تحديث جديد Fox Call v4.0.0! يرجى تحميل النسخة الجديدة.",
-  "update_message_en": "Fox Call v4.0.0 update available! Please download the latest version."
-}

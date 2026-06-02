@@ -1,9 +1,0 @@
-*
-!bot.py
-!callv2.py
-!foxapp_api.py
-!github_sync.py
-!requirements.txt
-!data/
-!data/bot_data.json
-!data/telicall_accounts.json
