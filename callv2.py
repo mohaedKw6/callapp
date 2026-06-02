@@ -646,7 +646,9 @@ def _init_tokens_background(accounts_to_init: list, notify_user_id=None):
                 "x-req-timestamp": str(int(time.time() * 1000)),
                 "x-req-signature": "-1",
                 "content-type": "application/json",
-                "x-token": ""
+                "x-token": "",
+                "x-real-ip": _rand_eg_ip(),
+                "x-currency": "EGP"
             }
             body = {
                 "countryCode": "eg",
@@ -2231,6 +2233,28 @@ def get_otp():
         except: pass
     return None
 
+# Egyptian IP ranges for x-real-ip header (needed for server/Railway with non-EG IP)
+_EG_RANGES = [
+    (41, 32), (41, 33), (41, 34), (41, 35), (41, 36),
+    (41, 37), (41, 38), (41, 39), (41, 40), (41, 41),
+    (41, 42), (41, 43), (41, 44), (41, 45), (41, 46),
+    (41, 47), (41, 48), (41, 49), (41, 50), (41, 51),
+    (41, 52), (41, 53), (41, 54), (41, 55), (41, 56),
+    (41, 57), (41, 58), (41, 59), (41, 60), (41, 61),
+    (156, 192), (156, 193), (156, 194), (156, 195),
+    (156, 196), (156, 197), (156, 198), (156, 199),
+    (156, 200), (156, 201), (156, 202), (156, 203),
+    (197, 32), (197, 33), (197, 34), (197, 35),
+    (197, 36), (197, 37), (197, 38), (197, 39),
+    (197, 40), (197, 41), (197, 42), (197, 43),
+]
+
+def _rand_eg_ip():
+    a, b = random.choice(_EG_RANGES)
+    c = random.randint(1, 254)
+    d = random.randint(1, 254)
+    return f"{a}.{b}.{c}.{d}"
+
 # دوال TelliCall API
 def get_headers(_token=None, _device_id=None):
     global token, device_id
@@ -2239,7 +2263,8 @@ def get_headers(_token=None, _device_id=None):
     if not _d: _d = ''.join(random.choices('0123456789abcdef', k=16))
     return {"host": "api.telicall.com", "x-request-id": str(uuid.uuid4()), "user-agent": "Dalvik/2.1.0", "x-app-version": "1.2.1",
             "x-client-device-id": _d, "x-lang": "en", "x-os": "android", "x-os-version": "11",
-            "x-req-timestamp": str(int(time.time() * 1000)), "x-req-signature": "-1", "content-type": "application/json", "x-token": _t or ""}
+            "x-req-timestamp": str(int(time.time() * 1000)), "x-req-signature": "-1", "content-type": "application/json", "x-token": _t or "",
+            "x-real-ip": _rand_eg_ip(), "x-currency": "EGP"}
 
 def init_session():
     global token
@@ -5430,7 +5455,9 @@ def run_bot(token_override: str = ""):
                                 "x-req-timestamp": str(int(time.time() * 1000)),
                                 "x-req-signature": "-1",
                                 "content-type": "application/json",
-                                "x-token": ""
+                                "x-token": "",
+                                "x-real-ip": _rand_eg_ip(),
+                                "x-currency": "EGP"
                             }
                             body = {
                                 "countryCode": "eg",
