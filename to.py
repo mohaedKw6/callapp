@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v1 - Bulk TelliCall Account Creator
-===============================================
+TelliCall Bulk Account Creator (to.py)
+=======================================
 Creates TelliCall accounts in parallel using temp-mail.org emails.
 Supports IP rotation, account pooling, and encrypted Dan.json storage.
 
-Changes from hhh.py:
-  - Replaced mail.tm (wshu.net - BLOCKLISTED) with temp-mail.org
-  - Added domain filtering: only uses working (non-blocklisted) domains
-  - Working domains: ifcoat.com, doreact.com, googxs.com, hitzcart.com, matkind.com
-  - Blocklisted domains: wshu.net, 4nly.com, alf5.com, mtupu.com
+Fixed: Replaced mail.tm (wshu.net - BLOCKLISTED) with temp-mail.org
+Working domains: ifcoat.com, doreact.com, googxs.com, hitzcart.com, matkind.com
 
 Usage:
-    python3 fox_caller1.py
+    python3 to.py
 """
 
 import requests
@@ -96,10 +93,7 @@ MOB2_HEADERS = {
 }
 
 # ─── Domain Filtering ──────────────────────────────
-# الدومينات اللي بتشتغل مع Telicall (مش محظورة)
 WORKING_DOMAINS = {'ifcoat.com', 'doreact.com', 'googxs.com', 'hitzcart.com', 'matkind.com'}
-
-# الدومينات المحظورة من Telicall
 BLOCKLISTED_DOMAINS = {'wshu.net', '4nly.com', 'alf5.com', 'mtupu.com'}
 
 _mail_lock = threading.Lock()
@@ -181,21 +175,6 @@ def save_account(email, device, tok):
 
 # ─── البريد المؤقت — temp-mail.org ──────────────────────
 
-def is_domain_working(email_addr):
-    """بيشوف الدومين مش محظور من Telicall"""
-    if '@' in email_addr:
-        domain = email_addr.split('@')[1]
-    else:
-        domain = email_addr
-    # لو في الـ working list → تمام
-    if domain in WORKING_DOMAINS:
-        return True
-    # لو في الـ blocklisted → لا
-    if domain in BLOCKLISTED_DOMAINS:
-        return False
-    # لو مش في الاتنين → نسيبه يجرب (يمكن دومين جديد)
-    return True
-
 def create_email_web2():
     """بيعمل ايميل على temp-mail.org (web2 API) مع فلترة الدومينات"""
     for attempt in range(5):
@@ -208,13 +187,11 @@ def create_email_web2():
                 email = data.get('mailbox')
                 token = data.get('token')
                 if email and token:
-                    # فلترة الدومين - لو محظور نحاول تاني
                     domain = email.split('@')[1] if '@' in email else ''
                     if domain in BLOCKLISTED_DOMAINS:
                         if attempt < 4:
                             time.sleep(1)
                             continue
-                        # آخر محاولة - نقبل أي دومين
                     return {
                         'email': email,
                         'token': token,
@@ -326,7 +303,6 @@ def _email_pool_filler():
         if _email_pool.qsize() < EMAIL_POOL_SIZE:
             mail = create_email()
             if mail:
-                # فلترة: لو الدومين محظور متحطوش في الـ pool
                 domain = mail['email'].split('@')[1] if '@' in mail['email'] else ''
                 if domain in BLOCKLISTED_DOMAINS:
                     continue
@@ -352,10 +328,9 @@ def _session_pool_filler():
 def get_email_from_pool() -> dict:
     try:
         mail = _email_pool.get(timeout=8)
-        # فلترة مرة تانية
         domain = mail['email'].split('@')[1] if '@' in mail['email'] else ''
         if domain in BLOCKLISTED_DOMAINS:
-            return create_email()  # جرب تعمل واحد جديد
+            return create_email()
         return mail
     except queue.Empty:
         return create_email()
