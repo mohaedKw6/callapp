@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-TelliCall Bot v7 - Clean & Stable
-==================================
-ONLY: temp-mail.io -> gmeenramy.com (NO rate limits!)
+TelliCall Bot v8 - 409 Fixed + Clean
+=====================================
+ONLY: temp-mail.io -> gmeenramy.com
+Auto-kills old bot processes to fix 409
 Egyptian IP rotation on every TelliCall request
-Terminal colors + continuous creation
-NO web2, NO inbox watchers - clean & stable
 """
 
 import telebot
@@ -22,6 +21,9 @@ import hashlib
 import base64
 import threading
 import string
+import subprocess
+import signal
+import sys
 from datetime import datetime
 
 # ═══════════════════════════════════════════════════════
@@ -29,10 +31,8 @@ from datetime import datetime
 # ═══════════════════════════════════════════════════════
 
 class C:
-    """ANSI Color codes"""
     RST   = '\033[0m'
     BOLD  = '\033[1m'
-    DIM   = '\033[2m'
     RED   = '\033[91m'
     GREEN = '\033[92m'
     YEL   = '\033[93m'
@@ -41,18 +41,90 @@ class C:
     CYAN  = '\033[96m'
     WHT   = '\033[97m'
     GRAY  = '\033[90m'
-    # Background
-    BG_RED   = '\033[41m'
     BG_GREEN = '\033[42m'
     BG_BLUE  = '\033[44m'
-    BG_MAG   = '\033[45m'
 
 def cprint(color, msg, flush=True):
     print(f"{color}{msg}{C.RST}", flush=flush)
 
-def log_step(account_num, color, msg):
+def log_step(num, color, msg):
     ts = datetime.now().strftime("%H:%M:%S")
-    print(f"{C.GRAY}[{ts}]{C.RST} {color}[{account_num}] {msg}{C.RST}", flush=True)
+    print(f"{C.GRAY}[{ts}]{C.RST} {color}[{num}] {msg}{C.RST}", flush=True)
+
+# ═══════════════════════════════════════════════════════
+# ─── Kill Old Processes (409 Fix) ───────────────────
+# ═══════════════════════════════════════════════════════
+
+def kill_old_bot_instances():
+    """
+    Kill any other python process running to.py to avoid 409 conflict.
+    Only kills OTHER instances, not the current one.
+    """
+    my_pid = os.getpid()
+    cprint(C.YEL, "  Killing old bot processes...")
+
+    try:
+        # Find all python processes running to.py
+        result = subprocess.run(
+            ['ps', '-eo', 'pid,args'],
+            capture_output=True, text=True, timeout=5
+        )
+        killed = 0
+        for line in result.stdout.strip().split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split(None, 1)
+            if len(parts) < 2:
+                continue
+            pid_str, cmd = parts
+            try:
+                pid = int(pid_str)
+            except ValueError:
+                continue
+
+            # Kill any python process running to.py that is NOT us
+            if pid != my_pid and 'to.py' in cmd and 'python' in cmd.lower():
+                cprint(C.RED, f"    Killing PID {pid}: {cmd[:60]}")
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                    killed += 1
+                except (PermissionError, ProcessLookupError):
+                    pass
+
+        if killed > 0:
+            cprint(C.GREEN, f"  Killed {killed} old instance(s)")
+            time.sleep(3)  # Wait for Telegram to release the polling
+        else:
+            cprint(C.GREEN, "  No old instances found")
+
+    except Exception as e:
+        cprint(C.YEL, f"  Process scan note: {e}")
+
+def force_release_telegram_polling():
+    """
+    Force Telegram to release the getUpdates lock by calling
+    deleteWebhook + getUpdates directly via HTTP.
+    """
+    BOT_TOKEN = "7622961655:AAEMyav7MYmZMRNADkzj8KCIv2yEx2vpxd4"
+    base = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+    # 1. Delete webhook and drop pending updates
+    try:
+        r = requests.get(f"{base}/deleteWebhook?drop_pending_updates=true", timeout=10)
+        cprint(C.GREEN, f"  Webhook deleted: {r.json().get('description', '')}")
+    except:
+        pass
+
+    # 2. Call getUpdates with offset=-1 to clear the queue
+    try:
+        r = requests.get(f"{base}/getUpdates?offset=-1&timeout=1", timeout=5)
+        cprint(C.GREEN, f"  Updates cleared")
+    except:
+        pass
+
+    # 3. Wait for Telegram to fully release
+    time.sleep(2)
 
 # ═══════════════════════════════════════════════════════
 # ─── Bot Settings ────────────────────────────────────
@@ -194,11 +266,7 @@ def save_dan_account(email, device_id, token):
 # ═══════════════════════════════════════════════════════
 
 def create_email(stop_event=None):
-    """
-    Create email using temp-mail.io -> gmeenramy.com
-    NO rate limits! ALWAYS gives gmeenramy.com domain.
-    Returns {'email', 'token', 'api': 'io'}
-    """
+    """Create email using temp-mail.io -> gmeenramy.com"""
     name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
     payload = {"domain": IO_DOMAIN, "name": name}
 
@@ -212,14 +280,14 @@ def create_email(stop_event=None):
                 email = data.get('email', '')
                 token = data.get('token', '')
                 if email and token:
-                    return {'email': email, 'token': token, 'api': 'io'}
+                    return {'email': email, 'token': token}
             elif r.status_code == 429:
-                wait = 3 + attempt * 2
-                cprint(C.YEL, f"  io rate limited (429) - retry in {wait}s")
+                wait = 5 + attempt * 3
+                cprint(C.YEL, f"  io 429 - retry in {wait}s")
                 time.sleep(wait)
             else:
-                cprint(C.YEL, f"  io error: {r.status_code} - retry...")
-                time.sleep(2)
+                cprint(C.YEL, f"  io error {r.status_code} - retry...")
+                time.sleep(3)
         except Exception as e:
             cprint(C.RED, f"  io error: {e} - retry...")
             time.sleep(3)
@@ -323,7 +391,7 @@ def send_verification_email(tc_token, email):
             data = response.json()
             ref = data.get('result', {}).get('reference', '')
             if ref:
-                cprint(C.GREEN, f"  OTP sent [{ip}] ref={ref[:10]}...")
+                cprint(C.GREEN, f"  OTP sent [{ip}]")
                 return ref
         cprint(C.RED, f"  send_email failed: {response.status_code}")
     except Exception as e:
@@ -370,13 +438,11 @@ def get_account_balance(tc_token):
 # ═══════════════════════════════════════════════════════
 
 def create_single_account(chat_id, account_num, stop_event=None, progress_callback=None):
-    """Create one complete TelliCall account"""
     def log(color, msg):
         log_step(account_num, color, msg)
         if progress_callback:
             progress_callback(msg)
 
-    # Step 1: Create email
     log(C.CYAN, "Creating email (temp-mail.io)...")
     email_data = create_email(stop_event)
     if not email_data:
@@ -387,21 +453,18 @@ def create_single_account(chat_id, account_num, stop_event=None, progress_callba
     email_token = email_data['token']
     log(C.GREEN, f"Email: {email}")
 
-    # Step 2: TelliCall session
     log(C.BLUE, "Init TelliCall session (new IP)...")
     tc_token = init_telicall_session()
     if not tc_token:
         log(C.RED, "Session init failed")
         return None
 
-    # Step 3: Send verification
     log(C.BLUE, "Sending verification...")
     reference = send_verification_email(tc_token, email)
     if not reference:
         log(C.RED, "Send verification failed")
         return None
 
-    # Step 4: Wait for OTP
     log(C.YEL, "Waiting for OTP...")
     code = wait_for_otp(email, stop_event, max_wait=90)
     if not code:
@@ -409,18 +472,15 @@ def create_single_account(chat_id, account_num, stop_event=None, progress_callba
         return None
     log(C.GREEN, f"OTP: {code}")
 
-    # Step 5: Verify
     log(C.BLUE, "Verifying...")
     user_data, final_token = verify_and_create_account(tc_token, reference, code)
     if not user_data:
         log(C.RED, "Verification failed")
         return None
 
-    # Step 6: Balance
     time.sleep(2)
     balance = get_account_balance(final_token)
 
-    # Step 7: Save
     device_id = generate_device_id()
     save_dan_account(email, device_id, final_token)
     log(C.GREEN, f"SAVED! Balance: ${balance or '0'}")
@@ -432,7 +492,6 @@ def create_single_account(chat_id, account_num, stop_event=None, progress_callba
         'user_id':        user_data.get('opaqueId'),
         'reference_code': user_data.get('referenceCode'),
         'balance':        balance or '0',
-        'api_used':       'io',
         'created_at':     datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
@@ -440,34 +499,15 @@ def create_single_account(chat_id, account_num, stop_event=None, progress_callba
 # ─── Telegram Bot ───────────────────────────────────
 # ═══════════════════════════════════════════════════════
 
-# Create bot instance (will be initialized properly in main)
 bot = None
 
 def create_bot():
-    """Create bot with proper cleanup to avoid 409 errors"""
+    """Create bot - only called after old processes are killed"""
     global bot
-    # First, delete any existing webhook
-    try:
-        temp_bot = telebot.TeleBot(BOT_TOKEN)
-        temp_bot.delete_webhook(drop_pending_updates=True)
-        cprint(C.GREEN, "  Webhook deleted, pending updates dropped")
-        # Clear any pending getUpdates
-        temp_bot.get_updates(timeout=1)
-        del temp_bot
-        time.sleep(1)
-    except Exception as e:
-        cprint(C.YEL, f"  Cleanup note: {e}")
-
-    # Now create the real bot
     bot = telebot.TeleBot(BOT_TOKEN, skip_pending=True)
     return bot
 
-# ═══════════════════════════════════════════════════════
-# ─── Bot Handlers ───────────────────────────────────
-# ═══════════════════════════════════════════════════════
-
 def register_handlers():
-    """Register all bot handlers"""
 
     @bot.message_handler(commands=['start'])
     def handle_start(message):
@@ -480,7 +520,7 @@ def register_handlers():
         )
         bot.send_message(
             message.chat.id,
-            "*TelliCall Bot v7*\n\n"
+            "*TelliCall Bot v8*\n\n"
             "إنشاء حسابات TelliCall أوتوماتيك\n"
             "المزود: *gmeenramy.com* (temp-mail.io)\n"
             "بدون rate limit!\n"
@@ -522,13 +562,12 @@ def register_handlers():
         bot.answer_callback_query(call.id)
         bot.send_message(
             call.message.chat.id,
-            "*TelliCall Bot v7*\n\n"
+            "*TelliCall Bot v8*\n\n"
             "*المزود:* temp-mail.io\n"
-            "  الدومين: gmeenramy.com\n"
-            "  بدون rate limit!\n\n"
+            "الدومين: gmeenramy.com\n"
+            "بدون rate limit!\n\n"
             "كل طلب بـ IP مصري مختلف\n"
-            "إنشاء مستمر بدون توقف\n"
-            "بدون مشاكل 409 أو 429",
+            "إنشاء مستمر بدون توقف",
             parse_mode='Markdown'
         )
 
@@ -627,7 +666,6 @@ def _show_all_accounts(chat_id):
 # ═══════════════════════════════════════════════════════
 
 def run_account_creation(chat_id, count, stop_event):
-    """Create accounts continuously"""
     successful = []
     failed = 0
 
@@ -671,7 +709,6 @@ def run_account_creation(chat_id, count, stop_event):
             failed += 1
             bot.send_message(chat_id, f"فشل الحساب {i}/{count}")
 
-        # Short pause between accounts
         if i < count and not stop_event.is_set():
             time.sleep(random.randint(3, 8))
 
@@ -691,79 +728,54 @@ def run_account_creation(chat_id, count, stop_event):
     _stop_events.pop(chat_id, None)
 
 # ═══════════════════════════════════════════════════════
-# ─── Admin ──────────────────────────────────────────
-# ═══════════════════════════════════════════════════════
-
-def register_admin():
-    @bot.message_handler(commands=['admin'])
-    def handle_admin(message):
-        if message.chat.id != OWNER_ID:
-            bot.send_message(message.chat.id, "غير مصرح")
-            return
-        dan_accounts = load_dan_accounts()
-        dan_count = len(dan_accounts)
-        bot.send_message(
-            message.chat.id,
-            f"*لوحة الإدمن*\n\n"
-            f"Dan.json: *{dan_count}* حساب\n"
-            f"المزود: gmeenramy.com (temp-mail.io)",
-            parse_mode='Markdown'
-        )
-
-# ═══════════════════════════════════════════════════════
 # ─── Main ───────────────────────────────────────────
 # ═══════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    print(f"\n{C.BG_GREEN}{C.WHT}{C.BOLD} TelliCall Bot v7 - Clean & Stable {C.RST}\n")
-    cprint(C.GREEN, f"  Provider: temp-mail.io -> gmeenramy.com")
-    cprint(C.YEL,  f"  IPs: Egyptian rotation on every request")
-    cprint(C.CYAN, f"  Colors: ON")
-    cprint(C.WHT,  f"  NO web2, NO inbox watchers - clean!")
-    print()
+    print(f"\n{C.BG_GREEN}{C.WHT}{C.BOLD} TelliCall Bot v8 - 409 Fixed {C.RST}\n")
 
-    # Quick test
-    cprint(C.BLUE, "Testing temp-mail.io...")
+    # STEP 1: Kill old bot processes (MAIN 409 FIX)
+    cprint(C.RED, "STEP 1: Killing old bot processes...")
+    kill_old_bot_instances()
+
+    # STEP 2: Force release Telegram polling lock
+    cprint(C.BLUE, "STEP 2: Releasing Telegram polling lock...")
+    force_release_telegram_polling()
+
+    # STEP 3: Test email
+    cprint(C.CYAN, "STEP 3: Testing temp-mail.io...")
     try:
         r = requests.post(f"{IO_BASE_URL}/email/new", json={"domain": IO_DOMAIN}, headers=IO_HEADERS, timeout=10)
         if r.status_code == 200:
-            test_email = r.json().get('email', '')
-            cprint(C.GREEN, f"  OK: {test_email}")
+            cprint(C.GREEN, f"  OK: {r.json().get('email', '')}")
         else:
-            cprint(C.RED, f"  returned {r.status_code}")
+            cprint(C.RED, f"  Error: {r.status_code}")
     except Exception as e:
-        cprint(C.RED, f"  error: {e}")
+        cprint(C.RED, f"  Error: {e}")
 
     print()
 
-    # Create bot with cleanup to avoid 409
-    cprint(C.BLUE, "Cleaning up old sessions (fixing 409)...")
+    # STEP 4: Create bot
+    cprint(C.GREEN, "STEP 4: Starting bot...")
     create_bot()
-    cprint(C.GREEN, "  Bot instance ready")
-
-    # Register handlers
     register_handlers()
-    register_admin()
 
-    cprint(C.GREEN, f"{C.BOLD}Bot starting...{C.RST}")
+    cprint(C.GREEN, f"{C.BOLD}Bot is running!{C.RST}")
 
+    # Use polling with auto-restart (no 409 loop)
     while True:
         try:
             bot.infinity_polling(timeout=60, long_polling_timeout=60, skip_pending=True)
         except Exception as e:
             err_str = str(e)
             if '409' in err_str:
-                cprint(C.RED, f"409 Conflict - another instance running. Cleaning up...")
-                try:
-                    bot.delete_webhook(drop_pending_updates=True)
-                    time.sleep(2)
-                except:
-                    pass
-                # Recreate bot
+                cprint(C.RED, "409 still happening! Killing again...")
+                kill_old_bot_instances()
+                force_release_telegram_polling()
                 create_bot()
                 register_handlers()
-                register_admin()
-                cprint(C.GREEN, "  Restarted after 409 cleanup")
+                cprint(C.GREEN, "  Restarted!")
+                time.sleep(5)
             else:
                 cprint(C.RED, f"Bot error: {e}")
-            time.sleep(5)
+                time.sleep(5)
