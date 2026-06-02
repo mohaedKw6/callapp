@@ -434,12 +434,11 @@ def get_otp(api_type, token_or_email, proxy_dict=None, timeout=90):
 # ═══════════════════════════════════════════════════════════════
 # ─── Telicall API ─────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
-def init_session(proxy_dict=None, use_xrealip=False):
+def init_session(proxy_dict=None, use_xrealip=True):
     """Initialize Telicall session.
     
-    IMPORTANT: Tries WITHOUT x-real-ip first by default.
-    Only adds x-real-ip if use_xrealip=True.
-    Your real IP might be Egyptian - x-real-ip with fake IP can cause VERIFY_SEND_FAIL!
+    IMPORTANT: x-real-ip is ON by default - Telicall REQUIRES Egyptian IP!
+    Without it, even send_verify fails.
     """
     device = ''.join(random.choices('0123456789abcdef', k=16))
 
@@ -455,7 +454,7 @@ def init_session(proxy_dict=None, use_xrealip=False):
         "content-type": "application/json",
         "x-token": "",
     }
-    # Only add x-real-ip when explicitly requested
+    # Add x-real-ip when no proxy (Telicall needs Egyptian IP!)
     if use_xrealip and not proxy_dict:
         h["x-currency"] = "EGP"
         h["x-real-ip"] = rand_eg_ip()
@@ -819,12 +818,7 @@ def create_and_call(duration, create_only=False, use_xrealip=False):
         email_short = email_addr.split('@')[0][:12]
 
         # ═══════ Step 2: Init Session ═══════
-        # Try WITHOUT x-real-ip first (your real IP might be Egyptian!)
-        tok, device, headers = init_session(current_proxy, use_xrealip=False)
-        
-        if not tok and not current_proxy:
-            # Failed without x-real-ip, try WITH it as fallback
-            tok, device, headers = init_session(current_proxy, use_xrealip=True)
+        tok, device, headers = init_session(current_proxy, use_xrealip=use_xrealip)
         
         if not tok:
             print(f"[{tid}] 🔑 فشل الجلسة {phone} <- {email_short}", flush=True)
@@ -836,20 +830,11 @@ def create_and_call(duration, create_only=False, use_xrealip=False):
         # ═══════ Step 3: Send Verification ═══════
         ref = send_verify(email_addr, headers, current_proxy)
         if not ref:
-            # Maybe x-real-ip issue - try with x-real-ip if we didn't before
-            if not current_proxy and not headers.get('x-real-ip'):
-                # Re-init with x-real-ip and retry
-                tok2, device2, headers2 = init_session(current_proxy, use_xrealip=True)
-                if tok2:
-                    tok, device, headers = tok2, device2, headers2
-                    ref = send_verify(email_addr, headers, current_proxy)
-            
-            if not ref:
-                print(f"[{tid}] 📨 فشل التحقق {phone} <- {email_short}", flush=True)
-                if current_proxy:
-                    current_proxy = get_proxy_and_mark_dead(current_proxy)
-                update_stat("verify_fail")
-                continue
+            print(f"[{tid}] 📨 فشل التحقق {phone} <- {email_short}", flush=True)
+            if current_proxy:
+                current_proxy = get_proxy_and_mark_dead(current_proxy)
+            update_stat("verify_fail")
+            continue
 
         # ═══════ Step 4: Get OTP ═══════
         otp = get_otp(mail['api_type'], mail['token'], current_proxy)
@@ -921,8 +906,8 @@ def main():
     parser.add_argument("--proxies", default=PROXY_FILE, help="Proxy file path")
     parser.add_argument("--create-only", action="store_true",
                         help="Just create accounts, don't make calls")
-    parser.add_argument("--xrealip", action="store_true",
-                        help="Use x-real-ip header (try if verify fails)")
+    parser.add_argument("--no-xrealip", action="store_true",
+                        help="Disable x-real-ip header (only if you have Egyptian IP)")
     args = parser.parse_args()
 
     PROXY_FILE = args.proxies
@@ -945,7 +930,7 @@ def main():
     print(f"  Duration:    {args.duration}s per call", flush=True)
     print(f"  Threads:     {args.threads}", flush=True)
     print(f"  Mode:        {'Create accounts only' if args.create_only else 'Create + Call'}", flush=True)
-    print(f"  x-real-ip:   {'ON' if args.xrealip else 'OFF (try your real IP first)'}", flush=True)
+    print(f"  x-real-ip:   {'OFF (using real IP)' if args.no_xrealip else 'ON (Egyptian IP)'}", flush=True)
 
     init_proxy_manager()
     print("=" * 60, flush=True)
@@ -979,7 +964,7 @@ def main():
     threads = []
     for i in range(args.threads):
         t = threading.Thread(target=create_and_call,
-                             args=(args.duration, args.create_only, args.xrealip),
+                             args=(args.duration, args.create_only, not args.no_xrealip),
                              daemon=True, name=f"W{i}")
         t.start()
         threads.append(t)
