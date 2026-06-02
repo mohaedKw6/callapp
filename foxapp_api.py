@@ -2978,6 +2978,190 @@ def api_fox_caller_make_call():
         })
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  Fox Caller — Async call with verification link
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_async_call_results: dict[str, dict] = {}
+_async_call_lock = threading.Lock()
+
+
+@app.post("/api/fox-caller/async-call")
+def api_fox_caller_async_call():
+    """Start a SIP call from the server in the background.
+    Returns immediately with a call_id and a verification link.
+
+    Auth: x-admin-key header
+
+    Body: {
+        "phone": "+966512345678",
+        "duration": 64,
+        "auto_create": false  (optional, default false)
+    }
+
+    Response: {
+        "call_id": "...",
+        "status": "ringing",
+        "verification_url": "https://.../api/fox-caller/call-status/<call_id>",
+        "check_url": "https://.../api/fox-caller/call-status/<call_id>"
+    }
+    """
+    admin_key = request.headers.get("x-admin-key", "")
+    if not admin_key or not hmac_mod.compare_digest(admin_key, ADMIN_SECRET):
+        return jsonify({"error": "unauthorized"}), 403
+
+    body = request.get_json(silent=True) or {}
+    phone = (body.get("phone") or "").strip()
+    duration = body.get("duration", 64)
+    auto_create = body.get("auto_create", False)
+
+    if not phone:
+        return jsonify({"error": "missing 'phone'"}), 400
+
+    if not phone.startswith('+'):
+        phone = '+' + phone
+
+    try:
+        duration = int(duration)
+        duration = max(1, min(duration, 600))
+    except (ValueError, TypeError):
+        duration = 64
+
+    cv = _cv()
+    ready = cv.count_ready_tokens()
+    has_accounts = len(cv.accounts) > 0
+
+    if ready == 0 and not has_accounts and not auto_create:
+        return jsonify({
+            "error": "no_accounts",
+            "message": "No accounts available. Upload accounts first via /api/fox-caller/upload-accounts",
+            "ready_tokens": ready,
+        }), 502
+
+    call_id = secrets.token_hex(8)
+    verification_url = f"{PUBLIC_URL}/api/fox-caller/call-status/{call_id}"
+
+    with _async_call_lock:
+        _async_call_results[call_id] = {
+            "call_id": call_id,
+            "phone": phone,
+            "duration_requested": duration,
+            "status": "ringing",
+            "started_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "completed_at": None,
+            "actual_duration": 0,
+            "success": False,
+            "from_number": "",
+            "error": None,
+        }
+
+    def _run_call():
+        try:
+            with _async_call_lock:
+                if call_id in _async_call_results:
+                    _async_call_results[call_id]["status"] = "calling"
+
+            result = cv.make_call(
+                phone,
+                dur=duration,
+                auto_create=auto_create,
+                max_retries=3,
+            )
+
+            with _async_call_lock:
+                if call_id in _async_call_results:
+                    if result and isinstance(result, tuple) and len(result) >= 2:
+                        success, call_from = result[0], result[1]
+                        _async_call_results[call_id]["status"] = "answered_ok" if success else "failed"
+                        _async_call_results[call_id]["success"] = bool(success)
+                        _async_call_results[call_id]["from_number"] = call_from or ""
+                        _async_call_results[call_id]["actual_duration"] = duration if success else 0
+                    else:
+                        _async_call_results[call_id]["status"] = "failed"
+                        _async_call_results[call_id]["success"] = False
+
+                    _async_call_results[call_id]["completed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        except Exception as e:
+            with _async_call_lock:
+                if call_id in _async_call_results:
+                    _async_call_results[call_id]["status"] = "error"
+                    _async_call_results[call_id]["error"] = str(e)
+                    _async_call_results[call_id]["completed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    call_thread = threading.Thread(target=_run_call, daemon=True)
+    call_thread.start()
+
+    return jsonify({
+        "call_id": call_id,
+        "phone": phone,
+        "duration_requested": duration,
+        "status": "ringing",
+        "verification_url": verification_url,
+        "check_url": verification_url,
+    })
+
+
+@app.get("/api/fox-caller/call-status/<call_id>")
+def api_fox_caller_call_status(call_id):
+    """Check the status of an async call and verify its duration.
+
+    No auth required — this is the verification link.
+
+    Response: {
+        "call_id": "...",
+        "phone": "+...",
+        "status": "answered_ok" | "ringing" | "calling" | "failed" | "error",
+        "duration_requested": 64,
+        "actual_duration": 64,
+        "success": true,
+        "from_number": "...",
+        "started_at": "...",
+        "completed_at": "...",
+        "verified": true   // true only if status == answered_ok and actual_duration >= duration_requested
+    }
+    """
+    with _async_call_lock:
+        result = _async_call_results.get(call_id)
+
+    if not result:
+        return jsonify({"error": "call_id not found"}), 404
+
+    # Determine if verified (call lasted at least the requested duration)
+    verified = (
+        result["status"] == "answered_ok"
+        and result["actual_duration"] >= result["duration_requested"]
+    )
+
+    response = dict(result)
+    response["verified"] = verified
+
+    return jsonify(response)
+
+
+@app.get("/api/fox-caller/recent-calls")
+def api_fox_caller_recent_calls():
+    """List recent async calls (last 100).
+
+    Auth: x-admin-key header
+    """
+    admin_key = request.headers.get("x-admin-key", "")
+    if not admin_key or not hmac_mod.compare_digest(admin_key, ADMIN_SECRET):
+        return jsonify({"error": "unauthorized"}), 403
+
+    with _async_call_lock:
+        calls = list(_async_call_results.values())
+
+    # Sort by started_at descending, take last 100
+    calls.sort(key=lambda x: x.get("started_at", ""), reverse=True)
+    calls = calls[:100]
+
+    return jsonify({
+        "total": len(calls),
+        "calls": calls,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  Telegram /token command + Flask launcher
 # ═══════════════════════════════════════════════════════════════════════════════
 
