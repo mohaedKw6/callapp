@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v5.0 - Fixed Call Launcher
-======================================
-FIXES over v4.0:
-  - Proxy support for account creation (accounts GET balance!)
-  - Multiple email providers (temp-mail.org + temp-mail.io)
-  - 45+ email domains (not just hitzcart.com)
-  - Balance check before uploading to server (no more NO_BALANCE!)
-  - Non-blocking: concurrent calls via threads + async server endpoint
-  - Reports: [W1] ANSWERED_OK +966510122129 (64.0s) <- 447447233691
+Fox Caller v6.0 - Robust Call Launcher
+=======================================
+- 5 email providers with sequential fallback + retries
+- Tries WITHOUT x-real-ip first (your real IP might be Egyptian!)
+- Direct Telicall API call (works even when server is down!)
+- Server call when available (for 64s full calls)
+- Clear status: tells you exactly what happened
 
 Usage:
   python3 fox_caller1.py numbers.xlsx
-  python3 fox_caller1.py numbers.xlsx --duration 64 --threads 5
-  python3 fox_caller1.py numbers.xlsx --proxies alive_proxies.txt
+  python3 fox_caller1.py numbers.xlsx --duration 64 --threads 3
+  python3 fox_caller1.py numbers.xlsx --create-only   (just create accounts, no calls)
 """
 
 import requests
@@ -42,9 +40,9 @@ ADMIN_KEY     = "06d271200e53fb4482acd8679bfe358a"
 DAN_FILE      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dan.json")
 PASSWORD      = "@@@GMAQ@@@"
 DEFAULT_DURATION = 64
-DEFAULT_THREADS   = 5
+DEFAULT_THREADS   = 3   # Lower default = less rate-limiting
 
-# 45+ email domains that work with temp-mail.io
+# Email domains for temp-mail.io
 DOMAINS = [
     "daouse.com", "bltiwd.com", "rommiui.com", "mrotzis.com",
     "mkzaso.com", "illubd.com", "wnbaldwy.com", "xkxkud.com",
@@ -62,7 +60,7 @@ DOMAINS = [
 ]
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Proxy Manager (from t.py - accounts get balance!) ───────
+# ─── Proxy Manager ────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 PROXY_FILE      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alive_proxies.txt")
 _proxy_lock     = threading.Lock()
@@ -70,7 +68,6 @@ _dead_proxies   = set()
 _proxy_list     = []
 
 def _load_proxies_from_file():
-    """Load proxies from file (supports http://, socks5://, ip:port)"""
     proxies = []
     if not os.path.exists(PROXY_FILE):
         return proxies
@@ -88,7 +85,6 @@ def _load_proxies_from_file():
     return proxies
 
 def init_proxy_manager():
-    """Initialize proxy manager - call once at startup"""
     global _proxy_list
     _proxy_list = _load_proxies_from_file()
     if _proxy_list:
@@ -99,11 +95,9 @@ def init_proxy_manager():
         breakdown = ' | '.join(f"{k}={v}" for k, v in sorted(types.items()))
         print(f"  Proxies:     {len(_proxy_list)} loaded ({breakdown})", flush=True)
     else:
-        print(f"  Proxies:     None (using x-real-ip fallback)", flush=True)
-        print(f"  WARNING:     Accounts may have NO BALANCE without proxies!", flush=True)
+        print(f"  Proxies:     None", flush=True)
 
 def get_proxy():
-    """Get a random alive proxy dict, or None"""
     with _proxy_lock:
         alive = [p for p in _proxy_list if p not in _dead_proxies]
     if alive:
@@ -116,18 +110,13 @@ def _mark_dead(proxy_url):
         _dead_proxies.add(proxy_url)
 
 def get_proxy_and_mark_dead(proxy_dict):
-    """Mark current proxy as dead and get a new one"""
     if proxy_dict:
         url = list(proxy_dict.values())[0]
         _mark_dead(url)
-        with _proxy_lock:
-            alive_count = len([p for p in _proxy_list if p not in _dead_proxies])
-        if alive_count % 10 == 0:
-            print(f"  ⚠ Alive proxies: {alive_count}", flush=True)
     return get_proxy()
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Egyptian IP Generator (fallback when no proxies) ────────
+# ─── Egyptian IP Generator ───────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 _EG_RANGES = [
     (41, 32), (41, 33), (41, 34), (41, 35), (41, 36),
@@ -148,7 +137,6 @@ _ip_lock  = threading.Lock()
 _used_ips = set()
 
 def rand_eg_ip():
-    """Generate random Egyptian IP (for x-real-ip fallback)"""
     with _ip_lock:
         for _ in range(50):
             a, b = random.choice(_EG_RANGES)
@@ -165,30 +153,30 @@ def rand_eg_ip():
         return f"{a}.{b}.{c}.{d}"
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Email Providers ──────────────────────────────────────────
+# ─── Email Providers (5 sources!) ────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 
-# --- temp-mail.org (mob2 endpoint) ---
 def create_mob2_mail(proxy_dict=None):
-    """Create email via mob2.temp-mail.org"""
+    """Provider 1: mob2.temp-mail.org"""
     try:
         r = requests.post(
             "https://mob2.temp-mail.org/mailbox",
             headers={'Accept': 'application/json', 'User-Agent': '3.49',
                      'Accept-Encoding': 'gzip'},
-            proxies=proxy_dict, timeout=8
+            proxies=proxy_dict, timeout=10
         )
         if r.status_code == 200:
             d = r.json()
             if d.get('mailbox') and d.get('token'):
                 return {'email': d['mailbox'], 'token': d['token'], 'api_type': 'mob2'}
+        elif r.status_code == 429:
+            time.sleep(2)
     except Exception:
         pass
     return None
 
-# --- temp-mail.io (45+ domains) ---
 def create_io_mail(proxy_dict=None):
-    """Create email via temp-mail.io with random domain"""
+    """Provider 2: temp-mail.io (45+ domains)"""
     domain = random.choice(DOMAINS)
     name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
     try:
@@ -202,17 +190,18 @@ def create_io_mail(proxy_dict=None):
                 'Origin': 'https://temp-mail.io',
                 'User-Agent': 'Mozilla/5.0'
             },
-            proxies=proxy_dict, timeout=8
+            proxies=proxy_dict, timeout=10
         )
         if r.status_code == 200:
             email = r.json().get('email')
             if email:
                 return {'email': email, 'token': email, 'api_type': 'io'}
+        elif r.status_code == 429:
+            time.sleep(2)
     except Exception:
         pass
     return None
 
-# --- web2.temp-mail.org (legacy) ---
 WEB2_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36',
     'Accept': 'application/json, text/plain, */*',
@@ -222,7 +211,7 @@ WEB2_HEADERS = {
 }
 
 def create_web2_mail(proxy_dict=None):
-    """Create email via web2.temp-mail.org (legacy)"""
+    """Provider 3: web2.temp-mail.org"""
     try:
         r = requests.post("https://web2.temp-mail.org/mailbox",
                           headers=WEB2_HEADERS, proxies=proxy_dict, timeout=10)
@@ -232,41 +221,124 @@ def create_web2_mail(proxy_dict=None):
             token = data.get('token', '')
             if email and token:
                 return {'email': email, 'token': token, 'api_type': 'web2'}
+        elif r.status_code == 429:
+            time.sleep(3)
+    except Exception:
+        pass
+    return None
+
+_mailtm_domains = None
+_mailtm_domains_lock = threading.Lock()
+
+def _get_mailtm_domains():
+    """Get available mail.tm domains"""
+    global _mailtm_domains
+    with _mailtm_domains_lock:
+        if _mailtm_domains:
+            return _mailtm_domains
+    try:
+        r = requests.get("https://api.mail.tm/domains", timeout=8)
+        if r.status_code == 200:
+            data = r.json()
+            # mail.tm returns {"hydra:member": [...]} or a list
+            if isinstance(data, dict):
+                domains = [d.get('domain', '') for d in data.get('hydra:member', []) if d.get('domain')]
+            elif isinstance(data, list):
+                domains = [d.get('domain', '') for d in data if isinstance(d, dict) and d.get('domain')]
+            else:
+                domains = []
+            with _mailtm_domains_lock:
+                _mailtm_domains = domains
+            return domains
+    except Exception:
+        pass
+    return []
+
+def create_mailtm(proxy_dict=None):
+    """Provider 4: mail.tm (very reliable)"""
+    domains = _get_mailtm_domains()
+    if not domains:
+        return None
+    domain = random.choice(domains)
+    name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=12))
+    email = f"{name}@{domain}"
+    password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    try:
+        r = requests.post("https://api.mail.tm/accounts",
+                          json={"address": email, "password": password},
+                          proxies=proxy_dict, timeout=10)
+        if r.status_code in [200, 201]:
+            # Login to get token
+            r2 = requests.post("https://api.mail.tm/token",
+                               json={"address": email, "password": password},
+                               proxies=proxy_dict, timeout=10)
+            if r2.status_code == 200:
+                token = r2.json().get('token', '')
+                if token:
+                    return {'email': email, 'token': token, 'api_type': 'mailtm'}
+    except Exception:
+        pass
+    return None
+
+def create_guerrilla_mail(proxy_dict=None):
+    """Provider 5: guerrillamail"""
+    try:
+        # Get a random email
+        r = requests.get(
+            "https://api.guerrillamail.com/ajax.php?f=get_email_address",
+            params={"lang": "en"},
+            proxies=proxy_dict, timeout=10
+        )
+        if r.status_code == 200:
+            data = r.json()
+            email = data.get('email_addr', '')
+            sid = data.get('sid_token', '')
+            if email and sid:
+                return {'email': email, 'token': sid, 'api_type': 'guerrilla'}
     except Exception:
         pass
     return None
 
 def create_email(proxy_dict=None):
-    """Create temp email - tries all providers in parallel, returns first success"""
-    result = [None]
+    """Try ALL providers SEQUENTIALLY with retries - much more reliable!"""
+    providers = [
+        ("temp-mail.io", lambda: create_io_mail(proxy_dict)),
+        ("mob2", lambda: create_mob2_mail(proxy_dict)),
+        ("mail.tm", lambda: create_mailtm(proxy_dict)),
+        ("web2", lambda: create_web2_mail(proxy_dict)),
+        ("guerrilla", lambda: create_guerrilla_mail(proxy_dict)),
+    ]
+    
+    # Try each provider sequentially
+    for name, fn in providers:
+        result = fn()
+        if result:
+            return result
+        time.sleep(0.5)
+    
+    # If all failed, try parallel approach (fire all at once)
+    result_box = [None]
     done = threading.Event()
-
-    def _try(fn):
+    
+    def _try(fn, name):
         r = fn()
         if r and not done.is_set():
             done.set()
-            result[0] = r
-
-    threads = [
-        threading.Thread(target=_try, args=(lambda: create_mob2_mail(proxy_dict),)),
-        threading.Thread(target=_try, args=(lambda: create_io_mail(proxy_dict),)),
-        threading.Thread(target=_try, args=(lambda: create_web2_mail(proxy_dict),)),
-    ]
+            result_box[0] = r
+    
+    threads = [threading.Thread(target=_try, args=(fn, name)) for name, fn in providers]
     for t in threads:
         t.start()
-    done.wait(timeout=10)
-    return result[0]
-
+    done.wait(timeout=15)
+    return result_box[0]
 
 # --- Inbox checking ---
 def check_mob2_inbox(tkn, proxy_dict=None):
     try:
-        r = requests.get(
-            "https://mob2.temp-mail.org/messages",
-            headers={'Accept': 'application/json', 'User-Agent': '3.49',
-                     'Authorization': tkn},
-            proxies=proxy_dict, timeout=8
-        )
+        r = requests.get("https://mob2.temp-mail.org/messages",
+                         headers={'Accept': 'application/json', 'User-Agent': '3.49',
+                                  'Authorization': tkn},
+                         proxies=proxy_dict, timeout=8)
         if r.status_code == 200:
             return r.json().get('messages', [])
     except Exception:
@@ -275,10 +347,8 @@ def check_mob2_inbox(tkn, proxy_dict=None):
 
 def check_io_inbox(email, proxy_dict=None):
     try:
-        r = requests.get(
-            f"https://api.internal.temp-mail.io/api/v3/email/{email}/messages",
-            proxies=proxy_dict, timeout=8
-        )
+        r = requests.get(f"https://api.internal.temp-mail.io/api/v3/email/{email}/messages",
+                         proxies=proxy_dict, timeout=8)
         if r.status_code == 200:
             return r.json()
     except Exception:
@@ -298,8 +368,35 @@ def check_web2_inbox(email_token, proxy_dict=None):
         pass
     return []
 
+def check_mailtm_inbox(token, proxy_dict=None):
+    try:
+        r = requests.get("https://api.mail.tm/messages",
+                         headers={"Authorization": f"Bearer {token}"},
+                         proxies=proxy_dict, timeout=8)
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, dict):
+                return data.get('hydra:member', [])
+            elif isinstance(data, list):
+                return data
+    except Exception:
+        pass
+    return []
+
+def check_guerrilla_inbox(sid_token, proxy_dict=None):
+    try:
+        r = requests.get("https://api.guerrillamail.com/ajax.php?f=get_email_list",
+                         params={"sid_token": sid_token, "offset": 0},
+                         proxies=proxy_dict, timeout=8)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get('list', [])
+    except Exception:
+        pass
+    return []
+
 def get_otp(api_type, token_or_email, proxy_dict=None, timeout=90):
-    """Get OTP from email inbox with timeout"""
+    """Get OTP from email inbox"""
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
@@ -309,13 +406,18 @@ def get_otp(api_type, token_or_email, proxy_dict=None, timeout=90):
                 messages = check_io_inbox(token_or_email, proxy_dict)
             elif api_type == 'web2':
                 messages = check_web2_inbox(token_or_email, proxy_dict)
+            elif api_type == 'mailtm':
+                messages = check_mailtm_inbox(token_or_email, proxy_dict)
+            elif api_type == 'guerrilla':
+                messages = check_guerrilla_inbox(token_or_email, proxy_dict)
             else:
                 messages = []
 
             for msg in messages:
                 content = str(
                     msg.get('text', '') or msg.get('body', '') or
-                    msg.get('bodyPreview', '') or msg.get('content', '') or msg
+                    msg.get('bodyPreview', '') or msg.get('content', '') or
+                    msg.get('excerpt', '') or msg.get('mail_body', '') or msg
                 )
                 subject = str(msg.get('subject', '')).lower()
                 sender = str(msg.get('from', '')).lower()
@@ -326,21 +428,20 @@ def get_otp(api_type, token_or_email, proxy_dict=None, timeout=90):
                         return m.group(1)
         except Exception:
             pass
-        time.sleep(2)
+        time.sleep(3)
     return None
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Telicall API ─────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
-def init_session(proxy_dict=None, use_real_ip=False):
+def init_session(proxy_dict=None, use_xrealip=False):
     """Initialize Telicall session.
     
-    Args:
-        proxy_dict: Proxy to use (preferred - accounts get balance!)
-        use_real_ip: If True and no proxy, use x-real-ip header
+    IMPORTANT: Tries WITHOUT x-real-ip first by default.
+    Only adds x-real-ip if use_xrealip=True.
+    Your real IP might be Egyptian - x-real-ip with fake IP can cause VERIFY_SEND_FAIL!
     """
     device = ''.join(random.choices('0123456789abcdef', k=16))
-    ip = rand_eg_ip() if use_real_ip else ""
 
     h = {
         "host": "api.telicall.com",
@@ -354,10 +455,10 @@ def init_session(proxy_dict=None, use_real_ip=False):
         "content-type": "application/json",
         "x-token": "",
     }
-    # Add x-real-ip ONLY when no proxy (fallback mode)
-    if ip and not proxy_dict:
+    # Only add x-real-ip when explicitly requested
+    if use_xrealip and not proxy_dict:
         h["x-currency"] = "EGP"
-        h["x-real-ip"] = ip
+        h["x-real-ip"] = rand_eg_ip()
 
     body = {
         "countryCode": "eg", "deviceName": "Infinix X698",
@@ -369,7 +470,7 @@ def init_session(proxy_dict=None, use_real_ip=False):
         h["x-request-id"] = str(uuid.uuid4())
         h["x-req-timestamp"] = str(int(time.time() * 1000))
         r = requests.post(f"{API_URL}/init", json=body, headers=h,
-                          proxies=proxy_dict, timeout=10)
+                          proxies=proxy_dict, timeout=12)
         if r.status_code == 200:
             tok = r.json().get('result', {}).get('token')
             if tok:
@@ -380,12 +481,11 @@ def init_session(proxy_dict=None, use_real_ip=False):
     return None, None, None
 
 def send_verify(email, headers, proxy_dict=None):
-    """Send verification email"""
     try:
         headers["x-request-id"] = str(uuid.uuid4())
         headers["x-req-timestamp"] = str(int(time.time() * 1000))
         r = requests.post(f"{API_URL}/auth/send-email", json={'email': email},
-                          headers=headers, proxies=proxy_dict, timeout=10)
+                          headers=headers, proxies=proxy_dict, timeout=12)
         if r.status_code == 200:
             return r.json().get('result', {}).get('reference')
     except Exception:
@@ -393,26 +493,22 @@ def send_verify(email, headers, proxy_dict=None):
     return None
 
 def verify_otp_api(ref, code, headers, proxy_dict=None):
-    """Verify OTP code"""
     try:
         headers["x-request-id"] = str(uuid.uuid4())
         headers["x-req-timestamp"] = str(int(time.time() * 1000))
         r = requests.post(f"{API_URL}/auth/verify-identity",
                           json={'reference': ref, 'code': str(code)},
-                          headers=headers, proxies=proxy_dict, timeout=10)
+                          headers=headers, proxies=proxy_dict, timeout=12)
         if r.status_code == 200:
             return r.json().get('result', {}).get('user')
     except Exception:
         pass
     return None
 
-def check_token_balance(token, device_id, proxy_dict=None):
-    """Check if a token has balance by trying to start a test call.
-    
-    Returns:
-        True if account has balance (call API accepted)
-        False if NO_BALANCE
-        None if inconclusive
+def direct_telicall_call(phone, token, device_id, proxy_dict=None):
+    """Make a DIRECT call via Telicall API (no server needed!).
+    This fires the /call/outbound/start API which initiates the call.
+    Returns: dict with call info, or None
     """
     h = {
         "host": "api.telicall.com",
@@ -426,29 +522,37 @@ def check_token_balance(token, device_id, proxy_dict=None):
         "content-type": "application/json",
         "x-token": token,
     }
-    # Add x-real-ip when no proxy
     if not proxy_dict:
         h["x-currency"] = "EGP"
         h["x-real-ip"] = rand_eg_ip()
-
+    
     try:
-        # Use a dummy number just to check if the API accepts or rejects
-        r = requests.post(
-            f"{API_URL}/call/outbound/start",
-            json={'to': '+201000000000', 'source': 'numpad'},
-            headers=h, proxies=proxy_dict, timeout=10
-        )
-        if r.status_code == 200 and r.json().get('result'):
-            return True  # Has balance - API returned SIP credentials
+        r = requests.post(f"{API_URL}/call/outbound/start",
+                          json={'to': phone, 'source': 'numpad'},
+                          headers=h, proxies=proxy_dict, timeout=12)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get('result'):
+                result = data['result']
+                sip = result.get('sip', {})
+                from_info = result.get('from', {})
+                return {
+                    'success': True,
+                    'from': from_info.get('msisdn', ''),
+                    'to': result.get('to', {}).get('msisdn', phone),
+                    'sip_user': sip.get('username', ''),
+                    'sip_domain': sip.get('domain', ''),
+                    'limit': sip.get('callLimit', 60),
+                }
         elif r.status_code == 400:
             err = r.text.lower()
             if 'balance' in err:
-                return False  # NO_BALANCE
-            return None  # Other 400 error (maybe invalid number)
+                return {'success': False, 'error': 'NO_BALANCE'}
+            return {'success': False, 'error': f'400: {r.text[:100]}'}
         else:
-            return None  # Inconclusive
-    except Exception:
-        return None
+            return {'success': False, 'error': f'HTTP {r.status_code}'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Dan.json Encryption ──────────────────────────────────────
@@ -469,7 +573,6 @@ def decrypt_file(path: str, password: str) -> str:
     return bytes([raw[i] ^ key[i % len(key)] for i in range(len(raw))]).decode('utf-8')
 
 def save_account(email, device, tok):
-    """Save account to encrypted Dan.json"""
     lock_path = DAN_FILE + ".lock"
     lock = FileLock(lock_path, timeout=10)
     with lock:
@@ -497,8 +600,19 @@ def save_account(email, device, tok):
 # ═══════════════════════════════════════════════════════════════
 # ─── Server API ───────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
+_server_available = None  # None = unknown, True/False
+
+def is_server_available():
+    """Check if server is reachable (cached for 60s)"""
+    global _server_available
+    try:
+        r = requests.get(f"{SERVER_URL}/api/health", timeout=8)
+        _server_available = r.status_code == 200
+    except Exception:
+        _server_available = False
+    return _server_available
+
 def upload_to_server(email, device_id, token):
-    """Upload account token to server"""
     try:
         r = requests.post(f"{SERVER_URL}/api/fox-caller/upload-accounts",
                           headers={"Content-Type": "application/json",
@@ -512,10 +626,9 @@ def upload_to_server(email, device_id, token):
             return data.get("ready_tokens", 0)
     except Exception:
         pass
-    return 0
+    return -1  # -1 means server unavailable
 
 def trigger_async_call(phone, duration=64):
-    """Trigger async call on server (fire and forget)"""
     try:
         r = requests.post(f"{SERVER_URL}/api/fox-caller/async-call",
                           headers={"Content-Type": "application/json",
@@ -529,26 +642,7 @@ def trigger_async_call(phone, duration=64):
         pass
     return None, ""
 
-def trigger_make_call(phone, duration=64):
-    """Trigger blocking call on server (waits for completion)"""
-    try:
-        r = requests.post(f"{SERVER_URL}/api/fox-caller/make-call",
-                          headers={"Content-Type": "application/json",
-                                   "x-admin-key": ADMIN_KEY},
-                          json={"phone": phone, "duration": duration},
-                          timeout=duration + 120)
-        if r.status_code == 200:
-            return r.json()
-        else:
-            try:
-                return r.json()
-            except Exception:
-                return {"status": "error", "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-
 def check_call_status(call_id):
-    """Check async call status on server"""
     try:
         r = requests.get(f"{SERVER_URL}/api/fox-caller/call-status/{call_id}",
                          timeout=10)
@@ -558,24 +652,11 @@ def check_call_status(call_id):
         pass
     return None
 
-def get_server_stats():
-    """Get server stats (ready tokens, etc.)"""
-    try:
-        r = requests.get(f"{SERVER_URL}/api/admin/stats",
-                         headers={"x-admin-key": ADMIN_KEY}, timeout=10)
-        if r.status_code == 200:
-            return r.json()
-    except Exception:
-        pass
-    return {}
-
 # ═══════════════════════════════════════════════════════════════
 # ─── Read Numbers from File ──────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 def read_numbers(filepath):
-    """Read phone numbers from .xlsx or .txt file"""
     numbers = []
-
     if filepath.endswith('.xlsx'):
         try:
             import openpyxl
@@ -611,7 +692,6 @@ def read_numbers(filepath):
             print(f"ERROR reading file: {e}", flush=True)
             sys.exit(1)
 
-    # Remove duplicates
     seen = set()
     unique = []
     for n in numbers:
@@ -625,18 +705,17 @@ def read_numbers(filepath):
 # ═══════════════════════════════════════════════════════════════
 _stats_lock = threading.Lock()
 _stats = {
-    "answered": 0,
-    "no_answer": 0,
-    "busy": 0,
-    "failed": 0,
-    "no_balance": 0,
-    "accounts_created": 0,
-    "accounts_no_balance": 0,
+    "calls_ok": 0,       # Call connected successfully
+    "calls_no_balance": 0,
+    "calls_failed": 0,
+    "accounts_ok": 0,    # Accounts with balance
+    "accounts_no_bal": 0,
+    "email_fail": 0,
+    "verify_fail": 0,
     "total": 0,
 }
 _start_time = None
 
-# Phone queue
 _phone_queue = []
 _queue_lock = threading.Lock()
 _queue_index = 0
@@ -654,39 +733,23 @@ def update_stat(key, delta=1):
     with _stats_lock:
         _stats[key] += delta
 
-def format_stats():
-    elapsed = time.time() - _start_time if _start_time else 0
-    mins = int(elapsed) // 60
-    secs = int(elapsed) % 60
-    with _stats_lock:
-        s = _stats
-        return (f"Stats [{mins}m{secs}s] "
-                f"{s['answered']} Ans | {s['no_answer']} NoA | "
-                f"{s['busy']} Bsy | {s['no_balance']} NoBal | "
-                f"{s['failed']} Fail | "
-                f"Accounts: {s['accounts_created']} ok / {s['accounts_no_balance']} no-bal | "
-                f"{s['total']} Total")
-
 # ═══════════════════════════════════════════════════════════════
-# ─── Active Call Tracking ─────────────────────────────────────
+# ─── Active Call Tracking (for server async calls) ───────────
 # ═══════════════════════════════════════════════════════════════
 _active_calls = []
 _active_call_lock = threading.Lock()
 
-def add_active_call(call_id, phone, caller_info, tid):
+def add_active_call(call_id, phone, from_num, tid):
     with _active_call_lock:
         _active_calls.append({
-            "call_id": call_id,
-            "phone": phone,
-            "caller": caller_info,
-            "tid": tid,
-            "started": time.time()
+            "call_id": call_id, "phone": phone,
+            "from": from_num, "tid": tid, "started": time.time()
         })
 
 def monitor_calls():
-    """Background thread: poll async call statuses and report results"""
+    """Background: check async call statuses"""
     while True:
-        time.sleep(8)
+        time.sleep(10)
         with _active_call_lock:
             remaining = []
             for c in _active_calls:
@@ -695,42 +758,27 @@ def monitor_calls():
                     s = status_data.get("status", "")
                     dur = status_data.get("actual_duration", 0)
                     phone = c["phone"]
-                    caller = status_data.get("from_number", c["caller"])
+                    caller = status_data.get("from_number", c["from"])
                     tid = c["tid"]
-
                     if s == "answered_ok":
-                        verified = status_data.get("verified", False)
-                        if verified:
-                            print(f"[{tid}] ANSWERED_OK {phone} ({dur}s) <- {caller}", flush=True)
-                            update_stat("answered")
-                        else:
-                            print(f"[{tid}] ANSWERED_SHORT {phone} ({dur}s) <- {caller}", flush=True)
-                            update_stat("no_answer")
-                        continue  # Done, don't keep in list
-
-                    elif s == "failed":
-                        print(f"[{tid}] CALL_FAILED {phone} <- {caller}", flush=True)
-                        update_stat("failed")
-                        continue
-
-                    elif s == "error":
+                        print(f"[{tid}] ✅ تم الاتصال {phone} ({dur}s) <- {caller}", flush=True)
+                        update_stat("calls_ok")
+                    elif s in ("failed", "error"):
                         err = status_data.get("error", "")
-                        if "balance" in err.lower() or "no_balance" in err.lower():
-                            print(f"[{tid}] NO_BALANCE {phone}", flush=True)
-                            update_stat("no_balance")
+                        if "balance" in str(err).lower():
+                            print(f"[{tid}] ❌ NO_BALANCE {phone}", flush=True)
+                            update_stat("calls_no_balance")
                         else:
-                            print(f"[{tid}] ERROR {phone}: {err}", flush=True)
-                            update_stat("failed")
+                            print(f"[{tid}] ❌ فشل الاتصال {phone} ({err})", flush=True)
+                            update_stat("calls_failed")
                         continue
-
-                    # Still in progress (ringing/calling)
-                    remaining.append(c)
+                    else:
+                        remaining.append(c)  # Still ringing
                 else:
-                    # Can't check status - timeout after 5 min
                     elapsed = time.time() - c["started"]
                     if elapsed > 300:
-                        print(f"[{tid}] TIMEOUT {c['phone']}", flush=True)
-                        update_stat("failed")
+                        print(f"[{tid}] ⏰ TIMEOUT {c['phone']}", flush=True)
+                        update_stat("calls_failed")
                     else:
                         remaining.append(c)
             _active_calls.clear()
@@ -739,18 +787,10 @@ def monitor_calls():
 # ═══════════════════════════════════════════════════════════════
 # ─── Worker: Create Account + Call ────────────────────────────
 # ═══════════════════════════════════════════════════════════════
-def create_and_call(duration):
-    """
-    Worker function:
-    1. Pick next phone number from queue
-    2. Create a Telicall account (with proxy if available)
-    3. Verify account has balance
-    4. Upload token to server
-    5. Trigger server-side call (async preferred)
-    6. Move to next number (don't wait for 64s!)
-    """
+def create_and_call(duration, create_only=False, use_xrealip=False):
+    """Worker: creates account + makes call"""
     tid = threading.current_thread().name
-    current_proxy = get_proxy()  # Get proxy at start of each iteration
+    current_proxy = get_proxy()
 
     while True:
         phone = get_next_phone()
@@ -758,113 +798,115 @@ def create_and_call(duration):
             break
 
         update_stat("total")
-        call_id = None
+        account_made = False
+        tok = device = None
 
-        # ── Step 1: Create email ──
-        for email_attempt in range(3):
+        # ═══════ Step 1: Create Email ═══════
+        mail = None
+        for attempt in range(5):  # 5 retries!
             mail = create_email(current_proxy)
             if mail:
                 break
-            time.sleep(1)
-        else:
-            print(f"[{tid}] NO_EMAIL {phone}", flush=True)
-            update_stat("failed")
+            if attempt < 4:
+                time.sleep(1 + attempt)  # Increasing delay
+        
+        if not mail:
+            print(f"[{tid}] 📧 لا إيميل {phone}", flush=True)
+            update_stat("email_fail")
             continue
 
         email_addr = mail['email']
-        email_short = email_addr.split('@')[0][:15]
+        email_short = email_addr.split('@')[0][:12]
 
-        # ── Step 2: Init Telicall session ──
-        use_fallback_ip = current_proxy is None
-        for init_attempt in range(2):
-            tok, device, headers = init_session(current_proxy, use_real_ip=use_fallback_ip)
-            if tok:
-                break
-            # If init fails with proxy, try marking it dead and getting new one
+        # ═══════ Step 2: Init Session ═══════
+        # Try WITHOUT x-real-ip first (your real IP might be Egyptian!)
+        tok, device, headers = init_session(current_proxy, use_xrealip=False)
+        
+        if not tok and not current_proxy:
+            # Failed without x-real-ip, try WITH it as fallback
+            tok, device, headers = init_session(current_proxy, use_xrealip=True)
+        
+        if not tok:
+            print(f"[{tid}] 🔑 فشل الجلسة {phone} <- {email_short}", flush=True)
             if current_proxy:
                 current_proxy = get_proxy_and_mark_dead(current_proxy)
-                use_fallback_ip = current_proxy is None
-        else:
-            print(f"[{tid}] INIT_FAIL {phone} <- {email_short}", flush=True)
-            update_stat("failed")
+            update_stat("verify_fail")
             continue
 
-        # ── Step 3: Send verification ──
+        # ═══════ Step 3: Send Verification ═══════
         ref = send_verify(email_addr, headers, current_proxy)
         if not ref:
-            print(f"[{tid}] VERIFY_SEND_FAIL {phone} <- {email_short}", flush=True)
-            # Might be proxy issue
-            if current_proxy:
-                current_proxy = get_proxy_and_mark_dead(current_proxy)
-                use_fallback_ip = current_proxy is None
-            update_stat("failed")
-            continue
+            # Maybe x-real-ip issue - try with x-real-ip if we didn't before
+            if not current_proxy and not headers.get('x-real-ip'):
+                # Re-init with x-real-ip and retry
+                tok2, device2, headers2 = init_session(current_proxy, use_xrealip=True)
+                if tok2:
+                    tok, device, headers = tok2, device2, headers2
+                    ref = send_verify(email_addr, headers, current_proxy)
+            
+            if not ref:
+                print(f"[{tid}] 📨 فشل التحقق {phone} <- {email_short}", flush=True)
+                if current_proxy:
+                    current_proxy = get_proxy_and_mark_dead(current_proxy)
+                update_stat("verify_fail")
+                continue
 
-        # ── Step 4: Get OTP ──
+        # ═══════ Step 4: Get OTP ═══════
         otp = get_otp(mail['api_type'], mail['token'], current_proxy)
         if not otp:
-            print(f"[{tid}] OTP_TIMEOUT {phone} <- {email_short}", flush=True)
-            update_stat("failed")
+            print(f"[{tid}] 🔢 OTP انتهى {phone} <- {email_short}", flush=True)
+            update_stat("verify_fail")
             continue
 
-        # ── Step 5: Verify OTP ──
+        # ═══════ Step 5: Verify OTP ═══════
         user = verify_otp_api(ref, otp, headers, current_proxy)
         if not user:
-            print(f"[{tid}] VERIFY_FAIL {phone} <- {email_short}", flush=True)
-            update_stat("failed")
+            print(f"[{tid}] ❌ فشل OTP {phone} <- {email_short}", flush=True)
+            update_stat("verify_fail")
             continue
 
-        # ── Step 6: Check balance ──
-        has_balance = check_token_balance(tok, device, current_proxy)
-        if has_balance is False:
-            print(f"[{tid}] NO_BALANCE {phone} <- {email_short} (account created but 0 balance)", flush=True)
-            update_stat("accounts_no_balance")
-            # Save to Dan.json anyway (for record) but DON'T upload to server
-            save_account(email_addr, device, tok)
-            # Try next proxy if available
-            if current_proxy:
-                current_proxy = get_proxy_and_mark_dead(current_proxy)
-                use_fallback_ip = current_proxy is None
-            update_stat("no_balance")
-            continue  # Skip this number's call, move to next
-
-        # ── Step 7: Save to Dan.json ──
+        # ═══════ Step 6: Save Account ═══════
         total = save_account(email_addr, device, tok)
-        update_stat("accounts_created")
+        account_made = True
+        print(f"[{tid}] ✅ حساب جديد {email_short} (إجمالي: {total})", flush=True)
 
-        # ── Step 8: Upload token to server ──
-        ready = upload_to_server(email_addr, device, tok)
+        if create_only:
+            update_stat("accounts_ok")
+            continue  # Skip call, just create accounts
 
-        # ── Step 9: Trigger server-side call ──
-        # Try async-call first (non-blocking, preferred)
+        # ═══════ Step 7: Make Call ═══════
+        # Try server first, then direct API call
+        
+        # --- Try server async call ---
         call_id, verify_url = trigger_async_call(phone, duration)
         if call_id:
-            caller_info = email_short
-            add_active_call(call_id, phone, caller_info, tid)
-            print(f"[{tid}] RING {phone} <- {email_short} (ready:{ready})", flush=True)
-        else:
-            # Fallback: try make-call (blocking)
-            result = trigger_make_call(phone, duration)
-            status = result.get("status", "unknown")
-            from_num = result.get("from", result.get("from_number", "?"))
-            actual_dur = result.get("duration", result.get("actual_duration", 0))
-            error = result.get("error", "")
+            add_active_call(call_id, phone, email_short, tid)
+            print(f"[{tid}] 📞 يرن {phone} <- {email_short} (سيرفر)", flush=True)
+            continue
 
-            if status == "answered_ok":
-                print(f"[{tid}] ANSWERED_OK {phone} ({actual_dur}s) <- {from_num}", flush=True)
-                update_stat("answered")
-            elif "balance" in str(error).lower() or status == "no_balance":
-                print(f"[{tid}] NO_BALANCE {phone} <- {from_num}", flush=True)
-                update_stat("no_balance")
-            elif status in ("no_answer", "failed"):
-                print(f"[{tid}] NO_ANSWER {phone} <- {from_num}", flush=True)
-                update_stat("no_answer")
-            elif status == "busy":
-                print(f"[{tid}] BUSY {phone} <- {from_num}", flush=True)
-                update_stat("busy")
-            else:
-                print(f"[{tid}] FAILED {phone} ({error or status})", flush=True)
-                update_stat("failed")
+        # --- Server failed, try DIRECT Telicall API call ---
+        print(f"[{tid}] 📡 السيرفر مش متاح - اتصال مباشر {phone}...", flush=True)
+        result = direct_telicall_call(phone, tok, device, current_proxy)
+        
+        if result and result.get('success'):
+            from_num = result.get('from', '')
+            print(f"[{tid}] 📞 تم الاتصال! {phone} <- {from_num}", flush=True)
+            update_stat("calls_ok")
+            # Also try to upload to server
+            upload_to_server(email_addr, device, tok)
+        elif result and result.get('error') == 'NO_BALANCE':
+            print(f"[{tid}] ❌ NO_BALANCE {phone} <- {email_short} (الحساب بدون رصيد)", flush=True)
+            update_stat("calls_no_balance")
+            update_stat("accounts_no_bal")
+        elif result:
+            err = result.get('error', 'unknown')
+            print(f"[{tid}] ❌ فشل الاتصال {phone} ({err})", flush=True)
+            update_stat("calls_failed")
+            update_stat("accounts_ok")
+        else:
+            print(f"[{tid}] ❌ فشل الاتصال {phone}", flush=True)
+            update_stat("calls_failed")
+            update_stat("accounts_ok")
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Main ─────────────────────────────────────────────────────
@@ -872,20 +914,19 @@ def create_and_call(duration):
 def main():
     global _start_time, _phone_queue, PROXY_FILE
 
-    parser = argparse.ArgumentParser(description="Fox Caller v5.0 - Fixed Call Launcher")
+    parser = argparse.ArgumentParser(description="Fox Caller v6.0 - Robust Call Launcher")
     parser.add_argument("file", help="Phone numbers file (.xlsx or .txt)")
-    parser.add_argument("--duration", type=int, default=DEFAULT_DURATION,
-                        help=f"Call duration in seconds (default: {DEFAULT_DURATION})")
-    parser.add_argument("--threads", type=int, default=DEFAULT_THREADS,
-                        help=f"Number of worker threads (default: {DEFAULT_THREADS})")
-    parser.add_argument("--proxies", default=PROXY_FILE,
-                        help="Proxy file path (default: alive_proxies.txt in same dir)")
+    parser.add_argument("--duration", type=int, default=DEFAULT_DURATION)
+    parser.add_argument("--threads", type=int, default=DEFAULT_THREADS)
+    parser.add_argument("--proxies", default=PROXY_FILE, help="Proxy file path")
+    parser.add_argument("--create-only", action="store_true",
+                        help="Just create accounts, don't make calls")
+    parser.add_argument("--xrealip", action="store_true",
+                        help="Use x-real-ip header (try if verify fails)")
     args = parser.parse_args()
 
-    # Override proxy file if specified
     PROXY_FILE = args.proxies
 
-    # Read numbers
     if not os.path.exists(args.file):
         print(f"ERROR: File not found: {args.file}", flush=True)
         sys.exit(1)
@@ -898,63 +939,58 @@ def main():
     _phone_queue = numbers
 
     print("=" * 60, flush=True)
-    print("  Fox Caller v5.0 - Fixed Call Launcher", flush=True)
+    print("  Fox Caller v6.0 - Robust Call Launcher", flush=True)
     print("=" * 60, flush=True)
-    print(f"  Server:      {SERVER_URL}", flush=True)
-    print(f"  Numbers:     {len(numbers)} phones from {args.file}", flush=True)
+    print(f"  Numbers:     {len(numbers)} phones", flush=True)
     print(f"  Duration:    {args.duration}s per call", flush=True)
     print(f"  Threads:     {args.threads}", flush=True)
-    print(f"  Domains:     {len(DOMAINS)} email domains", flush=True)
-    print(f"  Strategy:    1 account = 1 call (balance verified!)", flush=True)
+    print(f"  Mode:        {'Create accounts only' if args.create_only else 'Create + Call'}", flush=True)
+    print(f"  x-real-ip:   {'ON' if args.xrealip else 'OFF (try your real IP first)'}", flush=True)
 
-    # Init proxies
     init_proxy_manager()
-
     print("=" * 60, flush=True)
 
-    # Quick server test
-    print("\nTesting server connection...", flush=True)
-    try:
-        r = requests.get(f"{SERVER_URL}/api/health", timeout=10)
-        if r.status_code == 200:
-            print(f"  Server OK: {r.json()}", flush=True)
-        else:
-            print(f"  Server returned {r.status_code}", flush=True)
-    except Exception as e:
-        print(f"  Server error: {e}", flush=True)
-        print("  WARNING: Server may not be available!", flush=True)
+    # Test server
+    print("\nTesting server...", flush=True)
+    server_ok = is_server_available()
+    if server_ok:
+        print(f"  Server:      ✅ متاح", flush=True)
+        try:
+            r = requests.get(f"{SERVER_URL}/api/admin/stats",
+                             headers={"x-admin-key": ADMIN_KEY}, timeout=8)
+            if r.status_code == 200:
+                data = r.json()
+                print(f"  Ready tokens: {data.get('ready_tokens', '?')}", flush=True)
+        except Exception:
+            pass
+    else:
+        print(f"  Server:      ❌ مش متاح (هيحاول اتصال مباشر)", flush=True)
 
-    # Check server stats
-    stats = get_server_stats()
-    if stats:
-        print(f"  Ready tokens: {stats.get('ready_tokens', '?')}", flush=True)
-        print(f"  Total users:  {stats.get('total_users', '?')}", flush=True)
-
-    print(f"\nStarting {args.threads} workers...", flush=True)
-    print(f"Format: [W#] STATUS +PHONE <- EMAIL (ready:N)", flush=True)
-    print(f"Status: RING | ANSWERED_OK | NO_BALANCE | FAILED\n", flush=True)
+    print(f"\nStarting {args.threads} workers...\n", flush=True)
 
     _start_time = time.time()
 
     # Start monitor thread
-    monitor_thread = threading.Thread(target=monitor_calls, daemon=True)
-    monitor_thread.start()
+    if not args.create_only:
+        monitor_thread = threading.Thread(target=monitor_calls, daemon=True)
+        monitor_thread.start()
 
     # Start worker threads
     threads = []
     for i in range(args.threads):
-        t = threading.Thread(target=create_and_call, args=(args.duration,),
+        t = threading.Thread(target=create_and_call,
+                             args=(args.duration, args.create_only, args.xrealip),
                              daemon=True, name=f"W{i}")
         t.start()
         threads.append(t)
+        time.sleep(0.5)  # Stagger starts to avoid rate-limiting
 
-    # Wait for all workers to finish
     for t in threads:
         t.join()
 
-    # Wait for remaining async calls to complete
-    print(f"\nAll numbers processed. Waiting for remaining calls...", flush=True)
-    time.sleep(15)
+    if not args.create_only:
+        print(f"\nWaiting for remaining calls...", flush=True)
+        time.sleep(15)
 
     # Final stats
     elapsed = time.time() - _start_time
@@ -963,16 +999,16 @@ def main():
     with _stats_lock:
         s = _stats
     print(f"\n{'=' * 60}", flush=True)
-    print(f"  FINAL RESULTS [{mins}m{secs}s]", flush=True)
+    print(f"  النتائج النهائية [{mins}m{secs}s]", flush=True)
     print(f"{'=' * 60}", flush=True)
-    print(f"  Total numbers:    {len(numbers)}", flush=True)
-    print(f"  Answered OK:      {s['answered']}", flush=True)
-    print(f"  No Answer:        {s['no_answer']}", flush=True)
-    print(f"  Busy/Declined:    {s['busy']}", flush=True)
-    print(f"  Failed:           {s['failed']}", flush=True)
-    print(f"  No Balance:       {s['no_balance']}", flush=True)
-    print(f"  Accounts created: {s['accounts_created']} (with balance)", flush=True)
-    print(f"  Accounts no-bal:  {s['accounts_no_balance']} (0 balance, skipped)", flush=True)
+    print(f"  الأرقام:          {len(numbers)}", flush=True)
+    print(f"  اتصالات ناجحة:    {s['calls_ok']}", flush=True)
+    print(f"  NO BALANCE:       {s['calls_no_balance']}", flush=True)
+    print(f"  اتصالات فشلت:     {s['calls_failed']}", flush=True)
+    print(f"  حسابات جديدة:     {s['accounts_ok']} (برصيد)", flush=True)
+    print(f"  حسابات بدون رصيد: {s['accounts_no_bal']}", flush=True)
+    print(f"  فشل إيميل:        {s['email_fail']}", flush=True)
+    print(f"  فشل تحقق:         {s['verify_fail']}", flush=True)
     print(f"{'=' * 60}", flush=True)
 
 if __name__ == "__main__":
