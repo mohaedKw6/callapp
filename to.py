@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-TelliCall Bot v6 - Multi-Provider + Colors + IP Rotation
-========================================================
-Provider 1 (PRIMARY): temp-mail.io -> gmeenramy.com (NO rate limits!)
-Provider 2 (FALLBACK): web2.temp-mail.org -> hitzcart.com
+TelliCall Bot v7 - Clean & Stable
+==================================
+ONLY: temp-mail.io -> gmeenramy.com (NO rate limits!)
 Egyptian IP rotation on every TelliCall request
 Terminal colors + continuous creation
+NO web2, NO inbox watchers - clean & stable
 """
 
 import telebot
@@ -32,6 +32,7 @@ class C:
     """ANSI Color codes"""
     RST   = '\033[0m'
     BOLD  = '\033[1m'
+    DIM   = '\033[2m'
     RED   = '\033[91m'
     GREEN = '\033[92m'
     YEL   = '\033[93m'
@@ -44,9 +45,14 @@ class C:
     BG_RED   = '\033[41m'
     BG_GREEN = '\033[42m'
     BG_BLUE  = '\033[44m'
+    BG_MAG   = '\033[45m'
 
 def cprint(color, msg, flush=True):
     print(f"{color}{msg}{C.RST}", flush=flush)
+
+def log_step(account_num, color, msg):
+    ts = datetime.now().strftime("%H:%M:%S")
+    print(f"{C.GRAY}[{ts}]{C.RST} {color}[{account_num}] {msg}{C.RST}", flush=True)
 
 # ═══════════════════════════════════════════════════════
 # ─── Bot Settings ────────────────────────────────────
@@ -55,25 +61,17 @@ def cprint(color, msg, flush=True):
 BOT_TOKEN = "7622961655:AAEMyav7MYmZMRNADkzj8KCIv2yEx2vpxd4"
 OWNER_ID = 962731079
 
-bot = telebot.TeleBot(BOT_TOKEN)
+# ═══════════════════════════════════════════════════════
+# ─── TelliCall Settings ─────────────────────────────
+# ═══════════════════════════════════════════════════════
 
-# ==================== TelliCall Settings ====================
 TELICALL_BASE_URL = "https://api.telicall.com"
 APP_VERSION = "1.2.1"
 OS_VERSION = "11"
 USER_AGENT = "Dalvik/2.1.0 (Linux; U; Android 11; Infinix X698 Build/RP1A.200720.011)"
 
-# ==================== Working Domains ====================
-# temp-mail.io -> gmeenramy.com (NO rate limits, ALWAYS gives this domain)
-# web2 -> hitzcart.com (rate limited but works)
-WORKING_DOMAINS = ['gmeenramy.com', 'hitzcart.com']
-
-# ==================== Dan.json ====================
-DAN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dan.json")
-PASSWORD = "@@@GMAQ@@@"
-
 # ═══════════════════════════════════════════════════════
-# ─── Provider 1: temp-mail.io (PRIMARY - NO rate limit) ──
+# ─── Email: temp-mail.io ONLY ────────────────────────
 # ═══════════════════════════════════════════════════════
 
 IO_BASE_URL = "https://api.internal.temp-mail.io/api/v3"
@@ -90,18 +88,11 @@ IO_HEADERS = {
 }
 
 # ═══════════════════════════════════════════════════════
-# ─── Provider 2: web2.temp-mail.org (FALLBACK) ──────
+# ─── Dan.json ────────────────────────────────────────
 # ═══════════════════════════════════════════════════════
 
-WEB2_BASE_URL = "https://web2.temp-mail.org"
-WEB2_DOMAIN = "hitzcart.com"
-WEB2_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-    'Origin': 'https://temp-mail.org',
-    'Referer': 'https://temp-mail.org/',
-    'Content-Type': 'application/json'
-}
+DAN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dan.json")
+PASSWORD = "@@@GMAQ@@@"
 
 # ═══════════════════════════════════════════════════════
 # ─── Egyptian IP Rotation ────────────────────────────
@@ -141,10 +132,11 @@ def rand_eg_ip():
         d = random.randint(1, 254)
         return f"{a}.{b}.{c}.{d}"
 
-# ==================== State ====================
+# ═══════════════════════════════════════════════════════
+# ─── State ───────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+
 active_tasks = {}
-inbox_watchers = {}
-inbox_watchers_lock = threading.Lock()
 _stop_events = {}
 
 # ═══════════════════════════════════════════════════════
@@ -198,10 +190,10 @@ def save_dan_account(email, device_id, token):
         cprint(C.RED, f"  Save error: {e}")
 
 # ═══════════════════════════════════════════════════════
-# ─── Email Provider 1: temp-mail.io (PRIMARY) ────────
+# ─── Email: temp-mail.io ────────────────────────────
 # ═══════════════════════════════════════════════════════
 
-def create_io_email(stop_event=None):
+def create_email(stop_event=None):
     """
     Create email using temp-mail.io -> gmeenramy.com
     NO rate limits! ALWAYS gives gmeenramy.com domain.
@@ -209,8 +201,8 @@ def create_io_email(stop_event=None):
     """
     name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
     payload = {"domain": IO_DOMAIN, "name": name}
-    
-    for attempt in range(3):
+
+    for attempt in range(5):
         if stop_event and stop_event.is_set():
             return None
         try:
@@ -222,17 +214,18 @@ def create_io_email(stop_event=None):
                 if email and token:
                     return {'email': email, 'token': token, 'api': 'io'}
             elif r.status_code == 429:
-                cprint(C.YEL, f"  io rate limited (429) - retry in 3s")
-                time.sleep(3)
+                wait = 3 + attempt * 2
+                cprint(C.YEL, f"  io rate limited (429) - retry in {wait}s")
+                time.sleep(wait)
             else:
-                cprint(C.YEL, f"  io error: {r.status_code}")
-                time.sleep(1)
+                cprint(C.YEL, f"  io error: {r.status_code} - retry...")
+                time.sleep(2)
         except Exception as e:
-            cprint(C.RED, f"  io error: {e}")
-            time.sleep(2)
+            cprint(C.RED, f"  io error: {e} - retry...")
+            time.sleep(3)
     return None
 
-def check_io_inbox(email_addr):
+def check_inbox(email_addr):
     """Check inbox on temp-mail.io"""
     try:
         r = requests.get(f"{IO_BASE_URL}/email/{email_addr}/messages", headers=IO_HEADERS, timeout=15)
@@ -243,14 +236,14 @@ def check_io_inbox(email_addr):
         pass
     return []
 
-def wait_for_otp_io(email_addr, stop_event=None, max_wait=90):
+def wait_for_otp(email_addr, stop_event=None, max_wait=90):
     """Wait for OTP from temp-mail.io inbox"""
     deadline = time.time() + max_wait
     while time.time() < deadline:
         if stop_event and stop_event.is_set():
             return None
         try:
-            messages = check_io_inbox(email_addr)
+            messages = check_inbox(email_addr)
             for msg in messages:
                 sender  = msg.get('from', '').lower()
                 subject = msg.get('subject', '').lower()
@@ -264,110 +257,6 @@ def wait_for_otp_io(email_addr, stop_event=None, max_wait=90):
             pass
         time.sleep(3)
     return None
-
-# ═══════════════════════════════════════════════════════
-# ─── Email Provider 2: web2 (FALLBACK) ───────────────
-# ═══════════════════════════════════════════════════════
-
-def create_web2_email(stop_event=None):
-    """
-    Create email using web2 -> hitzcart.com
-    Keeps trying until it gets hitzcart.com (discards other domains).
-    On 429, waits and retries.
-    """
-    while True:
-        if stop_event and stop_event.is_set():
-            return None
-        try:
-            r = requests.post(f"{WEB2_BASE_URL}/mailbox", headers=WEB2_HEADERS, timeout=15)
-            if r.status_code in [200, 201]:
-                data = r.json()
-                email = data.get('mailbox', '')
-                token = data.get('token', '')
-                if email and token:
-                    domain = email.split('@')[1] if '@' in email else ''
-                    if domain == WEB2_DOMAIN:
-                        return {'email': email, 'token': token, 'api': 'web2'}
-                    # Not hitzcart.com - discard and retry
-            elif r.status_code == 429:
-                cprint(C.YEL, f"  web2 rate limited (429) - retry in 3s")
-                time.sleep(3)
-            else:
-                time.sleep(1)
-        except Exception as e:
-            cprint(C.RED, f"  web2 error: {e}")
-            time.sleep(2)
-
-def check_web2_inbox(email_token):
-    try:
-        headers = WEB2_HEADERS.copy()
-        headers['Authorization'] = f"Bearer {email_token}"
-        r = requests.get(f"{WEB2_BASE_URL}/messages", headers=headers, timeout=15)
-        if r.status_code == 200:
-            data = r.json()
-            return data if isinstance(data, list) else data.get('messages', [])
-    except:
-        pass
-    return []
-
-def wait_for_otp_web2(email_token, stop_event=None, max_wait=90):
-    """Wait for OTP from web2 inbox"""
-    deadline = time.time() + max_wait
-    while time.time() < deadline:
-        if stop_event and stop_event.is_set():
-            return None
-        try:
-            messages = check_web2_inbox(email_token)
-            for msg in messages:
-                sender  = msg.get('from', '').lower()
-                subject = msg.get('subject', '').lower()
-                body    = msg.get('bodyPreview', msg.get('body', msg.get('textBody', msg.get('bodyHtml', ''))))
-                content = f"{sender} {subject} {body}".lower()
-                if 'teli' in content or 'verification' in subject or 'verify' in subject:
-                    m = re.search(r'\b(\d{6})\b', str(body))
-                    if m:
-                        return m.group(1)
-        except:
-            pass
-        time.sleep(3)
-    return None
-
-# ═══════════════════════════════════════════════════════
-# ─── Smart Email Creation ────────────────────────────
-# ═══════════════════════════════════════════════════════
-
-def create_email(stop_event=None):
-    """
-    Create email - tries io first (no rate limits), then web2 as fallback.
-    Returns {'email', 'token', 'api'}
-    """
-    # Provider 1: temp-mail.io (PRIMARY - no rate limits)
-    result = create_io_email(stop_event)
-    if result:
-        return result
-    
-    cprint(C.YEL, "  io failed, trying web2...")
-    
-    # Provider 2: web2 (FALLBACK)
-    result = create_web2_email(stop_event)
-    if result:
-        return result
-    
-    return None
-
-def wait_for_otp(email_addr_or_token, api_type, stop_event=None, max_wait=90):
-    """Wait for OTP from the correct provider"""
-    if api_type == 'io':
-        return wait_for_otp_io(email_addr_or_token, stop_event, max_wait)
-    else:
-        return wait_for_otp_web2(email_addr_or_token, stop_event, max_wait)
-
-def check_inbox(email_addr_or_token, api_type):
-    """Check inbox from the correct provider"""
-    if api_type == 'io':
-        return check_io_inbox(email_addr_or_token)
-    else:
-        return check_web2_inbox(email_addr_or_token)
 
 # ═══════════════════════════════════════════════════════
 # ─── TelliCall API ──────────────────────────────────
@@ -477,107 +366,18 @@ def get_account_balance(tc_token):
     return None
 
 # ═══════════════════════════════════════════════════════
-# ─── Inbox Watcher ──────────────────────────────────
-# ═══════════════════════════════════════════════════════
-
-def get_message_id(msg):
-    return msg.get('id') or msg.get('_id') or msg.get('uid') or str(msg.get('date', '')) + msg.get('from', '')
-
-def format_message_notification(account_email, msg, account_number=None):
-    sender  = msg.get('from', '')
-    subject = msg.get('subject', '')
-    body    = msg.get('bodyPreview') or msg.get('textBody') or msg.get('bodyText') or msg.get('body', '')
-    if len(str(body)) > 400:
-        body = str(body)[:400] + "..."
-    label = f"#{account_number}" if account_number else ""
-    return (
-        f"*رسالة جديدة {label}*\n"
-        f"الحساب: `{account_email}`\n"
-        f"المرسل: `{sender}`\n"
-        f"الموضوع: `{subject}`\n"
-        f"المحتوى:\n{body}"
-    )
-
-def inbox_watcher_loop(chat_id, account_email, email_token_or_addr, api_type, account_number, stop_event):
-    cprint(C.CYAN, f"[Watcher] START {account_email} ({api_type})")
-    seen_ids = set()
-    for m in check_inbox(email_token_or_addr, api_type):
-        seen_ids.add(get_message_id(m))
-
-    while not stop_event.is_set():
-        for _ in range(30):
-            if stop_event.is_set():
-                break
-            time.sleep(1)
-        if stop_event.is_set():
-            break
-        try:
-            msgs = check_inbox(email_token_or_addr, api_type)
-            for msg in msgs:
-                mid = get_message_id(msg)
-                if mid not in seen_ids:
-                    seen_ids.add(mid)
-                    notification = format_message_notification(account_email, msg, account_number)
-                    markup = types.InlineKeyboardMarkup()
-                    markup.add(types.InlineKeyboardButton("إيقاف مراقبة", callback_data=f"stop_watch_{account_email}"))
-                    try:
-                        bot.send_message(chat_id, notification, parse_mode='Markdown', reply_markup=markup)
-                    except:
-                        pass
-        except:
-            pass
-    cprint(C.GRAY, f"[Watcher] STOP {account_email}")
-
-def start_inbox_watcher(chat_id, account):
-    email       = account['email']
-    email_token = account['email_token']
-    api_type    = account['api_used']
-    acct_num    = account.get('number', '?')
-    stop_event = threading.Event()
-    thread = threading.Thread(
-        target=inbox_watcher_loop,
-        args=(chat_id, email, email_token, api_type, acct_num, stop_event),
-        daemon=True
-    )
-    thread.start()
-    with inbox_watchers_lock:
-        inbox_watchers[email] = {
-            'thread': thread, 'stop': stop_event,
-            'chat_id': chat_id, 'account_number': acct_num
-        }
-    return True
-
-def stop_inbox_watcher(email):
-    with inbox_watchers_lock:
-        if email in inbox_watchers:
-            inbox_watchers[email]['stop'].set()
-            del inbox_watchers[email]
-            return True
-    return False
-
-def stop_all_watchers_for_chat(chat_id):
-    to_stop = []
-    with inbox_watchers_lock:
-        for email, data in inbox_watchers.items():
-            if data['chat_id'] == chat_id:
-                to_stop.append(email)
-    for email in to_stop:
-        stop_inbox_watcher(email)
-    return len(to_stop)
-
-# ═══════════════════════════════════════════════════════
 # ─── Account Creation ───────────────────────────────
 # ═══════════════════════════════════════════════════════
 
 def create_single_account(chat_id, account_num, stop_event=None, progress_callback=None):
     """Create one complete TelliCall account"""
     def log(color, msg):
-        cprint(color, f"  [{account_num}] {msg}")
+        log_step(account_num, color, msg)
         if progress_callback:
             progress_callback(msg)
 
-    # Step 1: Create email (io first, then web2)
-    log(C.CYAN, "Creating email (io -> web2)...")
+    # Step 1: Create email
+    log(C.CYAN, "Creating email (temp-mail.io)...")
     email_data = create_email(stop_event)
     if not email_data:
         log(C.RED, "Email creation failed")
@@ -585,9 +385,7 @@ def create_single_account(chat_id, account_num, stop_event=None, progress_callba
 
     email       = email_data['email']
     email_token = email_data['token']
-    api_type    = email_data['api']
-    domain      = email.split('@')[1] if '@' in email else ''
-    log(C.GREEN, f"Email: {email} [{api_type}]")
+    log(C.GREEN, f"Email: {email}")
 
     # Step 2: TelliCall session
     log(C.BLUE, "Init TelliCall session (new IP)...")
@@ -605,9 +403,7 @@ def create_single_account(chat_id, account_num, stop_event=None, progress_callba
 
     # Step 4: Wait for OTP
     log(C.YEL, "Waiting for OTP...")
-    # For io: pass email address; for web2: pass token
-    otp_identifier = email if api_type == 'io' else email_token
-    code = wait_for_otp(otp_identifier, api_type, stop_event, max_wait=90)
+    code = wait_for_otp(email, stop_event, max_wait=90)
     if not code:
         log(C.RED, "OTP timeout")
         return None
@@ -631,68 +427,168 @@ def create_single_account(chat_id, account_num, stop_event=None, progress_callba
 
     return {
         'email':          email,
-        'email_token':    otp_identifier,
+        'email_token':    email_token,
         'tc_token':       final_token,
         'user_id':        user_data.get('opaqueId'),
         'reference_code': user_data.get('referenceCode'),
         'balance':        balance or '0',
-        'api_used':       api_type,
+        'api_used':       'io',
         'created_at':     datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
+
+# ═══════════════════════════════════════════════════════
+# ─── Telegram Bot ───────────────────────────────────
+# ═══════════════════════════════════════════════════════
+
+# Create bot instance (will be initialized properly in main)
+bot = None
+
+def create_bot():
+    """Create bot with proper cleanup to avoid 409 errors"""
+    global bot
+    # First, delete any existing webhook
+    try:
+        temp_bot = telebot.TeleBot(BOT_TOKEN)
+        temp_bot.delete_webhook(drop_pending_updates=True)
+        cprint(C.GREEN, "  Webhook deleted, pending updates dropped")
+        # Clear any pending getUpdates
+        temp_bot.get_updates(timeout=1)
+        del temp_bot
+        time.sleep(1)
+    except Exception as e:
+        cprint(C.YEL, f"  Cleanup note: {e}")
+
+    # Now create the real bot
+    bot = telebot.TeleBot(BOT_TOKEN, skip_pending=True)
+    return bot
 
 # ═══════════════════════════════════════════════════════
 # ─── Bot Handlers ───────────────────────────────────
 # ═══════════════════════════════════════════════════════
 
-@bot.message_handler(commands=['start'])
-def handle_start(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton("إنشاء حسابات", callback_data="create_accounts"),
-        types.InlineKeyboardButton("تاريخ الحسابات", callback_data="date_info"),
-        types.InlineKeyboardButton("الحسابات المراقبة", callback_data="list_watchers"),
-        types.InlineKeyboardButton("إيقاف كل المراقبة", callback_data="stop_all_watchers"),
-        types.InlineKeyboardButton("كل الحسابات", callback_data="all_accounts"),
-        types.InlineKeyboardButton("عن البوت", callback_data="about")
-    )
-    bot.send_message(
-        message.chat.id,
-        "*TelliCall Bot v6*\n\n"
-        "إنشاء حسابات TelliCall أوتوماتيك\n"
-        f"المزود 1: *gmeenramy.com* (temp-mail.io - بدون rate limit!)\n"
-        f"المزود 2: *hitzcart.com* (web2 - احتياطي)\n"
-        "كل طلب بـ IP مصري مختلف\n"
-        "كل حساب برصيد *$0.25*",
-        reply_markup=markup,
-        parse_mode='Markdown'
-    )
+def register_handlers():
+    """Register all bot handlers"""
 
-@bot.message_handler(commands=['date'])
-def handle_date_cmd(message):
-    _show_date_info(message.chat.id)
+    @bot.message_handler(commands=['start'])
+    def handle_start(message):
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton("إنشاء حسابات", callback_data="create_accounts"),
+            types.InlineKeyboardButton("تاريخ الحسابات", callback_data="date_info"),
+            types.InlineKeyboardButton("كل الحسابات", callback_data="all_accounts"),
+            types.InlineKeyboardButton("عن البوت", callback_data="about")
+        )
+        bot.send_message(
+            message.chat.id,
+            "*TelliCall Bot v7*\n\n"
+            "إنشاء حسابات TelliCall أوتوماتيك\n"
+            "المزود: *gmeenramy.com* (temp-mail.io)\n"
+            "بدون rate limit!\n"
+            "كل طلب بـ IP مصري مختلف\n"
+            "كل حساب برصيد *$0.25*",
+            reply_markup=markup,
+            parse_mode='Markdown'
+        )
 
-@bot.message_handler(commands=['accounts'])
-def handle_accounts_cmd(message):
-    _show_all_accounts(message.chat.id)
+    @bot.message_handler(commands=['stop'])
+    def handle_stop_cmd(message):
+        chat_id = message.chat.id
+        if chat_id in _stop_events:
+            _stop_events[chat_id].set()
+            bot.send_message(chat_id, "تم إيقاف العملية")
+        else:
+            bot.send_message(chat_id, "مفيش عملية جارية")
 
-@bot.message_handler(commands=['stop'])
-def handle_stop_cmd(message):
-    chat_id = message.chat.id
-    if chat_id in _stop_events:
-        _stop_events[chat_id].set()
-        bot.send_message(chat_id, "تم إيقاف العملية")
-    else:
-        bot.send_message(chat_id, "مفيش عملية جارية")
+    @bot.message_handler(commands=['date'])
+    def handle_date_cmd(message):
+        _show_date_info(message.chat.id)
 
-@bot.callback_query_handler(func=lambda c: c.data == "date_info")
-def handle_date_info(call):
-    bot.answer_callback_query(call.id)
-    _show_date_info(call.message.chat.id)
+    @bot.message_handler(commands=['accounts'])
+    def handle_accounts_cmd(message):
+        _show_all_accounts(message.chat.id)
 
-@bot.callback_query_handler(func=lambda c: c.data == "all_accounts")
-def handle_all_accounts(call):
-    bot.answer_callback_query(call.id)
-    _show_all_accounts(call.message.chat.id)
+    @bot.callback_query_handler(func=lambda c: c.data == "date_info")
+    def handle_date_info(call):
+        bot.answer_callback_query(call.id)
+        _show_date_info(call.message.chat.id)
+
+    @bot.callback_query_handler(func=lambda c: c.data == "all_accounts")
+    def handle_all_accounts(call):
+        bot.answer_callback_query(call.id)
+        _show_all_accounts(call.message.chat.id)
+
+    @bot.callback_query_handler(func=lambda c: c.data == "about")
+    def handle_about(call):
+        bot.answer_callback_query(call.id)
+        bot.send_message(
+            call.message.chat.id,
+            "*TelliCall Bot v7*\n\n"
+            "*المزود:* temp-mail.io\n"
+            "  الدومين: gmeenramy.com\n"
+            "  بدون rate limit!\n\n"
+            "كل طلب بـ IP مصري مختلف\n"
+            "إنشاء مستمر بدون توقف\n"
+            "بدون مشاكل 409 أو 429",
+            parse_mode='Markdown'
+        )
+
+    @bot.callback_query_handler(func=lambda c: c.data == "create_accounts")
+    def handle_create_accounts(call):
+        bot.answer_callback_query(call.id)
+        markup = types.InlineKeyboardMarkup(row_width=5)
+        buttons = [types.InlineKeyboardButton(f"{i}", callback_data=f"count_{i}") for i in range(1, 11)]
+        markup.add(*buttons)
+        markup.add(types.InlineKeyboardButton("إلغاء", callback_data="cancel"))
+        bot.send_message(
+            call.message.chat.id,
+            "*كم حساب تريد إنشاءه؟*\n\n"
+            "المزود: *gmeenramy.com* (بدون rate limit)\n"
+            "IP مختلف لكل طلب",
+            reply_markup=markup,
+            parse_mode='Markdown'
+        )
+
+    @bot.callback_query_handler(func=lambda c: c.data == "cancel")
+    def handle_cancel(call):
+        bot.answer_callback_query(call.id)
+        chat_id = call.message.chat.id
+        if chat_id in _stop_events:
+            _stop_events[chat_id].set()
+        bot.send_message(chat_id, "تم الإلغاء")
+
+    @bot.callback_query_handler(func=lambda c: c.data.startswith("count_"))
+    def handle_count_selection(call):
+        bot.answer_callback_query(call.id)
+        count   = int(call.data.split("_")[1])
+        chat_id = call.message.chat.id
+        if active_tasks.get(chat_id) is True:
+            bot.send_message(chat_id, "عندك عملية جارية، استنى تخلص أو اكتب /stop")
+            return
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton("ابدأ", callback_data=f"confirm_{count}"),
+            types.InlineKeyboardButton("إلغاء", callback_data="cancel")
+        )
+        bot.send_message(
+            chat_id,
+            f"*تأكيد*\n\nعدد الحسابات: *{count}*\nIP مختلف لكل طلب",
+            reply_markup=markup,
+            parse_mode='Markdown'
+        )
+
+    @bot.callback_query_handler(func=lambda c: c.data.startswith("confirm_"))
+    def handle_confirm(call):
+        bot.answer_callback_query(call.id)
+        count   = int(call.data.split("_")[1])
+        chat_id = call.message.chat.id
+        stop_event = threading.Event()
+        _stop_events[chat_id] = stop_event
+        active_tasks[chat_id] = True
+        threading.Thread(
+            target=run_account_creation,
+            args=(chat_id, count, stop_event),
+            daemon=True
+        ).start()
 
 def _show_date_info(chat_id):
     accounts = load_dan_accounts()
@@ -726,112 +622,6 @@ def _show_all_accounts(chat_id):
         text += f"#{total - len(display) + i + 1} `{email}`\n  {created}\n"
     bot.send_message(chat_id, text, parse_mode='Markdown')
 
-@bot.callback_query_handler(func=lambda c: c.data == "about")
-def handle_about(call):
-    bot.answer_callback_query(call.id)
-    bot.send_message(
-        call.message.chat.id,
-        "*TelliCall Bot v6*\n\n"
-        "*المزود 1 (أساسي):* temp-mail.io\n"
-        "  الدومين: gmeenramy.com\n"
-        "  بدون rate limit!\n\n"
-        "*المزود 2 (احتياطي):* web2.temp-mail.org\n"
-        "  الدومين: hitzcart.com\n"
-        "  بديل لو المزود الأول فشل\n\n"
-        "كل طلب بـ IP مصري مختلف\n"
-        "إنشاء مستمر بدون توقف",
-        parse_mode='Markdown'
-    )
-
-@bot.callback_query_handler(func=lambda c: c.data == "list_watchers")
-def handle_list_watchers(call):
-    bot.answer_callback_query(call.id)
-    chat_id = call.message.chat.id
-    active = []
-    with inbox_watchers_lock:
-        for email, data in inbox_watchers.items():
-            if data['chat_id'] == chat_id:
-                active.append(email)
-    if not active:
-        bot.send_message(chat_id, "لا توجد حسابات تحت المراقبة")
-        return
-    text = f"*الحسابات المراقبة ({len(active)})*\n"
-    for email in active:
-        text += f"  `{email}`\n"
-    bot.send_message(chat_id, text, parse_mode='Markdown')
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith("stop_watch_"))
-def handle_stop_single_watcher(call):
-    bot.answer_callback_query(call.id)
-    email = call.data.replace("stop_watch_", "")
-    if stop_inbox_watcher(email):
-        bot.send_message(call.message.chat.id, f"تم إيقاف مراقبة: `{email}`", parse_mode='Markdown')
-
-@bot.callback_query_handler(func=lambda c: c.data == "stop_all_watchers")
-def handle_stop_all_watchers(call):
-    bot.answer_callback_query(call.id)
-    stopped = stop_all_watchers_for_chat(call.message.chat.id)
-    bot.send_message(call.message.chat.id, f"تم إيقاف {stopped} مراقب")
-
-@bot.callback_query_handler(func=lambda c: c.data == "create_accounts")
-def handle_create_accounts(call):
-    bot.answer_callback_query(call.id)
-    markup = types.InlineKeyboardMarkup(row_width=5)
-    buttons = [types.InlineKeyboardButton(f"{i}", callback_data=f"count_{i}") for i in range(1, 11)]
-    markup.add(*buttons)
-    markup.add(types.InlineKeyboardButton("إلغاء", callback_data="cancel"))
-    bot.send_message(
-        call.message.chat.id,
-        "*كم حساب تريد إنشاءه؟*\n\n"
-        "المزود 1: *gmeenramy.com* (بدون rate limit)\n"
-        "المزود 2: *hitzcart.com* (احتياطي)\n"
-        "IP مختلف لكل طلب",
-        reply_markup=markup,
-        parse_mode='Markdown'
-    )
-
-@bot.callback_query_handler(func=lambda c: c.data == "cancel")
-def handle_cancel(call):
-    bot.answer_callback_query(call.id)
-    chat_id = call.message.chat.id
-    if chat_id in _stop_events:
-        _stop_events[chat_id].set()
-    bot.send_message(chat_id, "تم الإلغاء")
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith("count_"))
-def handle_count_selection(call):
-    bot.answer_callback_query(call.id)
-    count   = int(call.data.split("_")[1])
-    chat_id = call.message.chat.id
-    if active_tasks.get(chat_id) is True:
-        bot.send_message(chat_id, "عندك عملية جارية، استنى تخلص أو اكتب /stop")
-        return
-    markup = types.InlineKeyboardMarkup()
-    markup.add(
-        types.InlineKeyboardButton("ابدأ", callback_data=f"confirm_{count}"),
-        types.InlineKeyboardButton("إلغاء", callback_data="cancel")
-    )
-    bot.send_message(
-        chat_id,
-        f"*تأكيد*\n\nعدد الحسابات: *{count}*\nIP مختلف لكل طلب",
-        reply_markup=markup,
-        parse_mode='Markdown'
-    )
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith("confirm_"))
-def handle_confirm(call):
-    bot.answer_callback_query(call.id)
-    count   = int(call.data.split("_")[1])
-    chat_id = call.message.chat.id
-    stop_event = threading.Event()
-    _stop_events[chat_id] = stop_event
-    active_tasks[chat_id] = True
-    threading.Thread(
-        target=run_account_creation,
-        args=(chat_id, count, stop_event),
-        daemon=True
-    ).start()
-
 # ═══════════════════════════════════════════════════════
 # ─── Account Creation Loop ──────────────────────────
 # ═══════════════════════════════════════════════════════
@@ -844,8 +634,7 @@ def run_account_creation(chat_id, count, stop_event):
     bot.send_message(
         chat_id,
         f"*بدء إنشاء {count} حساب...*\n"
-        f"المزود 1: gmeenramy.com (temp-mail.io)\n"
-        f"المزود 2: hitzcart.com (web2)\n"
+        f"المزود: gmeenramy.com (temp-mail.io)\n"
         f"IP مختلف لكل طلب",
         parse_mode='Markdown'
     )
@@ -870,17 +659,14 @@ def run_account_creation(chat_id, count, stop_event):
         if account:
             account['number'] = i
             successful.append(account)
-            api_label = "temp-mail.io" if account['api_used'] == 'io' else "web2"
             bot.send_message(
                 chat_id,
                 f"*حساب ناجح! ({i}/{count})*\n"
                 f"الإيميل: `{account['email']}`\n"
                 f"الرصيد: `{account['balance']}` USD\n"
-                f"المزود: `{api_label}`\n"
                 f"التاريخ: `{account['created_at']}`",
                 parse_mode='Markdown'
             )
-            start_inbox_watcher(chat_id, account)
         else:
             failed += 1
             bot.send_message(chat_id, f"فشل الحساب {i}/{count}")
@@ -904,35 +690,36 @@ def run_account_creation(chat_id, count, stop_event):
     active_tasks.pop(chat_id, None)
     _stop_events.pop(chat_id, None)
 
-# ==================== Admin ====================
+# ═══════════════════════════════════════════════════════
+# ─── Admin ──────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
 
-@bot.message_handler(commands=['admin'])
-def handle_admin(message):
-    if message.chat.id != OWNER_ID:
-        bot.send_message(message.chat.id, "غير مصرح")
-        return
-    dan_accounts = load_dan_accounts()
-    dan_count = len(dan_accounts)
-    with inbox_watchers_lock:
-        total_watchers = len(inbox_watchers)
-    bot.send_message(
-        message.chat.id,
-        f"*لوحة الإدمن*\n\n"
-        f"Dan.json: *{dan_count}* حساب\n"
-        f"المراقبة: *{total_watchers}* نشط\n"
-        f"المزود 1: gmeenramy.com (io)\n"
-        f"المزود 2: hitzcart.com (web2)",
-        parse_mode='Markdown'
-    )
+def register_admin():
+    @bot.message_handler(commands=['admin'])
+    def handle_admin(message):
+        if message.chat.id != OWNER_ID:
+            bot.send_message(message.chat.id, "غير مصرح")
+            return
+        dan_accounts = load_dan_accounts()
+        dan_count = len(dan_accounts)
+        bot.send_message(
+            message.chat.id,
+            f"*لوحة الإدمن*\n\n"
+            f"Dan.json: *{dan_count}* حساب\n"
+            f"المزود: gmeenramy.com (temp-mail.io)",
+            parse_mode='Markdown'
+        )
 
-# ==================== Run Bot ====================
+# ═══════════════════════════════════════════════════════
+# ─── Main ───────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    print(f"\n{C.BG_BLUE}{C.WHT}{C.BOLD} TelliCall Bot v6 - Multi-Provider {C.RST}\n")
-    cprint(C.GREEN, f"  Provider 1 (PRIMARY): temp-mail.io -> gmeenramy.com")
-    cprint(C.CYAN, f"  Provider 2 (FALLBACK): web2 -> hitzcart.com")
+    print(f"\n{C.BG_GREEN}{C.WHT}{C.BOLD} TelliCall Bot v7 - Clean & Stable {C.RST}\n")
+    cprint(C.GREEN, f"  Provider: temp-mail.io -> gmeenramy.com")
     cprint(C.YEL,  f"  IPs: Egyptian rotation on every request")
-    cprint(C.WHT,  f"  Colors: ON")
+    cprint(C.CYAN, f"  Colors: ON")
+    cprint(C.WHT,  f"  NO web2, NO inbox watchers - clean!")
     print()
 
     # Quick test
@@ -941,33 +728,42 @@ if __name__ == "__main__":
         r = requests.post(f"{IO_BASE_URL}/email/new", json={"domain": IO_DOMAIN}, headers=IO_HEADERS, timeout=10)
         if r.status_code == 200:
             test_email = r.json().get('email', '')
-            cprint(C.GREEN, f"  io OK: {test_email}")
+            cprint(C.GREEN, f"  OK: {test_email}")
         else:
-            cprint(C.RED, f"  io returned {r.status_code}")
+            cprint(C.RED, f"  returned {r.status_code}")
     except Exception as e:
-        cprint(C.RED, f"  io error: {e}")
-
-    cprint(C.BLUE, "Testing web2...")
-    try:
-        r = requests.post(f"{WEB2_BASE_URL}/mailbox", headers=WEB2_HEADERS, timeout=10)
-        if r.status_code in [200, 201]:
-            test_email = r.json().get('mailbox', '')
-            domain = test_email.split('@')[1] if '@' in test_email else ''
-            ok = domain == WEB2_DOMAIN
-            cprint(C.GREEN if ok else C.YEL, f"  web2: {test_email} {'(=hitzcart!)' if ok else f'(!={WEB2_DOMAIN})'}")
-        elif r.status_code == 429:
-            cprint(C.YEL, f"  web2 rate limited (429) - io will be used")
-        else:
-            cprint(C.RED, f"  web2 returned {r.status_code}")
-    except Exception as e:
-        cprint(C.RED, f"  web2 error: {e}")
+        cprint(C.RED, f"  error: {e}")
 
     print()
+
+    # Create bot with cleanup to avoid 409
+    cprint(C.BLUE, "Cleaning up old sessions (fixing 409)...")
+    create_bot()
+    cprint(C.GREEN, "  Bot instance ready")
+
+    # Register handlers
+    register_handlers()
+    register_admin()
+
     cprint(C.GREEN, f"{C.BOLD}Bot starting...{C.RST}")
 
     while True:
         try:
-            bot.infinity_polling(timeout=60, long_polling_timeout=60)
+            bot.infinity_polling(timeout=60, long_polling_timeout=60, skip_pending=True)
         except Exception as e:
-            cprint(C.RED, f"Bot error: {e}")
+            err_str = str(e)
+            if '409' in err_str:
+                cprint(C.RED, f"409 Conflict - another instance running. Cleaning up...")
+                try:
+                    bot.delete_webhook(drop_pending_updates=True)
+                    time.sleep(2)
+                except:
+                    pass
+                # Recreate bot
+                create_bot()
+                register_handlers()
+                register_admin()
+                cprint(C.GREEN, "  Restarted after 409 cleanup")
+            else:
+                cprint(C.RED, f"Bot error: {e}")
             time.sleep(5)
