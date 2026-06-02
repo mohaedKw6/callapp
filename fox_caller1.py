@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v3.0 - TelliCall Account Creator
-============================================
-- ONLY hitzcart.com domain (fixed)
-- temp-mail.org/web2 as the only email provider
-- Egyptian IP rotation on every request (x-real-ip)
-- Continuous account creation without stopping
-- Simple, no fallback complexity
+Fox Caller v4.0 - Server-Side Call Launcher
+=============================================
+- Reads phone numbers from .xlsx or text file
+- Creates Telicall account for EACH number (1 account = 1 call = 64s)
+- Uploads token to server + triggers server-side async call
+- Does NOT wait 64 seconds — fires and moves to next number immediately
+- Shows real-time progress: [W1] RING +966510122129 <- email@domain
+
+Usage:
+  python3 fox_caller1.py numbers.xlsx
+  python3 fox_caller1.py numbers.xlsx --duration 64 --threads 5
+  python3 fox_caller1.py numbers.txt   (one number per line)
 """
 
 import requests
@@ -20,19 +25,29 @@ import os
 import hashlib
 import base64
 import threading
+import argparse
+import sys
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from filelock import FileLock
 
-# ─── Config ─────────────────────────────────────────
-API_URL  = "https://api.telicall.com"
-DAN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dan.json")
-PASSWORD = "@@@GMAQ@@@"
+# ═══════════════════════════════════════════════════════
+# ─── Config ───────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+API_URL       = "https://api.telicall.com"
+SERVER_URL    = "https://callapp-production-c84c.up.railway.app"
+ADMIN_KEY     = "06d271200e53fb4482acd8679bfe358a"
+DAN_FILE      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dan.json")
+PASSWORD      = "@@@GMAQ@@@"
+DEFAULT_DURATION = 64   # seconds per call
+DEFAULT_THREADS   = 5
 
-THREADS    = 10
-FIXED_DOMAIN = "hitzcart.com"
+# Email domains that work with Telicall (hitzcart.com confirmed working)
+ACCEPTED_DOMAINS = ["hitzcart.com", "googxs.co", "doreact.co", "ifcoat.co",
+                    "matkind.co", "googlemail.com"]
 
-# ─── Egyptian IP Rotation ──────────────────────────────
+# ═══════════════════════════════════════════════════════
+# ─── Egyptian IP Rotation ────────────────────────────
+# ═══════════════════════════════════════════════════════
 _EG_RANGES = [
     (41, 32), (41, 33), (41, 34), (41, 35), (41, 36),
     (41, 37), (41, 38), (41, 39), (41, 40), (41, 41),
@@ -48,11 +63,10 @@ _EG_RANGES = [
     (197, 40), (197, 41), (197, 42), (197, 43),
 ]
 
-_ip_lock = threading.Lock()
+_ip_lock  = threading.Lock()
 _used_ips = set()
 
 def rand_eg_ip():
-    """Random Egyptian IP - every call gives a different one"""
     with _ip_lock:
         for _ in range(50):
             a, b = random.choice(_EG_RANGES)
@@ -68,7 +82,9 @@ def rand_eg_ip():
         d = random.randint(1, 254)
         return f"{a}.{b}.{c}.{d}"
 
+# ═══════════════════════════════════════════════════════
 # ─── web2.temp-mail.org ──────────────────────────────
+# ═══════════════════════════════════════════════════════
 WEB2_BASE_URL = "https://web2.temp-mail.org"
 WEB2_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36',
@@ -78,90 +94,9 @@ WEB2_HEADERS = {
     'Content-Type': 'application/json'
 }
 
-# ─── Stats ───────────────────────────────────────────
-_counter_lock = threading.Lock()
-_mem_lock     = threading.Lock()
-_new_count    = 0
-_stop_flag    = threading.Event()
-_accounts_cache = None
-
-# ═══════════════════════════════════════════════════════
-# ─── Dan.json Encryption ─────────────────────────────
-# ═══════════════════════════════════════════════════════
-
-def _make_key(password: str) -> bytes:
-    return hashlib.sha256(password.encode()).digest()
-
-def encrypt_text(plain: str, password: str) -> bytes:
-    key  = _make_key(password)
-    data = plain.encode('utf-8')
-    enc  = bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])
-    return base64.b64encode(enc)
-
-def decrypt_file(path: str, password: str) -> str:
-    with open(path, 'rb') as f:
-        raw = base64.b64decode(f.read())
-    key = _make_key(password)
-    return bytes([raw[i] ^ key[i % len(key)] for i in range(len(raw))]).decode('utf-8')
-
-def load_accounts() -> list:
-    global _accounts_cache
-    with _mem_lock:
-        if _accounts_cache is not None:
-            return _accounts_cache
-    if not os.path.exists(DAN_FILE):
-        return []
-    try:
-        raw = open(DAN_FILE, 'rb').read()
-        try:
-            result = json.loads(decrypt_file(DAN_FILE, PASSWORD))
-        except:
-            result = json.loads(raw.decode('utf-8'))
-        with _mem_lock:
-            _accounts_cache = result
-        return result
-    except:
-        return []
-
-def save_account(email, device, tok):
-    global _accounts_cache
-    lock_path = DAN_FILE + ".lock"
-    lock = FileLock(lock_path, timeout=10)
-    with lock:
-        current = []
-        if os.path.exists(DAN_FILE):
-            try:
-                current = json.loads(decrypt_file(DAN_FILE, PASSWORD))
-            except:
-                try:
-                    current = json.loads(open(DAN_FILE, 'rb').read().decode('utf-8'))
-                except:
-                    current = []
-        current.append({
-            "email": email,
-            "x-client-device-id": device,
-            "x-token": tok,
-            "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
-        total = len(current)
-        encrypted = encrypt_text(json.dumps(current, indent=2, ensure_ascii=False), PASSWORD)
-        with open(DAN_FILE, 'wb') as f:
-            f.write(encrypted)
-        with _mem_lock:
-            _accounts_cache = current
-        return total
-
-# ═══════════════════════════════════════════════════════
-# ─── Email: web2 ONLY + hitzcart.com ONLY ────────────
-# ═══════════════════════════════════════════════════════
-
-def create_hitzcart_email():
-    """
-    Create email with ONLY hitzcart.com domain.
-    Keeps trying until it gets hitzcart.com, discards other domains.
-    On 429 rate limit, waits 2 seconds and retries immediately.
-    """
-    while not _stop_flag.is_set():
+def create_email():
+    """Create temp email - accepts any working domain"""
+    for _ in range(30):
         try:
             r = requests.post(f"{WEB2_BASE_URL}/mailbox", headers=WEB2_HEADERS, timeout=15)
             if r.status_code in [200, 201]:
@@ -170,25 +105,18 @@ def create_hitzcart_email():
                 token = data.get('token', '')
                 if email and token:
                     domain = email.split('@')[1] if '@' in email else ''
-                    if domain == FIXED_DOMAIN:
-                        return {
-                            'email': email,
-                            'token': token,
-                            'api_type': 'web2',
-                        }
-                    # Not hitzcart.com - discard and retry immediately
+                    if domain in ACCEPTED_DOMAINS:
+                        return {'email': email, 'token': token, 'api_type': 'web2'}
+                    # Domain not accepted - retry
             elif r.status_code == 429:
-                # Rate limited - short wait then retry
                 time.sleep(2)
             else:
                 time.sleep(1)
-        except Exception as e:
-            print(f"  web2 error: {e}", flush=True)
+        except Exception:
             time.sleep(2)
     return None
 
 def check_web2_inbox(email_token):
-    """Check inbox on web2"""
     try:
         headers = WEB2_HEADERS.copy()
         headers['Authorization'] = f'Bearer {email_token}'
@@ -201,11 +129,8 @@ def check_web2_inbox(email_token):
     return []
 
 def get_otp(email_token):
-    """Wait for OTP from web2 inbox"""
     deadline = time.time() + 90
     while time.time() < deadline:
-        if _stop_flag.is_set():
-            return None
         try:
             messages = check_web2_inbox(email_token)
             for msg in messages:
@@ -223,11 +148,9 @@ def get_otp(email_token):
     return None
 
 # ═══════════════════════════════════════════════════════
-# ─── TelliCall API ──────────────────────────────────
+# ─── Telicall API ────────────────────────────────────
 # ═══════════════════════════════════════════════════════
-
 def init_session():
-    """Initialize TelliCall session with rotating Egyptian IP"""
     ip = rand_eg_ip()
     device = ''.join(random.choices('0123456789abcdef', k=16))
     h = {
@@ -259,14 +182,11 @@ def init_session():
             if tok:
                 h["x-token"] = tok
                 return tok, device, h
-        else:
-            print(f"  init [{ip}]: {r.status_code}", flush=True)
-    except Exception as e:
-        print(f"  init [{ip}]: {e}", flush=True)
+    except Exception:
+        pass
     return None, None, None
 
 def send_verify(email, headers):
-    """Send verification email"""
     try:
         headers["x-request-id"]    = str(uuid.uuid4())
         headers["x-req-timestamp"] = str(int(time.time() * 1000))
@@ -274,18 +194,11 @@ def send_verify(email, headers):
                           headers=headers, timeout=10)
         if r.status_code == 200:
             return r.json().get('result', {}).get('reference')
-        else:
-            try:
-                err = r.json().get('meta', {}).get('errorMessage', r.text[:80])
-            except:
-                err = r.text[:80]
-            print(f"  send_verify: {r.status_code} | {err}", flush=True)
-    except Exception as e:
-        print(f"  send_verify: {e}", flush=True)
+    except Exception:
+        pass
     return None
 
 def verify_otp_api(ref, code, headers):
-    """Verify OTP code"""
     try:
         headers["x-request-id"]    = str(uuid.uuid4())
         headers["x-req-timestamp"] = str(int(time.time() * 1000))
@@ -294,143 +207,479 @@ def verify_otp_api(ref, code, headers):
                           headers=headers, timeout=10)
         if r.status_code == 200:
             return r.json().get('result', {}).get('user')
-        else:
-            try:
-                err = r.json().get('meta', {}).get('errorMessage', r.text[:80])
-            except:
-                err = r.text[:80]
-            print(f"  verify_otp: {r.status_code} | {err}", flush=True)
-    except Exception as e:
-        print(f"  verify_otp: {e}", flush=True)
+    except Exception:
+        pass
     return None
 
 # ═══════════════════════════════════════════════════════
-# ─── Account Creation ───────────────────────────────
+# ─── Dan.json Encryption ─────────────────────────────
 # ═══════════════════════════════════════════════════════
+def _make_key(password: str) -> bytes:
+    return hashlib.sha256(password.encode()).digest()
 
-def create_one_account():
-    """Create one complete TelliCall account with hitzcart.com email"""
-    tid = threading.current_thread().name
+def encrypt_text(plain: str, password: str) -> bytes:
+    key  = _make_key(password)
+    data = plain.encode('utf-8')
+    enc  = bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])
+    return base64.b64encode(enc)
 
-    # 1. Create hitzcart.com email (keeps trying until it gets one)
-    mail = create_hitzcart_email()
-    if not mail:
-        print(f"[{tid}] Stopped", flush=True)
-        return False, "stopped"
+def decrypt_file(path: str, password: str) -> str:
+    with open(path, 'rb') as f:
+        raw = base64.b64decode(f.read())
+    key = _make_key(password)
+    return bytes([raw[i] ^ key[i % len(key)] for i in range(len(raw))]).decode('utf-8')
 
-    email_addr = mail['email']
-    print(f"[{tid}] {email_addr}", flush=True)
+def save_account(email, device, tok):
+    lock_path = DAN_FILE + ".lock"
+    lock = FileLock(lock_path, timeout=10)
+    with lock:
+        current = []
+        if os.path.exists(DAN_FILE):
+            try:
+                current = json.loads(decrypt_file(DAN_FILE, PASSWORD))
+            except:
+                try:
+                    current = json.loads(open(DAN_FILE, 'rb').read().decode('utf-8'))
+                except:
+                    current = []
+        current.append({
+            "email": email,
+            "x-client-device-id": device,
+            "x-token": tok,
+            "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+        total = len(current)
+        encrypted = encrypt_text(json.dumps(current, indent=2, ensure_ascii=False), PASSWORD)
+        with open(DAN_FILE, 'wb') as f:
+            f.write(encrypted)
+        return total
 
-    # 2. Init TelliCall session with new IP
-    tok, device, headers = init_session()
-    if not tok:
-        print(f"[{tid}] init failed", flush=True)
-        return False, "INIT_FAILED"
+# ═══════════════════════════════════════════════════════
+# ─── Server API ──────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+def upload_to_server(email, device_id, token):
+    """Upload account token to server"""
+    try:
+        r = requests.post(f"{SERVER_URL}/api/fox-caller/upload-accounts",
+                          headers={"Content-Type": "application/json",
+                                   "x-admin-key": ADMIN_KEY},
+                          json={"accounts": [{"email": email,
+                                              "x-client-device-id": device_id,
+                                              "x-token": token}]},
+                          timeout=15)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("ready_tokens", 0)
+    except Exception:
+        pass
+    return 0
 
-    # 3. Send verification
-    ref = send_verify(email_addr, headers)
-    if not ref:
-        print(f"[{tid}] send_verify failed", flush=True)
-        return False, "VERIFY_FAILED"
+def trigger_server_call(phone, duration=64):
+    """Trigger async call on server (fire and forget)"""
+    try:
+        r = requests.post(f"{SERVER_URL}/api/fox-caller/async-call",
+                          headers={"Content-Type": "application/json",
+                                   "x-admin-key": ADMIN_KEY},
+                          json={"phone": phone, "duration": duration},
+                          timeout=15)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("call_id"), data.get("verification_url", "")
+        else:
+            # Fallback: try the blocking make-call endpoint
+            try:
+                r2 = requests.post(f"{SERVER_URL}/api/fox-caller/make-call",
+                                   headers={"Content-Type": "application/json",
+                                            "x-admin-key": ADMIN_KEY},
+                                   json={"phone": phone, "duration": duration},
+                                   timeout=15)
+                if r2.status_code == 200:
+                    data = r2.json()
+                    return "sync-" + secrets_token_hex(4), ""
+            except:
+                pass
+    except Exception:
+        pass
+    return None, ""
 
-    # 4. Wait for OTP
-    otp = get_otp(mail['token'])
-    if not otp:
-        print(f"[{tid}] OTP timeout", flush=True)
-        return False, "OTP_TIMEOUT"
+def secrets_token_hex(n):
+    import secrets as _s
+    return _s.token_hex(n)
 
-    # 5. Verify OTP
-    user = verify_otp_api(ref, otp, headers)
-    if not user:
-        print(f"[{tid}] verify failed", flush=True)
-        return False, "VERIFY_FAILED"
+def check_call_status(call_id):
+    """Check call status on server"""
+    try:
+        r = requests.get(f"{SERVER_URL}/api/fox-caller/call-status/{call_id}",
+                         timeout=10)
+        if r.status_code == 200:
+            return r.json()
+    except:
+        pass
+    return None
 
-    # 6. Save account
-    total = save_account(email_addr, device, tok)
-    print(f"[{tid}] DONE! Total: {total}", flush=True)
-    return True, total
+# ═══════════════════════════════════════════════════════
+# ─── Read Numbers from File ─────────────────────────
+# ═══════════════════════════════════════════════════════
+def read_numbers(filepath):
+    """Read phone numbers from .xlsx or .txt file"""
+    numbers = []
 
-def worker():
-    """Worker thread - continuously creates accounts"""
-    global _new_count
+    if filepath.endswith('.xlsx'):
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(filepath, read_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(values_only=True):
+                for cell in row:
+                    if cell is not None:
+                        num = str(cell).strip()
+                        # Normalize phone number
+                        num = num.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                        if num.startswith('00'):
+                            num = '+' + num[2:]
+                        elif num.startswith('0') and not num.startswith('+'):
+                            # Assume local number - add +2 for Egypt or keep as is
+                            pass
+                        if num.startswith('+') and len(num) >= 10:
+                            numbers.append(num)
+                        elif len(num) >= 10 and num.isdigit():
+                            numbers.append('+' + num)
+            wb.close()
+        except ImportError:
+            print("ERROR: openpyxl not installed. Run: pip3 install openpyxl", flush=True)
+            sys.exit(1)
+    else:
+        # Text file - one number per line
+        try:
+            with open(filepath, 'r') as f:
+                for line in f:
+                    num = line.strip().replace(' ', '').replace('-', '')
+                    if num.startswith('00'):
+                        num = '+' + num[2:]
+                    if num.startswith('+') and len(num) >= 10:
+                        numbers.append(num)
+                    elif len(num) >= 10 and num.isdigit():
+                        numbers.append('+' + num)
+        except Exception as e:
+            print(f"ERROR reading file: {e}", flush=True)
+            sys.exit(1)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique = []
+    for n in numbers:
+        if n not in seen:
+            seen.add(n)
+            unique.append(n)
+
+    return unique
+
+# ═══════════════════════════════════════════════════════
+# ─── Stats ───────────────────────────────────────────
+# ═══════════════════════════════════════════════════════
+_stats_lock = threading.Lock()
+_stats = {
+    "answered": 0,
+    "no_answer": 0,
+    "busy": 0,
+    "failed": 0,
+    "no_balance": 0,
+    "not_found": 0,
+    "active": 0,
+    "total": 0,
+}
+_start_time = None
+_stop_flag  = threading.Event()
+
+# Phone queue - threads pick numbers from here
+_phone_queue = []
+_queue_lock  = threading.Lock()
+_queue_index = 0
+
+def get_next_phone():
+    """Get next phone number from queue (thread-safe)"""
+    global _queue_index
+    with _queue_lock:
+        if _queue_index < len(_phone_queue):
+            phone = _phone_queue[_queue_index]
+            _queue_index += 1
+            return phone
+    return None
+
+def format_stats():
+    elapsed = time.time() - _start_time if _start_time else 0
+    mins = int(elapsed) // 60
+    secs = int(elapsed) % 60
+    with _stats_lock:
+        s = _stats
+        return (f"Stats [{mins}m{secs}s] "
+                f"{s['answered']} Ans | {s['no_answer']} NoA | "
+                f"{s['busy']} Bsy | {s['failed']} Fail | "
+                f"{s['not_found']} NF | {s['active']} Active | "
+                f"{s['total']} Total")
+
+def update_stat(key, delta=1):
+    with _stats_lock:
+        _stats[key] += delta
+
+# ═══════════════════════════════════════════════════════
+# ─── Worker: Create Account + Call ───────────────────
+# ═══════════════════════════════════════════════════════
+def create_and_call(duration):
+    """
+    Worker function:
+    1. Pick next phone number from queue
+    2. Create a new Telicall account
+    3. Upload token to server
+    4. Trigger server-side async call (fire and forget)
+    5. Move to next number
+    """
     tid = threading.current_thread().name
 
     while not _stop_flag.is_set():
-        ok, result = create_one_account()
+        phone = get_next_phone()
+        if not phone:
+            break
 
-        if ok:
-            with _counter_lock:
-                _new_count += 1
-                n = _new_count
-            print(f"[{tid}] Account #{n} | Total: {result}", flush=True)
-        else:
-            # On failure, short pause then retry
-            if not _stop_flag.is_set():
-                time.sleep(1)
+        update_stat("total")
+        update_stat("active")
+        email_short = "..."
+        call_id = None
+
+        try:
+            # ── Step 1: Create email ──
+            mail = create_email()
+            if not mail:
+                print(f"[{tid}] NO_EMAIL {phone}", flush=True)
+                update_stat("failed")
+                update_stat("active", -1)
+                continue
+
+            email_addr = mail['email']
+            email_short = email_addr[:20]
+
+            # ── Step 2: Init Telicall session ──
+            tok, device, headers = init_session()
+            if not tok:
+                print(f"[{tid}] INIT_FAIL {phone} <- {email_short}", flush=True)
+                update_stat("failed")
+                update_stat("active", -1)
+                continue
+
+            # ── Step 3: Send verification ──
+            ref = send_verify(email_addr, headers)
+            if not ref:
+                print(f"[{tid}] VERIFY_FAIL {phone} <- {email_short}", flush=True)
+                update_stat("failed")
+                update_stat("active", -1)
+                continue
+
+            # ── Step 4: Get OTP ──
+            otp = get_otp(mail['token'])
+            if not otp:
+                print(f"[{tid}] OTP_TIMEOUT {phone} <- {email_short}", flush=True)
+                update_stat("failed")
+                update_stat("active", -1)
+                continue
+
+            # ── Step 5: Verify OTP ──
+            user = verify_otp_api(ref, otp, headers)
+            if not user:
+                print(f"[{tid}] VERIFY_FAIL {phone} <- {email_short}", flush=True)
+                update_stat("failed")
+                update_stat("active", -1)
+                continue
+
+            # ── Step 6: Save to Dan.json ──
+            save_account(email_addr, device, tok)
+
+            # ── Step 7: Upload token to server ──
+            ready = upload_to_server(email_addr, device, tok)
+
+            # ── Step 8: Trigger server-side async call ──
+            call_id, verify_url = trigger_server_call(phone, duration)
+
+            if call_id:
+                print(f"[{tid}] RING {phone} <- {email_short}", flush=True)
+                # The server is now ringing — we don't wait for 64s!
+                # We move to the next number immediately
+            else:
+                # Server call failed — try direct call as fallback
+                print(f"[{tid}] SERVER_FAIL {phone} <- {email_short}", flush=True)
+                update_stat("failed")
+                update_stat("active", -1)
+                continue
+
+        except Exception as e:
+            print(f"[{tid}] ERROR {phone}: {e}", flush=True)
+            update_stat("failed")
+            update_stat("active", -1)
+            continue
+
+        update_stat("active", -1)
+
+# ═══════════════════════════════════════════════════════
+# ─── Background: Monitor active calls ────────────────
+# ═══════════════════════════════════════════════════════
+_active_call_ids = []
+_active_call_lock = threading.Lock()
+
+def add_active_call(call_id, phone, email_short, tid):
+    with _active_call_lock:
+        _active_call_ids.append({
+            "call_id": call_id,
+            "phone": phone,
+            "email": email_short,
+            "tid": tid,
+            "started": time.time()
+        })
+
+def monitor_calls():
+    """Background thread that checks call statuses and prints updates"""
+    while not _stop_flag.is_set():
+        time.sleep(10)  # Check every 10 seconds
+        with _active_call_lock:
+            remaining = []
+            for c in _active_call_ids:
+                status = check_call_status(c["call_id"])
+                if status:
+                    s = status.get("status", "")
+                    dur = status.get("actual_duration", 0)
+                    verified = status.get("verified", False)
+                    phone = c["phone"]
+                    email = c["email"]
+                    tid = c["tid"]
+
+                    if s == "answered_ok":
+                        if verified:
+                            print(f"[{tid}] ANSWERED_OK {phone} ({dur}s) <- {email}", flush=True)
+                            update_stat("answered")
+                        else:
+                            print(f"[{tid}] ANSWERED_SHORT {phone} ({dur}s) <- {email}", flush=True)
+                            update_stat("no_answer")
+                    elif s in ("failed", "error"):
+                        err = status.get("error", "")
+                        print(f"[{tid}] CALL_FAILED {phone} <- {email} ({err})", flush=True)
+                        update_stat("failed")
+                    elif s == "ringing" or s == "calling":
+                        # Still in progress - keep monitoring
+                        remaining.append(c)
+                    else:
+                        remaining.append(c)
+                else:
+                    # Couldn't check status - keep in list
+                    elapsed = time.time() - c["started"]
+                    if elapsed > 300:  # 5 min timeout
+                        print(f"[{tid}] TIMEOUT {c['phone']} <- {c['email']}", flush=True)
+                        update_stat("failed")
+                    else:
+                        remaining.append(c)
+            _active_call_ids.clear()
+            _active_call_ids.extend(remaining)
 
 # ═══════════════════════════════════════════════════════
 # ─── Main ───────────────────────────────────────────
 # ═══════════════════════════════════════════════════════
-
 def main():
-    global _accounts_cache, _new_count
+    global _start_time, _phone_queue
 
-    print("=" * 50, flush=True)
-    print("Fox Caller v3.0 - hitzcart.com ONLY", flush=True)
-    print("=" * 50, flush=True)
-    print(f"Domain: @{FIXED_DOMAIN}", flush=True)
-    print(f"Provider: web2.temp-mail.org ONLY", flush=True)
-    print(f"IPs: Egyptian rotation on every request", flush=True)
-    print(f"Threads: {THREADS}", flush=True)
-    print(f"Mode: CONTINUOUS (Ctrl+C to stop)", flush=True)
-    print("=" * 50, flush=True)
+    parser = argparse.ArgumentParser(description="Fox Caller v4.0 - Server-Side Call Launcher")
+    parser.add_argument("file", help="Phone numbers file (.xlsx or .txt)")
+    parser.add_argument("--duration", type=int, default=DEFAULT_DURATION,
+                        help=f"Call duration in seconds (default: {DEFAULT_DURATION})")
+    parser.add_argument("--threads", type=int, default=DEFAULT_THREADS,
+                        help=f"Number of worker threads (default: {DEFAULT_THREADS})")
+    args = parser.parse_args()
 
-    # Quick test
-    print("\nTesting web2 API...", flush=True)
+    # Read numbers
+    if not os.path.exists(args.file):
+        print(f"ERROR: File not found: {args.file}", flush=True)
+        sys.exit(1)
+
+    numbers = read_numbers(args.file)
+    if not numbers:
+        print("ERROR: No valid phone numbers found in file", flush=True)
+        sys.exit(1)
+
+    _phone_queue = numbers
+
+    print("=" * 60, flush=True)
+    print("  Fox Caller v4.0 - Server-Side Call Launcher", flush=True)
+    print("=" * 60, flush=True)
+    print(f"  Server:     {SERVER_URL}", flush=True)
+    print(f"  Numbers:    {len(numbers)} phones from {args.file}", flush=True)
+    print(f"  Duration:   {args.duration}s per call", flush=True)
+    print(f"  Threads:    {args.threads}", flush=True)
+    print(f"  Strategy:   1 account = 1 call (no reuse)", flush=True)
+    print(f"  Mode:       Fire & forget (server handles call)", flush=True)
+    print("=" * 60, flush=True)
+
+    # Quick server test
+    print("\nTesting server connection...", flush=True)
     try:
-        r = requests.post(f"{WEB2_BASE_URL}/mailbox", headers=WEB2_HEADERS, timeout=10)
-        if r.status_code in [200, 201]:
-            test_email = r.json().get('mailbox', '')
-            test_domain = test_email.split('@')[1] if '@' in test_email else ''
-            status = "= hitzcart.com!" if test_domain == FIXED_DOMAIN else f"!= {FIXED_DOMAIN}, will keep trying"
-            print(f"  web2 OK: {test_email} {status}", flush=True)
-        elif r.status_code == 429:
-            print(f"  web2 rate limited (429) - will retry with short delays", flush=True)
+        r = requests.get(f"{SERVER_URL}/api/health", timeout=10)
+        if r.status_code == 200:
+            print(f"  Server OK: {r.json()}", flush=True)
         else:
-            print(f"  web2 returned {r.status_code}", flush=True)
+            print(f"  Server returned {r.status_code}", flush=True)
     except Exception as e:
-        print(f"  web2 error: {e}", flush=True)
+        print(f"  Server error: {e}", flush=True)
+        print("  WARNING: Server may not be available!", flush=True)
 
-    existing = load_accounts()
-    _accounts_cache = existing
-    ex_count = len(existing)
-    _new_count = 0
+    # Check ready tokens
+    try:
+        r = requests.get(f"{SERVER_URL}/api/admin/stats",
+                         headers={"x-admin-key": ADMIN_KEY}, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            print(f"  Ready tokens: {data.get('ready_tokens', '?')}", flush=True)
+            print(f"  Total users:  {data.get('total_users', '?')}", flush=True)
+    except:
+        pass
 
-    if ex_count > 0:
-        print(f"\nLoaded {ex_count} existing accounts", flush=True)
+    print(f"\nStarting {args.threads} workers...", flush=True)
+    print(f"Format: [W#] STATUS +PHONE <- EMAIL", flush=True)
+    print(f"Status: RING | ANSWERED_OK | NO_BALANCE | FAILED\n", flush=True)
 
-    print(f"\nStarting {THREADS} threads - CONTINUOUS mode...\n", flush=True)
+    _start_time = time.time()
 
+    # Start monitor thread
+    monitor_thread = threading.Thread(target=monitor_calls, daemon=True)
+    monitor_thread.start()
+
+    # Start worker threads
     threads = []
-    for i in range(THREADS):
-        t = threading.Thread(target=worker, daemon=True, name=f"W{i}")
+    for i in range(args.threads):
+        t = threading.Thread(target=create_and_call, args=(args.duration,),
+                             daemon=True, name=f"W{i}")
         t.start()
         threads.append(t)
 
-    try:
-        while not _stop_flag.is_set():
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\n\nStopping...", flush=True)
-        _stop_flag.set()
-
+    # Wait for all workers to finish
     for t in threads:
-        t.join(timeout=5)
+        t.join()
 
-    total = len(_accounts_cache) if _accounts_cache else 0
-    print(f"\nAccounts created this session: {_new_count}", flush=True)
-    print(f"Total accounts in Dan.json: {total}", flush=True)
-    print(f"File: {DAN_FILE}", flush=True)
+    # Wait a bit for any remaining calls to complete
+    print(f"\nAll numbers processed. Waiting for remaining calls...", flush=True)
+    time.sleep(10)
+
+    # Final stats
+    elapsed = time.time() - _start_time
+    mins = int(elapsed) // 60
+    secs = int(elapsed) % 60
+    with _stats_lock:
+        s = _stats
+    print(f"\n{'=' * 60}", flush=True)
+    print(f"  FINAL RESULTS [{mins}m{secs}s]", flush=True)
+    print(f"{'=' * 60}", flush=True)
+    print(f"  Total numbers:  {len(numbers)}", flush=True)
+    print(f"  Answered OK:    {s['answered']}", flush=True)
+    print(f"  No Answer:      {s['no_answer']}", flush=True)
+    print(f"  Busy/Declined:  {s['busy']}", flush=True)
+    print(f"  Failed:         {s['failed']}", flush=True)
+    print(f"  No Balance:     {s['no_balance']}", flush=True)
+    print(f"  Not Found:      {s['not_found']}", flush=True)
+    print(f"{'=' * 60}", flush=True)
 
 if __name__ == "__main__":
     main()
