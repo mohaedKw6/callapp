@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v8.1 - Dual Mode Call Launcher
-==========================================
-مزودين إيميل متعددين + Email Pool بيجمع إيميلات مسبقاً
+Fox Caller v8.2 - Call Launcher + Email Pool
+============================================
+مزودين إيميل متعددين + Email Pool + مكالمات عبر السيرفر
 
-  1. emailnator (@gmail.com) - أساسي
-  2. emailnator+plusGmail (@gmail.com) - بديل
-  3. emailnator+googleMail (@googlemail.com) - بديل
-  4. temp-mail.io / mob2 - fallback (ممكن يفشل)
+مهم: Telicall /call/outbound/start بيرجع SIP credentials بس
+      الرقم مش هييرن لحد ما SIP client يتصل ويعمل INVITE!
+      عشان كده كل المكالمات بتتعمل عبر السيرفر (عنده SIP client)
 
 وضعين:
-  --mode server   = السيرفر بيعمل المكالمة
-  --mode direct   = من الجهاز مباشرة
-  --mode create   = إنشاء حسابات فقط
+  --mode server   = إنشاء حساب + رفعه للسيرفر + السيرفر يعمل المكالمة (SIP)
+  --mode create   = إنشاء حسابات فقط بدون مكالمات
 
 Usage:
-  python3 fox_caller1.py numbers.xlsx --mode direct
+  python3 fox_caller1.py numbers.xlsx --mode server
   python3 fox_caller1.py numbers.xlsx --mode server --threads 5
   python3 fox_caller1.py numbers.xlsx --mode create --threads 10
 """
@@ -878,57 +876,43 @@ def create_and_call(duration, mode="direct", use_xrealip=True):
         total = save_account(email_addr, device, tok)
         print(f"[{tid}] ✅ حساب! {email_short} (#{total})", flush=True)
 
-        # ═══════ Step 7: Call ═══════
+        # ═══════ Step 7: Upload + Call via Server ═══════
         if mode == "create":
             update_stat("accounts_ok")
             continue
 
-        elif mode == "server":
-            ready = upload_to_server(email_addr, device, tok)
-            call_id, verify_url = trigger_async_call(phone, duration)
-            if call_id:
-                add_active_call(call_id, phone, email_short, tid)
-                print(f"[{tid}] 📞[سيرفر] يرن {phone} (ready:{ready})", flush=True)
-                continue
-            result = trigger_make_call(phone, duration)
-            status = result.get("status", "unknown")
-            from_num = result.get("from", result.get("from_number", "?"))
-            dur = result.get("duration", result.get("actual_duration", 0))
-            error = result.get("error", "")
-            if status == "answered_ok":
-                print(f"[{tid}] ✅[سيرفر] {phone} ({dur}s) <- {from_num}", flush=True)
-                update_stat("calls_ok")
-            elif "balance" in str(error).lower() or status == "no_balance":
-                print(f"[{tid}] ❌[سيرفر] NO_BALANCE {phone}", flush=True)
-                update_stat("calls_no_balance")
-                update_stat("accounts_no_bal")
-            else:
-                print(f"[{tid}] ❌[سيرفر] فشل {phone} ({error or status})", flush=True)
-                update_stat("calls_failed")
-                update_stat("accounts_ok")
+        # Upload account to server
+        print(f"[{tid}] 📤 رفع الحساب للسيرفر...", flush=True)
+        ready = upload_to_server(email_addr, device, tok)
+        print(f"[{tid}] 📤 تم الرفع (ready:{ready})", flush=True)
 
-        elif mode == "direct":
-            result = direct_telicall_call(phone, tok, device, active_proxy, use_xrealip=use_xrealip)
-            if result and result.get('success'):
-                from_num = result.get('from', '')
-                sip_limit = result.get('limit', 60)
-                print(f"[{tid}] 📞[مباشر] ✅ {phone} <- {from_num} ({sip_limit}s)", flush=True)
-                update_stat("calls_ok")
-                update_stat("accounts_ok")
-                upload_to_server(email_addr, device, tok)
-            elif result and result.get('error') == 'NO_BALANCE':
-                print(f"[{tid}] 📞[مباشر] ❌ NO_BALANCE {phone}", flush=True)
-                update_stat("calls_no_balance")
-                update_stat("accounts_no_bal")
-            elif result:
-                err = result.get('error', '?')
-                print(f"[{tid}] 📞[مباشر] ❌ فشل {phone} ({err})", flush=True)
-                update_stat("calls_failed")
-                update_stat("accounts_ok")
-            else:
-                print(f"[{tid}] 📞[مباشر] ❌ فشل الاتصال {phone}", flush=True)
-                update_stat("calls_failed")
-                update_stat("accounts_ok")
+        # Server makes the actual SIP call
+        print(f"[{tid}] 📞 جاري تشغيل المكالمة عبر السيرفر (SIP)...", flush=True)
+        call_id, verify_url = trigger_async_call(phone, duration)
+        if call_id:
+            add_active_call(call_id, phone, email_short, tid)
+            print(f"[{tid}] 📞 المكالمة اتعملت! {phone} (id:{call_id[:10]}...)", flush=True)
+            continue
+
+        # Fallback: make-call (blocking, waits for result)
+        print(f"[{tid}] 📞 تجربة make-call...", flush=True)
+        result = trigger_make_call(phone, duration)
+        status = result.get("status", "unknown")
+        from_num = result.get("from", result.get("from_number", "?"))
+        dur = result.get("duration", result.get("actual_duration", 0))
+        error = result.get("error", "")
+
+        if status == "answered_ok":
+            print(f"[{tid}] ✅ تم الاتصال {phone} ({dur}s) <- {from_num}", flush=True)
+            update_stat("calls_ok")
+        elif "balance" in str(error).lower() or status == "no_balance":
+            print(f"[{tid}] ❌ NO_BALANCE {phone}", flush=True)
+            update_stat("calls_no_balance")
+            update_stat("accounts_no_bal")
+        else:
+            print(f"[{tid}] ❌ فشل {phone} ({error or status})", flush=True)
+            update_stat("calls_failed")
+            update_stat("accounts_ok")
 
         time.sleep(0.5)
 
@@ -977,8 +961,8 @@ Examples:
   python3 fox_caller1.py numbers.xlsx --mode create --threads 10
 """)
     parser.add_argument("file", help="Phone numbers file (.xlsx or .txt)")
-    parser.add_argument("--mode", choices=["server", "direct", "create"],
-                        default="direct", help="Call mode (default: direct)")
+    parser.add_argument("--mode", choices=["server", "create"],
+                        default="server", help="Call mode (default: server)")
     parser.add_argument("--duration", type=int, default=DEFAULT_DURATION)
     parser.add_argument("--threads", type=int, default=DEFAULT_THREADS)
     parser.add_argument("--proxies", default=PROXY_FILE, help="Proxy file path")
@@ -1000,14 +984,13 @@ Examples:
     _phone_queue = numbers
 
     mode_names = {
-        "server": "سيرفر (السيرفر يعمل المكالمة)",
-        "direct": "مباشر (من الجهاز عبر Telicall API)",
+        "server": "سيرفر (SIP + صوت 64ث)",
         "create": "إنشاء حسابات فقط",
     }
 
     print("=" * 60, flush=True)
-    print("  Fox Caller v8.1 - Dual Mode + Email Pool", flush=True)
-    print("  مزودين: emailnator(@gmail) + temp-mail.io + mob2", flush=True)
+    print("  Fox Caller v8.2 - Email Pool + SIP Calls", flush=True)
+    print("  كل المكالمات عبر السيرفر (SIP client)", flush=True)
     print("=" * 60, flush=True)
     print(f"  Numbers:     {len(numbers)} phones", flush=True)
     print(f"  Duration:    {args.duration}s", flush=True)
@@ -1020,13 +1003,12 @@ Examples:
     print("=" * 60, flush=True)
 
     # Test server
-    if args.mode == "server":
-        print("\nTesting server...", flush=True)
-        if is_server_available():
-            print("  Server: ✅ متاح", flush=True)
-        else:
-            print("  Server: ❌ غير متاح - جرّب --mode direct", flush=True)
-            sys.exit(1)
+    print("\nTesting server...", flush=True)
+    if is_server_available():
+        print("  Server: ✅ متاح", flush=True)
+    else:
+        print("  Server: ❌ غير متاح!", flush=True)
+        sys.exit(1)
 
     # Quick test emailnator
     print("\nQuick test: emailnator...", flush=True)
