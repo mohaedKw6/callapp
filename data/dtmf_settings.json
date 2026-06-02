@@ -1,0 +1,62 @@
+{
+  "0": {
+    "action": "notify",
+    "label": "📳 إشعار فقط",
+    "enabled": false
+  },
+  "1": {
+    "action": "replay",
+    "label": "🔁 إعادة صوت",
+    "enabled": true
+  },
+  "2": {
+    "action": "notify",
+    "label": "📳 إشعار فقط",
+    "enabled": true
+  },
+  "9": {
+    "action": "notify",
+    "label": "9",
+    "enabled": true
+  },
+  "*": {
+    "action": "notify",
+    "label": "⭐ نجمة",
+    "enabled": true
+  },
+  "#": {
+    "action": "notify",
+    "label": "# هاش",
+    "enabled": true
+  },
+  "4": {
+    "enabled": true,
+    "action": "notify",
+    "label": "📳 إشعار فقط"
+  },
+  "3": {
+    "enabled": true,
+    "action": "notify",
+    "label": "📳 إشعار فقط"
+  },
+  "8": {
+    "enabled": true,
+    "action": "notify",
+    "label": "📳 إشعار فقط"
+  },
+  "7": {
+    "enabled": true,
+    "action": "notify",
+    "label": "📳 إشعار فقط"
+  },
+  "6": {
+    "enabled": true,
+    "action": "notify",
+    "label": "📳 إشعار فقط"
+  },
+  "5": {
+    "enabled": true,
+    "action": "notify",
+    "label": "📳 إشعار فقط"
+  }
+}

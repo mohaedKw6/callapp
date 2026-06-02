@@ -1,0 +1,49 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'maven-publish'
+
+group = 'expo.modules.linphonecall'
+version = '1.0.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useExpoPublishing()
+
+android {
+  namespace 'expo.modules.linphonecall'
+  compileSdkVersion safeExtGet("compileSdkVersion", 35)
+
+  def agpVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
+  if (agpVersion.tokenize('.')[0].toInteger() < 8) {
+    compileOptions {
+      sourceCompatibility JavaVersion.VERSION_11
+      targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions { jvmTarget = JavaVersion.VERSION_11.majorVersion }
+  }
+
+  defaultConfig {
+    minSdkVersion safeExtGet("minSdkVersion", 24)
+    targetSdkVersion safeExtGet("targetSdkVersion", 35)
+    versionCode 1
+    versionName "1.0.0"
+    ndk {
+      abiFilters "arm64-v8a"
+    }
+  }
+  lintOptions { abortOnError false }
+}
+
+repositories {
+  mavenCentral()
+  maven {
+    name "linphone.org maven repository"
+    url "https://download.linphone.org/maven_repository"
+  }
+}
+
+dependencies {
+  implementation 'org.linphone:linphone-sdk-android:5.4.109'
+}

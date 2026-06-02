@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "Fox Call",
+    "slug": "fox-call",
+    "version": "4.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "scheme": "foxcall",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0F1F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mohamedqm.foxcall",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "هذا التطبيق يحتاج صلاحية الميكروفون لإجراء المكالمات الصوتية",
+        "NSContactsUsageDescription": "هذا التطبيق يحتاج الوصول إلى جهات الاتصال لتحسين تجربة المكالمات"
+      }
+    },
+    "android": {
+      "package": "com.mohamedqm.foxcall",
+      "versionCode": 15,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B0F1F"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.READ_CONTACTS"
+      ]
+    },
+    "plugins": [
+      "./modules/linphone-call/plugin/app.plugin.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "extraMavenRepos": [
+              "https://download.linphone.org/maven_repository"
+            ]
+          }
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-6875688805927337~9720545138"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "bb785610-b314-45c1-845a-0ede6e1353fd"
+      }
+    },
+    "owner": "dlmzqqlje"
+  }
+}
