@@ -52,8 +52,8 @@ DAN_FILE      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dan.js
 PASSWORD      = "@@@GMAQ@@@"
 DEFAULT_DURATION = 64
 DEFAULT_THREADS   = 3
-EMAIL_POOL_SIZE   = 20    # عدد الإيميلات الجاهزة في البول
-SESSION_POOL_SIZE = 10    # عدد الجلسات الجاهزة في البول
+EMAIL_POOL_SIZE   = 10    # عدد الإيميلات الجاهزة في البول
+SESSION_POOL_SIZE = 5     # عدد الجلسات الجاهزة في البول
 MAX_RETRIES       = 8     # عدد محاولات إعادة لكل رقم (email_exists شائع)
 
 # الدومينات الآمنة اللي Telicall بيقبلها
@@ -394,7 +394,7 @@ def get_session_from_pool():
         proxy = get_proxy()
         return (None, None, None, proxy)
 
-def start_pools(num_email_fillers=4, num_session_fillers=2):
+def start_pools(num_email_fillers=2, num_session_fillers=1):
     """بيشغل خلفيات البول"""
     for _ in range(num_email_fillers):
         t = threading.Thread(target=_email_pool_filler, daemon=True)
@@ -403,7 +403,7 @@ def start_pools(num_email_fillers=4, num_session_fillers=2):
         t = threading.Thread(target=_session_pool_filler, daemon=True)
         t.start()
     print("  Pool:       جاري التعبئة...", flush=True)
-    time.sleep(5)  # استنى أكتر عشان البول يتعبأ
+    time.sleep(3)
     print(f"  Pool:       إيميلات={_email_pool.qsize()} | جلسات={_session_pool.qsize()}", flush=True)
 
 # ═══════════════════════════════════════════════════════════════
