@@ -224,6 +224,18 @@ def create_emailnator_mail(email_type=None, max_retries=3):
                             with _emailnator_stats_lock:
                                 _emailnator_stats["fail"] += 1
                             return None
+
+                        # احفظ الرسائل الموجودة دلوقتي عشان نميز الجديدة
+                        initial_ids = set()
+                        try:
+                            r_init = s.post("https://www.emailnator.com/message-list", headers=headers,
+                                           json={"email": email_addr}, timeout=10)
+                            if r_init.status_code == 200:
+                                init_data = r_init.json().get('messageData', [])
+                                initial_ids = {m.get('messageID', '') for m in init_data if isinstance(m, dict)}
+                        except Exception:
+                            pass
+
                         with _emailnator_stats_lock:
                             _emailnator_stats["ok"] += 1
                         return {
@@ -232,6 +244,7 @@ def create_emailnator_mail(email_type=None, max_retries=3):
                             'session': s,
                             'xsrf_headers': headers,
                             'provider': f'emailnator-{etype}',
+                            'initial_msg_ids': initial_ids,
                         }
             except Exception:
                 continue
@@ -245,10 +258,12 @@ def create_emailnator_mail(email_type=None, max_retries=3):
     return None
 
 def check_emailnator_inbox(mail_info, timeout=90):
-    """بيبص في inbox الـ emailnator عشان يلاقي الـ OTP"""
+    """بيبص في inbox الـ emailnator عشان يلاقي الـ OTP
+    بيدور على الرسائل الجديدة فقط (بيتجاهل الرسائل القديمة)"""
     s = mail_info['session']
     headers = mail_info['xsrf_headers']
     email_addr = mail_info['email']
+    initial_ids = mail_info.get('initial_msg_ids', set())
 
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -259,20 +274,25 @@ def check_emailnator_inbox(mail_info, timeout=90):
                 data = r.json()
                 msg_data = data.get('messageData', [])
                 for msg in msg_data:
+                    if not isinstance(msg, dict):
+                        continue
+                    msg_id = msg.get('messageID', '')
+                    # تجاهل الرسائل القديمة (اللي كانت موجودة قبل الإيميل)
+                    if msg_id and msg_id in initial_ids:
+                        continue
+
                     content = str(msg)
                     if 'teli' in content.lower() or 'verif' in content.lower() or 'code' in content.lower():
                         m = re.search(r'\b(\d{6})\b', content)
                         if m:
                             return m.group(1)
-                        if isinstance(msg, dict):
-                            msg_id = msg.get('messageID', '')
-                            if msg_id:
-                                r2 = s.post("https://www.emailnator.com/message-detail", headers=headers,
-                                           json={"email": email_addr, "messageID": msg_id}, timeout=15)
-                                if r2.status_code == 200:
-                                    m2 = re.search(r'\b(\d{6})\b', r2.text)
-                                    if m2:
-                                        return m2.group(1)
+                        if msg_id:
+                            r2 = s.post("https://www.emailnator.com/message-detail", headers=headers,
+                                       json={"email": email_addr, "messageID": msg_id}, timeout=15)
+                            if r2.status_code == 200:
+                                m2 = re.search(r'\b(\d{6})\b', r2.text)
+                                if m2:
+                                    return m2.group(1)
             elif r.status_code in (419, 403):
                 # XSRF expired - refresh session
                 s2, headers2 = _new_emailnator_session()
