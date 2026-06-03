@@ -56,6 +56,8 @@ MAX_RETRIES       = 8
 # temp-mail.org config
 TEMPMAIL_API      = "https://mob2.temp-mail.org"
 TEMPMAIL_UA       = "4.02"
+# الدومينات المقبولة من Telicall (باقي الدومينات محظورة)
+ACCEPTED_DOMAINS  = ["snocv.com"]
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Proxy Manager ────────────────────────────────────────────
@@ -188,12 +190,16 @@ class TempMailOrgProvider:
         self._current_email = None
         self._current_ts = 0  # timestamp للـ after parameter
         self._rate_limit_remaining = 15
+        self._skipped_domains = 0  # عدد الإيميلات اللي اتجاهلت عشان الدومين
 
-    def create_email(self, max_retries=3):
+    def create_email(self, max_retries=20):
         """بيعمل إيميل مؤقت جديد من temp-mail.org
         
         لو عندنا JWT فعلًا، بنعمل POST /mailbox عشان نغير الإيميل
         لو أول مرة، بنعمل POST /mailbox بدون JWT
+        
+        بنكرر لحد ما نلاقي دومين مقبول من Telicall (@snocv.com)
+        ⚠️ @snocv.com بيظهر ~20% من المرات — بنحتاج نحاول أكتر
         """
         global _tempmail_fail_count
 
@@ -220,7 +226,16 @@ class TempMailOrgProvider:
                     new_mailbox = data.get('mailbox', '')
 
                     if new_token and new_mailbox and '@' in new_mailbox:
-                        self._jwt = new_token
+                        domain = new_mailbox.split('@')[1].lower()
+                        
+                        # ─── فلتر الدومين ───
+                        if ACCEPTED_DOMAINS and domain not in ACCEPTED_DOMAINS:
+                            self._jwt = new_token  # نحفظ الـ JWT عشان نستخدمه للمرة الجاية
+                            self._skipped_domains += 1
+                            if attempt % 3 == 0:
+                                print(f"  ⏭️ تجاهل @{domain} (محظور) — بدور على @snocv.com...", flush=True)
+                            continue  # نجرب تاني
+                        
                         self._current_email = new_mailbox
                         self._current_ts = int(time.time())
 
@@ -240,7 +255,7 @@ class TempMailOrgProvider:
                     # Rate limited — نستنى شوية
                     retry_after = int(resp.headers.get('retry-after', 60))
                     print(f"  ⏳ temp-mail.org rate limit — نستنى {retry_after}s", flush=True)
-                    time.sleep(min(retry_after, 60))
+                    time.sleep(min(retry_after, 120))
                     continue
 
                 elif resp.status_code in (403, 503):
@@ -1035,6 +1050,7 @@ def main():
     print(f"  Duration:   {args.duration}s", flush=True)
     print(f"  Retries:    {MAX_RETRIES} per number", flush=True)
     print(f"  Email API:  mob2.temp-mail.org (Temp Mail app)", flush=True)
+    print(f"  Domains:    @snocv.com ✅ (باقي الدومينات محظورة من Telicall)", flush=True)
 
     init_proxy_manager()
 
