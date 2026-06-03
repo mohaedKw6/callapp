@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v19.0 - Gmail+Alias Auto Edition
-=============================================
-Email: Gmail+alias (تلقائي - بيتحفظ أول مرة بس)
+Fox Caller v20.0 - Smart Email Edition
+=======================================
+Email: Auto-detect (ThrowawayMail → temp-mail.org → Gmail+alias)
 
-الجديد في v19.0:
-  - شيلنا temp-mail.org (كل الدومينات محظورة من Telicall)
-  - شيلنا Gmail App Password Setup الطويل
-  - أول مرة: بتدخل Gmail + App Password وبيتحفظوا
-  - بعد كده: السكربت بيشتغل تلقائي من غير أي إعدادات
-  - --gmail: عشان تدخل بيانات جديدة أو تغير الحساب
+الجديد في v20.0:
+  - ThrowawayMail API Provider (@throwawaymail.app)
+  - temp-mail.org Mobile API Provider
+  - كشف تلقائي: السكربت بيجرب كل بروفايدر وبيختار اللي شغال
+  - لو كل البروفيديرز محظورة → بيرجع لـ Gmail+alias
+  - Gmail: بيتحفظ أول مرة بس (2 إدخالات بس)
 
 Usage:
-  # وضع تلقائي (بيستخدم بيانات محفوظة أو بيسأل أول مرة):
+  # وضع تلقائي (بيكشف البروفايدر الشغال):
   python3 fox_caller11.py numbers.xlsx
   python3 fox_caller11.py numbers.xlsx --mode server
 
@@ -212,6 +212,266 @@ def rand_eg_ip():
         c = random.randint(1, 254)
         d = random.randint(1, 254)
         return f"{a}.{b}.{c}.{d}"
+
+# ═══════════════════════════════════════════════════════════════
+# ─── ThrowawayMail API Provider ──────────────────────────────
+# ═══════════════════════════════════════════════════════════════
+class ThrowawayMailProvider:
+    """ThrowawayMail API Provider - @throwawaymail.app
+
+    بنستخدم الـ API عشان نعمل إيميلات مؤقتة:
+      POST /api/mailboxes → إنشاء صندوق بريد
+      GET  /api/mailboxes/{id}/messages → قراءة الرسائل
+      GET  /api/mailboxes/{id}/messages/{msg_id} → قراءة رسالة كاملة
+
+    ملاحظة: الدومين @throwawaymail.app ممكن يكون محظور من Telicall
+    """
+
+    def __init__(self):
+        self._base_url = "https://throwawaymail.app"
+        self._session = requests.Session()
+        self._counter = 0
+        self._counter_lock = threading.Lock()
+
+    def create_email(self):
+        with self._counter_lock:
+            self._counter += 1
+        try:
+            r = self._session.post(f"{self._base_url}/api/mailboxes", timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                mailbox_id = data.get('id') or data.get('mailbox_id') or data.get('_id')
+                email_addr = data.get('address') or data.get('email')
+                if mailbox_id and email_addr:
+                    return {
+                        'email': email_addr,
+                        'provider': 'throwawaymail',
+                        'api_type': 'throwawaymail_api',
+                        'mailbox_id': mailbox_id,
+                        'created_ts': int(time.time()),
+                    }
+            return None
+        except Exception:
+            return None
+
+    def check_otp(self, mail_info, timeout=90):
+        mailbox_id = mail_info.get('mailbox_id')
+        if not mailbox_id:
+            return None
+        deadline = time.time() + timeout
+        seen_ids = set()
+        while time.time() < deadline:
+            try:
+                r = self._session.get(
+                    f"{self._base_url}/api/mailboxes/{mailbox_id}/messages",
+                    timeout=15
+                )
+                if r.status_code == 200:
+                    messages = r.json()
+                    if isinstance(messages, list):
+                        for msg in messages:
+                            msg_id = msg.get('id') or msg.get('_id')
+                            if msg_id in seen_ids:
+                                continue
+                            seen_ids.add(msg_id)
+                            # Try OTP from subject
+                            subject = msg.get('subject', '')
+                            otp = self._extract_otp(subject)
+                            if otp:
+                                return otp
+                            # Try OTP from preview/text
+                            preview = msg.get('text') or msg.get('body') or msg.get('preview', '')
+                            otp = self._extract_otp(preview)
+                            if otp:
+                                return otp
+                            # Read full message
+                            try:
+                                r2 = self._session.get(
+                                    f"{self._base_url}/api/mailboxes/{mailbox_id}/messages/{msg_id}",
+                                    timeout=15
+                                )
+                                if r2.status_code == 200:
+                                    full_msg = r2.json()
+                                    body_text = (full_msg.get('text') or full_msg.get('body')
+                                                 or full_msg.get('html') or '')
+                                    otp = self._extract_otp(body_text)
+                                    if otp:
+                                        return otp
+                            except Exception:
+                                pass
+                    elif isinstance(messages, dict):
+                        msg_list = messages.get('messages') or messages.get('data', [])
+                        for msg in msg_list:
+                            msg_id = msg.get('id') or msg.get('_id')
+                            if msg_id in seen_ids:
+                                continue
+                            seen_ids.add(msg_id)
+                            subject = msg.get('subject', '')
+                            otp = self._extract_otp(subject)
+                            if otp:
+                                return otp
+                            preview = msg.get('text') or msg.get('body') or msg.get('preview', '')
+                            otp = self._extract_otp(preview)
+                            if otp:
+                                return otp
+                            try:
+                                r2 = self._session.get(
+                                    f"{self._base_url}/api/mailboxes/{mailbox_id}/messages/{msg_id}",
+                                    timeout=15
+                                )
+                                if r2.status_code == 200:
+                                    full_msg = r2.json()
+                                    body_text = (full_msg.get('text') or full_msg.get('body')
+                                                 or full_msg.get('html') or '')
+                                    otp = self._extract_otp(body_text)
+                                    if otp:
+                                        return otp
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+            time.sleep(5)
+        return None
+
+    def change_mailbox(self):
+        pass
+
+    def test_connection(self):
+        try:
+            mail = self.create_email()
+            if mail and mail.get('email'):
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _extract_otp(self, text):
+        if not text:
+            return None
+        m = re.search(r'\b(\d{6})\b', str(text))
+        if m:
+            return m.group(1)
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════
+# ─── temp-mail.org Mobile API Provider ───────────────────────
+# ═══════════════════════════════════════════════════════════════
+class TempMailOrgProvider:
+    """temp-mail.org Mobile API Provider
+
+    بنستخدم الـ Mobile API عشان نعمل إيميلات مؤقتة:
+      POST https://mob2.temp-mail.org/mailbox → إنشاء صندوق بريد
+      GET  https://mob2.temp-mail.org/mailbox/{token} → قراءة الرسائل
+
+    ملاحظة: دومينات temp-mail.org ممكن تكون محظورة من Telicall
+    """
+
+    def __init__(self):
+        self._base_url = "https://mob2.temp-mail.org"
+        self._headers = {
+            "user-agent": "4.02",
+            "accept": "application/json",
+            "content-length": "0",
+            "accept-encoding": "gzip",
+        }
+        self._session = requests.Session()
+        self._counter = 0
+        self._counter_lock = threading.Lock()
+
+    def create_email(self):
+        with self._counter_lock:
+            self._counter += 1
+        try:
+            r = self._session.post(
+                f"{self._base_url}/mailbox",
+                headers=self._headers,
+                timeout=15
+            )
+            if r.status_code == 200:
+                data = r.json()
+                mailbox = data.get('mailbox') or data.get('email') or data.get('address')
+                token = data.get('token') or data.get('api_token') or data.get('key')
+                if mailbox and token:
+                    return {
+                        'email': mailbox,
+                        'provider': 'tempmailorg',
+                        'api_type': 'tempmailorg_api',
+                        'token': token,
+                        'created_ts': int(time.time()),
+                    }
+            return None
+        except Exception:
+            return None
+
+    def check_otp(self, mail_info, timeout=90):
+        token = mail_info.get('token')
+        if not token:
+            return None
+        deadline = time.time() + timeout
+        seen_ids = set()
+        while time.time() < deadline:
+            try:
+                r = self._session.get(
+                    f"{self._base_url}/mailbox/{token}",
+                    headers=self._headers,
+                    timeout=15
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    messages = []
+                    if isinstance(data, list):
+                        messages = data
+                    elif isinstance(data, dict):
+                        messages = data.get('messages') or data.get('data') or []
+
+                    for msg in messages:
+                        msg_id = msg.get('id') or msg.get('_id') or msg.get('uid')
+                        if msg_id in seen_ids:
+                            continue
+                        seen_ids.add(msg_id)
+                        # Try OTP from subject
+                        subject = msg.get('subject', '')
+                        otp = self._extract_otp(subject)
+                        if otp:
+                            return otp
+                        # Try OTP from body
+                        body = (msg.get('text') or msg.get('body')
+                                or msg.get('content') or msg.get('preview', ''))
+                        otp = self._extract_otp(body)
+                        if otp:
+                            return otp
+                        # Try HTML body
+                        html = msg.get('html', '')
+                        if html:
+                            otp = self._extract_otp(html)
+                            if otp:
+                                return otp
+            except Exception:
+                pass
+            time.sleep(5)
+        return None
+
+    def change_mailbox(self):
+        pass
+
+    def test_connection(self):
+        try:
+            mail = self.create_email()
+            if mail and mail.get('email'):
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _extract_otp(self, text):
+        if not text:
+            return None
+        m = re.search(r'\b(\d{6})\b', str(text))
+        if m:
+            return m.group(1)
+        return None
+
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Gmail Alias Generator ───────────────────────────────────
@@ -430,6 +690,140 @@ class GmailAliasProvider:
 
 # ─── Global provider instance ───
 _email_provider = None  # يتم تعيينه في main()
+_email_mode = None      # 'throwawaymail' | 'tempmailorg' | 'gmail_alias'
+
+# ═══════════════════════════════════════════════════════════════
+# ─── Auto-detect Email Provider ──────────────────────────────
+# ═══════════════════════════════════════════════════════════════
+def _test_provider_with_telicall(provider, provider_name):
+    """بيجرب بروفايدر معين: بيعمل إيميل وبعته لـ Telicall يشوف مقبول ولا لأ"""
+    try:
+        mail = provider.create_email()
+        if not mail or not mail.get('email'):
+            print(f"    {provider_name}: فشل إنشاء إيميل", flush=True)
+            return False, None
+
+        email_addr = mail['email']
+        email_domain = email_addr.split('@')[1] if '@' in email_addr else '?'
+
+        # نعمل جلسة تجريبية
+        test_tok, _, test_headers = init_session()
+        if not test_tok:
+            print(f"    {provider_name}: فشل Telicall init", flush=True)
+            return False, None
+
+        # نبعت verify للإيميل
+        ref, err = send_verify(email_addr, test_headers)
+        if ref:
+            print(f"    {provider_name}: شغال! {email_addr[:30]}... (domain: {email_domain})", flush=True)
+            return True, mail
+        elif err and str(err).startswith('BLOCKED:'):
+            print(f"    {provider_name}: دومين محظور ({email_domain})", flush=True)
+            return False, None
+        elif err == 'EMAIL_EXISTS':
+            # الإيميل مقبول بس مسجل فعلاً - البروفيدير شغال
+            print(f"    {provider_name}: شغال (domain: {email_domain}) - إيميل مسجل", flush=True)
+            return True, None
+        else:
+            print(f"    {provider_name}: رفض ({err})", flush=True)
+            return False, None
+    except Exception as e:
+        print(f"    {provider_name}: خطأ ({str(e)[:50]})", flush=True)
+        return False, None
+
+
+def auto_detect_email_provider(force_gmail=False, gmail_addr=None, app_pass=None):
+    """بيكشف تلقائياً أي بروفايدر شغال
+
+    الترتيب:
+      1. ThrowawayMail API (@throwawaymail.app)
+      2. temp-mail.org Mobile API
+      3. Gmail+alias (fallback)
+
+    Returns:
+      (provider_instance, mode_string)
+    """
+    global _email_mode
+
+    if force_gmail:
+        return _setup_gmail_provider(gmail_addr, app_pass)
+
+    print("  Auto-detect: بجرب البروفيديرز...", flush=True)
+
+    # ─── 1. ThrowawayMail ───
+    print("    [1/2] ThrowawayMail API...", flush=True)
+    try:
+        twm = ThrowawayMailProvider()
+        ok, _ = _test_provider_with_telicall(twm, "ThrowawayMail")
+        if ok:
+            _email_mode = 'throwawaymail'
+            print(f"  Email Mode:  ThrowawayMail API (auto-detected)", flush=True)
+            return twm, 'throwawaymail'
+    except Exception as e:
+        print(f"    ThrowawayMail: خطأ ({str(e)[:50]})", flush=True)
+
+    # ─── 2. temp-mail.org ───
+    print("    [2/2] temp-mail.org Mobile API...", flush=True)
+    try:
+        tmo = TempMailOrgProvider()
+        ok, _ = _test_provider_with_telicall(tmo, "temp-mail.org")
+        if ok:
+            _email_mode = 'tempmailorg'
+            print(f"  Email Mode:  temp-mail.org API (auto-detected)", flush=True)
+            return tmo, 'tempmailorg'
+    except Exception as e:
+        print(f"    temp-mail.org: خطأ ({str(e)[:50]})", flush=True)
+
+    # ─── 3. Gmail+alias (fallback) ───
+    print("  كل البروفيديرز محظورة → Gmail+alias", flush=True)
+    return _setup_gmail_provider(gmail_addr, app_pass)
+
+
+def _setup_gmail_provider(gmail_addr=None, app_pass=None):
+    """بيعمل Gmail provider - بيقرأ الكونفج أو بيسأل المستخدم"""
+    global _email_mode
+
+    _email_mode = 'gmail_alias'
+
+    if not gmail_addr:
+        saved_gmail, saved_pass = load_config()
+        if saved_gmail and saved_pass:
+            gmail_addr = saved_gmail
+            app_pass = saved_pass
+            print(f"  Email:       {gmail_addr} (saved)", flush=True)
+
+    if not gmail_addr:
+        gmail_addr = input("  Gmail: ").strip()
+    if not app_pass:
+        app_pass = input("  App Password: ").strip()
+
+    if not gmail_addr or not app_pass:
+        print(" لازم تكتب الإيميل و الـ App Password!", flush=True)
+        sys.exit(1)
+
+    app_pass = app_pass.replace(' ', '')
+
+    # حفظ الكونفج
+    save_config(gmail_addr, app_pass)
+
+    provider = GmailAliasProvider(gmail_addr, app_pass)
+
+    # Test IMAP
+    print("  Quick Test: جرب Gmail IMAP...", flush=True)
+    ok, info = provider.test_connection()
+    if not ok:
+        print(f"  Gmail IMAP مش شغال! {info}", flush=True)
+        print(f"  تأكد إنك:", flush=True)
+        print(f"    1. فعّلت IMAP في Gmail Settings", flush=True)
+        print(f"    2. فعّلت 2-Step Verification", flush=True)
+        print(f"    3. عملت App Password", flush=True)
+        delete_config()
+        sys.exit(1)
+    print(f"  Gmail IMAP شغال! ({info} رسائل في الـ inbox)", flush=True)
+
+    print(f"  Email Mode:  Gmail+alias ({gmail_addr})", flush=True)
+    return provider, 'gmail_alias'
+
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Email Pool ──────────────────────────────────────────────
@@ -990,13 +1384,13 @@ def create_and_call(duration, mode="server", use_xrealip=True):
 # ─── Main ────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 def main():
-    global _email_provider, _start_time, GMAIL_USER, GMAIL_APP_PASS
+    global _email_provider, _email_mode, _start_time, GMAIL_USER, GMAIL_APP_PASS
     global MAX_RETRIES, _phone_queue
 
-    parser = argparse.ArgumentParser(description='Fox Caller v19.0 - Gmail+Alias Auto Edition')
+    parser = argparse.ArgumentParser(description='Fox Caller v20.0 - Smart Email Edition')
     parser.add_argument('file', help='ملف الأرقام (xlsx أو txt)')
     parser.add_argument('--gmail', action='store_true', default=False,
-                        help='أعد إدخال بيانات Gmail (غيّر الحساب)')
+                        help='استخدم Gmail+alias فقط (غيّر الحساب)')
     parser.add_argument('--email', default=None,
                         help='إيميل Gmail (مثال: user@gmail.com)')
     parser.add_argument('--app-pass', default=None,
@@ -1011,60 +1405,27 @@ def main():
                         help=f'عدد المحاولات لكل رقم (افتراضي: {MAX_RETRIES})')
     args = parser.parse_args()
 
-    # ─── تحديد بيانات Gmail ───
-    gmail_addr = args.email
-    app_pass = args.app_pass
-
-    # لو --gmail: إدخال جديد (حتى لو في كونفج محفوظ)
-    # لو بدون --gmail: نستخدم الكونفج المحفوظ أو نسأل
-    use_saved = not args.gmail
-
-    if use_saved and not gmail_addr:
-        # نحاول نقرأ من الكونفج المحفوظ
-        saved_gmail, saved_pass = load_config()
-        if saved_gmail and saved_pass:
-            gmail_addr = saved_gmail
-            app_pass = saved_pass
-            print(f"  بيانات Gmail محفوظة: {gmail_addr}", flush=True)
-
-    if not gmail_addr:
-        gmail_addr = input("  Gmail: ").strip()
-    if not app_pass:
-        app_pass = input("  App Password: ").strip()
-
-    if not gmail_addr or not app_pass:
-        print(" لازم تكتب الإيميل و الـ App Password!", flush=True)
-        sys.exit(1)
-
-    GMAIL_USER = gmail_addr
-    GMAIL_APP_PASS = app_pass.replace(' ', '')
-
-    # حفظ الكونفج
-    save_config(GMAIL_USER, GMAIL_APP_PASS)
-    print(f"  تم حفظ البيانات! المرة الجاية هيشتغل تلقائي.", flush=True)
-
     # ─── Banner ───
     print("=" * 60, flush=True)
-    print("  Fox Caller v19.0 - Gmail+Alias Auto Edition", flush=True)
-    print(f"  Email:      {GMAIL_USER} (Gmail+alias)", flush=True)
-    print("  +alias:     user+tag@gmail.com / u.s.e.r+tag@gmail.com", flush=True)
+    print("  Fox Caller v20.0 - Smart Email Edition", flush=True)
     print("=" * 60)
     print(flush=True)
 
-    # ─── Test Gmail IMAP ───
-    print("  Quick Test: جرب Gmail IMAP...", flush=True)
-    _email_provider = GmailAliasProvider(GMAIL_USER, GMAIL_APP_PASS)
-    ok, info = _email_provider.test_connection()
-    if not ok:
-        print(f"  Gmail IMAP مش شغال! {info}", flush=True)
-        print(f"  تأكد إنك:", flush=True)
-        print(f"    1. فعّلت IMAP في Gmail Settings", flush=True)
-        print(f"    2. فعّلت 2-Step Verification", flush=True)
-        print(f"    3. عملت App Password", flush=True)
-        # مسح الكونفج الغلط
-        delete_config()
-        sys.exit(1)
-    print(f"  Gmail IMAP شغال! ({info} رسائل في الـ inbox)", flush=True)
+    # ─── Auto-detect email provider ───
+    gmail_addr = args.email
+    app_pass = args.app_pass
+    force_gmail = args.gmail
+
+    _email_provider, _email_mode = auto_detect_email_provider(
+        force_gmail=force_gmail,
+        gmail_addr=gmail_addr,
+        app_pass=app_pass,
+    )
+
+    # Update globals if Gmail mode
+    if _email_mode == 'gmail_alias' and isinstance(_email_provider, GmailAliasProvider):
+        GMAIL_USER = _email_provider._gmail_user
+        GMAIL_APP_PASS = _email_provider._app_password
 
     # ─── Read Numbers ───
     numbers = read_numbers(args.file)
@@ -1077,12 +1438,20 @@ def main():
 
     # ─── Print Config ───
     print(flush=True)
+
+    # Mode description
+    mode_desc = {
+        'throwawaymail': f'ThrowawayMail (@throwawaymail.app)',
+        'tempmailorg': f'temp-mail.org Mobile API',
+        'gmail_alias': f'Gmail+alias ({GMAIL_USER})',
+    }.get(_email_mode, _email_mode)
+
     print(f"  Numbers:    {len(numbers)}", flush=True)
     print(f"  Mode:       {args.mode}", flush=True)
     print(f"  Threads:    {args.threads}", flush=True)
     print(f"  Duration:   {args.duration}s", flush=True)
     print(f"  Retries:    {MAX_RETRIES} per number", flush=True)
-    print(f"  Provider:   Gmail ({GMAIL_USER})", flush=True)
+    print(f"  Provider:   {mode_desc}", flush=True)
 
     init_proxy_manager()
 
@@ -1153,9 +1522,11 @@ def main():
     print(f"  فشل الجلسة:      {_stats['session_fail']}", flush=True)
     print(f"  فشل مكالمة:      {_stats['calls_failed']}", flush=True)
     print(f"  إعادة محاولات:   {_stats['retries']}", flush=True)
-    print(f"  Gmail إيميلات:   {_gmail_stats['ok']}", flush=True)
-    print(f"  Gmail OTP ناجح:  {_gmail_stats['otp_ok']}", flush=True)
-    print(f"  Gmail OTP فشل:   {_gmail_stats['otp_fail']}", flush=True)
+    print(f"  البروفايدر:      {_email_mode}", flush=True)
+    if _email_mode == 'gmail_alias':
+        print(f"  Gmail إيميلات:   {_gmail_stats['ok']}", flush=True)
+        print(f"  Gmail OTP ناجح:  {_gmail_stats['otp_ok']}", flush=True)
+        print(f"  Gmail OTP فشل:   {_gmail_stats['otp_fail']}", flush=True)
 
     if _failed_phones:
         print(flush=True)
