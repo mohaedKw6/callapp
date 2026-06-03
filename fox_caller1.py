@@ -155,7 +155,7 @@ def rand_eg_ip():
         return f"{a}.{b}.{c}.{d}"
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Email Provider: tempail.top via cloudscraper/curl_cffi ───
+# ─── Email Provider: tempail.top (multi-method) ──────────────
 # ═══════════════════════════════════════════════════════════════
 _tempail_stats = {"ok": 0, "fail": 0, "otp_ok": 0, "otp_fail": 0}
 _tempail_stats_lock = threading.Lock()
@@ -163,12 +163,19 @@ _tempail_lock = threading.Lock()
 _tempail_fail_count = 0
 TEMPAIL_MAX_FAILS = 15
 
-# ─── Import cloudscraper (أقوى ضد Cloudflare) ───
+# ─── Import cloudscraper ───
 try:
     import cloudscraper
     HAS_CLOUDSCRAPER = True
 except ImportError:
     HAS_CLOUDSCRAPER = False
+
+# ─── Import Playwright (headless browser — أقوى حل ضد Cloudflare) ───
+try:
+    from playwright.sync_api import sync_playwright
+    HAS_PLAYWRIGHT = True
+except ImportError:
+    HAS_PLAYWRIGHT = False
 
 # ─── قائمة impersonation profiles للتجربة ───
 _IMPERSONATE_PROFILES = [
@@ -195,23 +202,54 @@ _BROWSER_HEADERS = {
     'Upgrade-Insecure-Requests': '1',
 }
 
+# ─── Playwright shared browser ───
+_pw_playwright = None
+_pw_browser = None
+_pw_lock = threading.Lock()
+
+def _get_playwright_browser():
+    """بيفتح أو بيرجع Playwright browser مشترك (headless = مفيش شباك)"""
+    global _pw_playwright, _pw_browser
+    with _pw_lock:
+        if _pw_browser:
+            try:
+                _pw_browser.is_connected()
+                return _pw_browser
+            except Exception:
+                _pw_browser = None
+                _pw_playwright = None
+
+        try:
+            pw = sync_playwright().start()
+            browser = pw.chromium.launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
+            )
+            _pw_playwright = pw
+            _pw_browser = browser
+            return browser
+        except Exception as e:
+            print(f"  ⚠️ Playwright: {str(e)[:60]}", flush=True)
+            return None
+
+
 class TempailProvider:
-    """بتتعامل مع tempail.top — متعدد الطرق:
-    1. cloudscraper (أقوى ضد Cloudflare)
+    """بتتعامل مع tempail.top — 4 طرق بالترتيب:
+    1. cloudscraper (أقوى HTTP ضد Cloudflare)
     2. curl_cffi مع تجربة كل الـ profiles
-    3. requests عادي مع headers
+    3. requests عادي
+    4. Playwright headless (أقوى حل — بيشغل Chromium في الخلفية بدون شباك)
     """
 
     def __init__(self, domain_filter=None):
         self.domain_filter = (domain_filter or DEFAULT_DOMAIN).lower()
-        self._working_profile = None  # آخر profile اشتغل
-        self._working_method = None   # آخر method اشتغل
+        self._working_profile = None
+        self._working_method = None
 
     def _try_cloudscraper(self):
-        """طريقة 1: cloudscraper — مخصص لتخطي Cloudflare"""
+        """طريقة 1: cloudscraper"""
         if not HAS_CLOUDSCRAPER:
             return None
-
         try:
             scraper = cloudscraper.create_scraper(
                 browser={'browser': 'chrome', 'platform': 'linux', 'desktop': True}
@@ -219,20 +257,19 @@ class TempailProvider:
             resp = scraper.get('https://tempail.top', timeout=30)
             if resp.status_code == 200 and '@' in resp.text:
                 return resp.text, scraper, 'cloudscraper'
+            elif resp.status_code == 403 or resp.status_code == 503:
+                return None
         except Exception:
             pass
         return None
 
     def _try_curl_cffi(self):
-        """طريقة 2: curl_cffi مع تجربة كل الـ impersonation profiles"""
+        """طريقة 2: curl_cffi مع كل الـ profiles"""
         if not HAS_CURL_CFFI:
             return None
-
-        # لو عندنا profile اشتغل قبل كده، نجربه الأول
         profiles_to_try = list(_IMPERSONATE_PROFILES)
         if self._working_profile:
             profiles_to_try.insert(0, self._working_profile)
-
         for profile in profiles_to_try:
             try:
                 session = cffi_requests.Session(impersonate=profile)
@@ -240,16 +277,14 @@ class TempailProvider:
                 if resp.status_code == 200 and '@' in resp.text:
                     self._working_profile = profile
                     return resp.text, session, f'cffi-{profile}'
-                elif resp.status_code == 403:
-                    continue
-                elif resp.status_code == 503:
+                elif resp.status_code in (403, 503):
                     continue
             except Exception:
                 continue
         return None
 
     def _try_requests(self):
-        """طريقة 3: requests عادي مع browser headers"""
+        """طريقة 3: requests عادي"""
         try:
             session = requests.Session()
             session.headers.update(_BROWSER_HEADERS)
@@ -260,29 +295,97 @@ class TempailProvider:
             pass
         return None
 
+    def _try_playwright(self):
+        """طريقة 4: Playwright headless — بيشغل Chromium في الخلفية (مفيش شباك)"""
+        if not HAS_PLAYWRIGHT:
+            return None
+
+        browser = _get_playwright_browser()
+        if not browser:
+            return None
+
+        try:
+            context = browser.new_context(
+                user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                viewport={'width': 1280, 'height': 720},
+            )
+            page = context.new_page()
+
+            # نفتح tempail.top ونستنى الإيميل يظهر
+            page.goto('https://tempail.top', wait_until='networkidle', timeout=45000)
+
+            # استنى الإيميل يظهر (حد أقصى 30 ثانية)
+            email = None
+            for _ in range(30):
+                time.sleep(1)
+                try:
+                    el = page.query_selector('#trsh_mail')
+                    if el:
+                        val = el.get_attribute('value') or el.inner_text()
+                        if val and '@' in val:
+                            email = val
+                            break
+                except Exception:
+                    pass
+                try:
+                    el = page.query_selector('.mail-address')
+                    if el:
+                        val = el.inner_text()
+                        if val and '@' in val:
+                            email = val
+                            break
+                except Exception:
+                    pass
+
+            if not email:
+                # أي إيميل في الصفحة
+                content = page.content()
+                m = re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', content)
+                if m:
+                    email = m.group(0)
+
+            if not email:
+                context.close()
+                return None
+
+            # استخراج CSRF
+            html = page.content()
+            csrf = self._extract_csrf(html)
+
+            return html, {'page': page, 'context': context, 'csrf': csrf, 'type': 'playwright'}, 'playwright'
+
+        except Exception:
+            return None
+
     def create_email(self, max_retries=4):
-        """بتعمل إيميل مؤقت من tempail.top — تجرب 3 طرق"""
+        """بتعمل إيميل مؤقت من tempail.top — تجرب 4 طرق"""
         global _tempail_fail_count
-        if not HAS_CURL_CFFI and not HAS_CLOUDSCRAPER:
+        if not HAS_CURL_CFFI and not HAS_CLOUDSCRAPER and not HAS_PLAYWRIGHT:
             return None
 
         for attempt in range(max_retries):
-            # ─── نجرب الطرق بالترتيب ───
             result = None
 
             # لو عندنا method اشتغل قبل كده، نجربه الأول
-            if self._working_method == 'cloudscraper':
-                result = self._try_cloudscraper()
-            elif self._working_method and self._working_method.startswith('cffi-'):
-                result = self._try_curl_cffi()
+            if self._working_method:
+                if self._working_method == 'cloudscraper':
+                    result = self._try_cloudscraper()
+                elif self._working_method.startswith('cffi-'):
+                    result = self._try_curl_cffi()
+                elif self._working_method == 'playwright':
+                    result = self._try_playwright()
+                elif self._working_method == 'requests':
+                    result = self._try_requests()
 
-            # لو مش عارفين أو اللي اشتغل قبل كده فشل، نجرب الكل
+            # لو مش عارفين أو اللي اشتغل فشل، نجرب الكل بالترتيب
             if not result:
                 result = self._try_cloudscraper()
             if not result:
                 result = self._try_curl_cffi()
             if not result:
                 result = self._try_requests()
+            if not result:
+                result = self._try_playwright()
 
             if not result:
                 if attempt < max_retries - 1:
@@ -297,12 +400,28 @@ class TempailProvider:
             self._working_method = method
 
             # ─── استخراج الإيميل ───
-            email = self._extract_email(html)
-            if not email:
-                # نجرب AJAX
-                email = self._try_ajax_get_email(session, html)
+            email = None
+            if method == 'playwright':
+                # الإيميل اتعمل من الـ page
+                email = self._extract_email(html)
+                page_obj = session.get('page')
+                if not email and page_obj:
+                    try:
+                        content = page_obj.content()
+                        email = self._extract_email(content)
+                    except Exception:
+                        pass
+            else:
+                email = self._extract_email(html)
+                if not email:
+                    email = self._try_ajax_get_email(session, html)
 
             if not email:
+                if method == 'playwright':
+                    try:
+                        session.get('context').close()
+                    except Exception:
+                        pass
                 if attempt < max_retries - 1:
                     time.sleep(2)
                     continue
@@ -314,10 +433,21 @@ class TempailProvider:
             # ─── فلتر الدومين ───
             domain = email.split('@')[1] if '@' in email else ''
             if self.domain_filter and domain.lower() != self.domain_filter:
-                try:
-                    session.get('https://tempail.top/delete', timeout=10)
-                except Exception:
-                    pass
+                if method == 'playwright':
+                    try:
+                        session.get('page').goto('https://tempail.top/delete', timeout=10000)
+                        time.sleep(2)
+                    except Exception:
+                        pass
+                    try:
+                        session.get('context').close()
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        session.get('https://tempail.top/delete', timeout=10)
+                    except Exception:
+                        pass
                 if attempt < max_retries - 1:
                     time.sleep(1)
                     continue
@@ -328,6 +458,8 @@ class TempailProvider:
 
             # ─── استخراج CSRF ───
             csrf = self._extract_csrf(html)
+            if method == 'playwright':
+                csrf = session.get('csrf') or csrf
 
             with _tempail_stats_lock:
                 _tempail_stats["ok"] += 1
@@ -350,7 +482,11 @@ class TempailProvider:
     def check_otp(self, mail_info, timeout=90):
         """بتدور على OTP في صندوق tempail.top"""
         session = mail_info.get('session')
+        method = mail_info.get('method', '')
         csrf = mail_info.get('csrf')
+
+        if method == 'playwright':
+            return self._check_otp_playwright(mail_info, timeout=timeout)
 
         if not session:
             return None
@@ -389,10 +525,72 @@ class TempailProvider:
             _tempail_stats["otp_fail"] += 1
         return None
 
+    def _check_otp_playwright(self, mail_info, timeout=90):
+        """بتدور على OTP عبر Playwright page"""
+        session = mail_info.get('session')
+        if not session or session.get('type') != 'playwright':
+            return None
+
+        page = session.get('page')
+        csrf = session.get('csrf') or mail_info.get('csrf')
+
+        if not page:
+            return None
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                # بنعمل AJAX request من داخل الـ page
+                result = page.evaluate('''(csrfToken) => {
+                    return new Promise((resolve) => {
+                        const data = csrfToken ? '_token=' + encodeURIComponent(csrfToken) : '';
+                        fetch('/messages?' + Date.now(), {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: data,
+                        })
+                        .then(r => r.text())
+                        .then(text => resolve(text))
+                        .catch(err => resolve(''));
+                    });
+                }''', csrf or '')
+
+                if result:
+                    otp = self._parse_otp_from_response(result)
+                    if otp:
+                        with _tempail_stats_lock:
+                            _tempail_stats["otp_ok"] += 1
+                        return otp
+
+            except Exception:
+                pass
+            time.sleep(5)
+
+        with _tempail_stats_lock:
+            _tempail_stats["otp_fail"] += 1
+        return None
+
     def delete_email(self, mail_info):
         """تمسح الإيميل الحالي عشان نقدر نعمل واحد جديد"""
         session = mail_info.get('session')
-        if session:
+        method = mail_info.get('method', '')
+
+        if method == 'playwright' and session:
+            try:
+                page = session.get('page')
+                if page:
+                    page.goto('https://tempail.top/delete', timeout=10000)
+                    time.sleep(1)
+            except Exception:
+                pass
+            try:
+                session.get('context').close()
+            except Exception:
+                pass
+        elif session:
             try:
                 session.get('https://tempail.top/delete', timeout=10)
             except Exception:
@@ -402,27 +600,22 @@ class TempailProvider:
 
     def _extract_email(self, html):
         """بتستخرج الإيميل من HTML"""
-        # Method 1: id="trsh_mail" value="..."
         m = re.search(r'id=["\']trsh_mail["\'][^>]*value=["\']([^"\']+@[^"\']+)["\']', html)
         if m:
             return m.group(1).strip()
 
-        # Method 2: value="..." id="trsh_mail"
         m = re.search(r'value=["\']([^"\']+@[^"\']+)["\'][^>]*id=["\']trsh_mail["\']', html)
         if m:
             return m.group(1).strip()
 
-        # Method 3: class="mail-address"
         m = re.search(r'class=["\']mail-address["\'][^>]*>([^<]+@[^<]+)<', html)
         if m:
             return m.group(1).strip()
 
-        # Method 4: أي إيميل @domain في الصفحة
         m = re.search(r'[\w.+-]+@' + re.escape(self.domain_filter), html)
         if m:
             return m.group(0).strip()
 
-        # Method 5: أي إيميل عام
         m = re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', html)
         if m:
             email = m.group(0).strip()
@@ -448,7 +641,7 @@ class TempailProvider:
         return None
 
     def _try_ajax_get_email(self, session, html):
-        """بتجرب تجيب الإيميل عبر AJAX endpoints"""
+        """بتجرب تجيب الإيميل عبر AJAX"""
         csrf = self._extract_csrf(html)
         try:
             headers = {
@@ -460,18 +653,11 @@ class TempailProvider:
             if csrf:
                 data['_token'] = csrf
 
-            resp = session.post(
-                'https://tempail.top/messages',
-                headers=headers,
-                data=data,
-                timeout=15,
-            )
-
+            resp = session.post('https://tempail.top/messages', headers=headers, data=data, timeout=15)
             if resp.status_code == 200:
                 email = self._extract_email(resp.text)
                 if email:
                     return email
-
                 try:
                     result = resp.json()
                     email = result.get('email', '')
@@ -481,7 +667,6 @@ class TempailProvider:
                     pass
         except Exception:
             pass
-
         return None
 
     def _parse_otp_from_response(self, response_text, session=None):
@@ -507,14 +692,10 @@ class TempailProvider:
                     if m:
                         return m.group(1)
 
-                # Message ID — بنفتح الرسالة
                 msg_id = msg.get('id')
                 if msg_id and not re.search(r'\b\d{6}\b', subject + ' ' + body) and session:
                     try:
-                        view_resp = session.get(
-                            f'https://tempail.top/view/{msg_id}',
-                            timeout=15,
-                        )
+                        view_resp = session.get(f'https://tempail.top/view/{msg_id}', timeout=15)
                         if view_resp.status_code == 200:
                             m = re.search(r'\b(\d{6})\b', view_resp.text)
                             if m:
@@ -1172,19 +1353,25 @@ def main():
     # ─── Diagnostic ───
     print("\n  🔍 Diagnostic:", flush=True)
 
-    if HAS_CLOUDSCRAPER:
-        print(f"  ✅ cloudscraper: متاح (أقوى ضد Cloudflare)", flush=True)
+    if HAS_PLAYWRIGHT:
+        print(f"  ✅ Playwright: متاح (أقوى حل — headless Chromium)", flush=True)
     else:
-        print(f"  ⚠️ cloudscraper: مش متاح — يفضل تتسطبه: pip3 install cloudscraper", flush=True)
+        print(f"  ⚠️ Playwright: مش متاح — يفضل تتسطبه (شوف تحت)", flush=True)
+
+    if HAS_CLOUDSCRAPER:
+        print(f"  ✅ cloudscraper: متاح", flush=True)
+    else:
+        print(f"  ⚠️ cloudscraper: مش متاح — pip3 install cloudscraper", flush=True)
 
     if HAS_CURL_CFFI:
         print(f"  ✅ curl_cffi: متاح ({len(_IMPERSONATE_PROFILES)} profiles)", flush=True)
     else:
         print(f"  ⚠️ curl_cffi: مش متاح — pip3 install curl_cffi", flush=True)
 
-    if not HAS_CURL_CFFI and not HAS_CLOUDSCRAPER:
+    if not HAS_PLAYWRIGHT and not HAS_CURL_CFFI and not HAS_CLOUDSCRAPER:
         print(f"  ❌ ولا مكتبة شغال! السكريبت مش هيشتغل!", flush=True)
-        print(f"  💡 pip3 install cloudscraper curl_cffi", flush=True)
+        print(f"  💡 شغل: pip3 install playwright cloudscraper curl_cffi", flush=True)
+        print(f"  💡 وبعدين: python3 -m playwright install chromium", flush=True)
         sys.exit(1)
 
     # ─── Quick Test ───
