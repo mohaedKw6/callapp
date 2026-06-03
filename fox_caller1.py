@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v14.0 - Clean Domain Edition
+Fox Caller v15.0 - TempMail.org Edition
 =========================================
-مزود إيميل واحد بس: tempail.top API عبر curl_cffi (بدون متصفح/Chrome/DrissionPage)
+مزود إيميل: mob2.temp-mail.org API (بدون متصفح/Chrome/DrissionPage)
 
-الجديد في v14.0:
-  - --domain flag: تحديد دومين الإيميل (افتراضي: openlo.link)
-  - لا DrissionPage - لا Chrome - لا متصفح خالص
-  - لا SandVPN - لا emailnator - لا Gmail
-  - curl_cffi بيتعامل مع tempail.top API مباشرة
-  - كود نظيف وبسيط
+الجديد في v15.0:
+  - temp-mail.org API بدل tempail.top (شغال 100% بدون Cloudflare)
+  - لا DrissionPage - لا Chrome - لا Playwright - لا متصفح خالص
+  - لا SandVPN - لا emailnator
+  - requests عادي بس (لا curl_cffi - لا cloudscraper)
+  - الدومينات: @snocv.com @tixpad.com (مقبولة من Telicall!)
+
+API Flow:
+  1. POST /mailbox  → إنشاء إيميل جديد + JWT token
+  2. GET  /messages  → قراءة الرسائل/OTP
+  3. POST /mailbox  → تغيير الإيميل (JWT بيتغير)
 
 Usage:
   python3 fox_caller1.py numbers.xlsx --mode server
-  python3 fox_caller1.py numbers.xlsx --mode server --domain openlo.link --threads 5
-  python3 fox_caller1.py numbers.xlsx --mode create --domain openlo.link --threads 10
+  python3 fox_caller1.py numbers.xlsx --mode server --threads 5
+  python3 fox_caller1.py numbers.xlsx --mode create --threads 10
 """
 
 import requests
@@ -25,7 +30,6 @@ import time
 import random
 import re
 import os
-import string
 import hashlib
 import base64
 import threading
@@ -33,18 +37,7 @@ import argparse
 import sys
 import queue
 from datetime import datetime
-from urllib.parse import unquote
 from filelock import FileLock
-
-# ═══════════════════════════════════════════════════════════════
-# ─── curl_cffi import ─────────────────────────────────────────
-# ═══════════════════════════════════════════════════════════════
-try:
-    from curl_cffi import requests as cffi_requests
-    HAS_CURL_CFFI = True
-except ImportError:
-    HAS_CURL_CFFI = False
-    cffi_requests = None
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Config ───────────────────────────────────────────────────
@@ -56,10 +49,13 @@ DAN_FILE          = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Da
 PASSWORD          = "@@@GMAQ@@@"
 DEFAULT_DURATION  = 64
 DEFAULT_THREADS   = 3
-EMAIL_POOL_SIZE   = 10
+EMAIL_POOL_SIZE   = 15
 SESSION_POOL_SIZE = 5
 MAX_RETRIES       = 8
-DEFAULT_DOMAIN    = "openlo.link"
+
+# temp-mail.org config
+TEMPMAIL_API      = "https://mob2.temp-mail.org"
+TEMPMAIL_UA       = "4.02"
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Proxy Manager ────────────────────────────────────────────
@@ -155,324 +151,116 @@ def rand_eg_ip():
         return f"{a}.{b}.{c}.{d}"
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Email Provider: tempail.top (multi-method) ──────────────
+# ─── Email Provider: mob2.temp-mail.org API ──────────────────
 # ═══════════════════════════════════════════════════════════════
-_tempail_stats = {"ok": 0, "fail": 0, "otp_ok": 0, "otp_fail": 0}
-_tempail_stats_lock = threading.Lock()
-_tempail_lock = threading.Lock()
-_tempail_fail_count = 0
-TEMPAIL_MAX_FAILS = 15
-
-# ─── Import cloudscraper ───
-try:
-    import cloudscraper
-    HAS_CLOUDSCRAPER = True
-except ImportError:
-    HAS_CLOUDSCRAPER = False
-
-# ─── Import Playwright (headless browser — أقوى حل ضد Cloudflare) ───
-try:
-    from playwright.sync_api import sync_playwright
-    HAS_PLAYWRIGHT = True
-except ImportError:
-    HAS_PLAYWRIGHT = False
-
-# ─── قائمة impersonation profiles للتجربة ───
-_IMPERSONATE_PROFILES = [
-    'chrome120', 'chrome116', 'chrome110', 'chrome107',
-    'chrome104', 'chrome101', 'chrome100',
-    'safari15_5', 'safari15_3', 'safari_15',
-    'edge101', 'edge99',
-]
-
-# ─── Browser headers حقيقية ───
-_BROWSER_HEADERS = {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-    'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-    'Sec-Ch-Ua-Mobile': '?0',
-    'Sec-Ch-Ua-Platform': '"Linux"',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Upgrade-Insecure-Requests': '1',
-}
-
-# ─── Playwright shared browser ───
-_pw_playwright = None
-_pw_browser = None
-_pw_lock = threading.Lock()
-
-def _get_playwright_browser():
-    """بيفتح أو بيرجع Playwright browser مشترك (headless = مفيش شباك)"""
-    global _pw_playwright, _pw_browser
-    with _pw_lock:
-        if _pw_browser:
-            try:
-                _pw_browser.is_connected()
-                return _pw_browser
-            except Exception:
-                _pw_browser = None
-                _pw_playwright = None
-
-        try:
-            pw = sync_playwright().start()
-            browser = pw.chromium.launch(
-                headless=True,
-                args=['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
-            )
-            _pw_playwright = pw
-            _pw_browser = browser
-            return browser
-        except Exception as e:
-            print(f"  ⚠️ Playwright: {str(e)[:60]}", flush=True)
-            return None
+_tempmail_stats = {"ok": 0, "fail": 0, "otp_ok": 0, "otp_fail": 0}
+_tempmail_stats_lock = threading.Lock()
+_tempmail_lock = threading.Lock()
+_tempmail_fail_count = 0
+TEMPMAIL_MAX_FAILS = 20
 
 
-class TempailProvider:
-    """بتتعامل مع tempail.top — 4 طرق بالترتيب:
-    1. cloudscraper (أقوى HTTP ضد Cloudflare)
-    2. curl_cffi مع تجربة كل الـ profiles
-    3. requests عادي
-    4. Playwright headless (أقوى حل — بيشغل Chromium في الخلفية بدون شباك)
+class TempMailOrgProvider:
+    """بتتعامل مع mob2.temp-mail.org API
+    
+    API Flow:
+      1. POST /mailbox  → إنشاء إيميل جديد + JWT token
+      2. GET  /messages?after={ts} → قراءة الرسائل
+      3. POST /mailbox  → تغيير الإيميل (عشان نعمل واحد جديد)
+    
+    Headers:
+      authorization: <JWT> (بدون "Bearer")
+      user-agent: 4.02
+      accept: application/json
+    
+    Rate Limit:
+      POST /mailbox: 15 طلب لكل فترة
     """
 
-    def __init__(self, domain_filter=None):
-        self.domain_filter = (domain_filter or DEFAULT_DOMAIN).lower()
-        self._working_profile = None
-        self._working_method = None
+    def __init__(self):
+        self._session = requests.Session()
+        self._session.headers.update({
+            'user-agent': TEMPMAIL_UA,
+            'accept': 'application/json',
+            'accept-encoding': 'gzip',
+        })
+        self._jwt = None
+        self._current_email = None
+        self._current_ts = 0  # timestamp للـ after parameter
+        self._rate_limit_remaining = 15
 
-    def _try_cloudscraper(self):
-        """طريقة 1: cloudscraper"""
-        if not HAS_CLOUDSCRAPER:
-            return None
-        try:
-            scraper = cloudscraper.create_scraper(
-                browser={'browser': 'chrome', 'platform': 'linux', 'desktop': True}
-            )
-            resp = scraper.get('https://tempail.top', timeout=30)
-            if resp.status_code == 200 and '@' in resp.text:
-                return resp.text, scraper, 'cloudscraper'
-            elif resp.status_code == 403 or resp.status_code == 503:
-                return None
-        except Exception:
-            pass
-        return None
-
-    def _try_curl_cffi(self):
-        """طريقة 2: curl_cffi مع كل الـ profiles"""
-        if not HAS_CURL_CFFI:
-            return None
-        profiles_to_try = list(_IMPERSONATE_PROFILES)
-        if self._working_profile:
-            profiles_to_try.insert(0, self._working_profile)
-        for profile in profiles_to_try:
-            try:
-                session = cffi_requests.Session(impersonate=profile)
-                resp = session.get('https://tempail.top', headers=_BROWSER_HEADERS, timeout=20)
-                if resp.status_code == 200 and '@' in resp.text:
-                    self._working_profile = profile
-                    return resp.text, session, f'cffi-{profile}'
-                elif resp.status_code in (403, 503):
-                    continue
-            except Exception:
-                continue
-        return None
-
-    def _try_requests(self):
-        """طريقة 3: requests عادي"""
-        try:
-            session = requests.Session()
-            session.headers.update(_BROWSER_HEADERS)
-            resp = session.get('https://tempail.top', timeout=20)
-            if resp.status_code == 200 and '@' in resp.text:
-                return resp.text, session, 'requests'
-        except Exception:
-            pass
-        return None
-
-    def _try_playwright(self):
-        """طريقة 4: Playwright headless — بيشغل Chromium في الخلفية (مفيش شباك)"""
-        if not HAS_PLAYWRIGHT:
-            return None
-
-        browser = _get_playwright_browser()
-        if not browser:
-            return None
-
-        try:
-            context = browser.new_context(
-                user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                viewport={'width': 1280, 'height': 720},
-            )
-            page = context.new_page()
-
-            # نفتح tempail.top ونستنى الإيميل يظهر
-            page.goto('https://tempail.top', wait_until='networkidle', timeout=45000)
-
-            # استنى الإيميل يظهر (حد أقصى 30 ثانية)
-            email = None
-            for _ in range(30):
-                time.sleep(1)
-                try:
-                    el = page.query_selector('#trsh_mail')
-                    if el:
-                        val = el.get_attribute('value') or el.inner_text()
-                        if val and '@' in val:
-                            email = val
-                            break
-                except Exception:
-                    pass
-                try:
-                    el = page.query_selector('.mail-address')
-                    if el:
-                        val = el.inner_text()
-                        if val and '@' in val:
-                            email = val
-                            break
-                except Exception:
-                    pass
-
-            if not email:
-                # أي إيميل في الصفحة
-                content = page.content()
-                m = re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', content)
-                if m:
-                    email = m.group(0)
-
-            if not email:
-                context.close()
-                return None
-
-            # استخراج CSRF
-            html = page.content()
-            csrf = self._extract_csrf(html)
-
-            return html, {'page': page, 'context': context, 'csrf': csrf, 'type': 'playwright'}, 'playwright'
-
-        except Exception:
-            return None
-
-    def create_email(self, max_retries=4):
-        """بتعمل إيميل مؤقت من tempail.top — تجرب 4 طرق"""
+    def create_email(self, max_retries=3):
+        """بيعمل إيميل مؤقت جديد من temp-mail.org
+        
+        لو عندنا JWT فعلًا، بنعمل POST /mailbox عشان نغير الإيميل
+        لو أول مرة، بنعمل POST /mailbox بدون JWT
+        """
         global _tempail_fail_count
-        if not HAS_CURL_CFFI and not HAS_CLOUDSCRAPER and not HAS_PLAYWRIGHT:
-            return None
 
         for attempt in range(max_retries):
-            result = None
+            try:
+                headers = {}
+                if self._jwt:
+                    headers['authorization'] = self._jwt
 
-            # لو عندنا method اشتغل قبل كده، نجربه الأول
-            if self._working_method:
-                if self._working_method == 'cloudscraper':
-                    result = self._try_cloudscraper()
-                elif self._working_method.startswith('cffi-'):
-                    result = self._try_curl_cffi()
-                elif self._working_method == 'playwright':
-                    result = self._try_playwright()
-                elif self._working_method == 'requests':
-                    result = self._try_requests()
+                resp = self._session.post(
+                    f'{TEMPMAIL_API}/mailbox',
+                    headers=headers,
+                    timeout=20,
+                )
 
-            # لو مش عارفين أو اللي اشتغل فشل، نجرب الكل بالترتيب
-            if not result:
-                result = self._try_cloudscraper()
-            if not result:
-                result = self._try_curl_cffi()
-            if not result:
-                result = self._try_requests()
-            if not result:
-                result = self._try_playwright()
+                # تحديث rate limit
+                rl = resp.headers.get('x-ratelimit-remaining')
+                if rl:
+                    self._rate_limit_remaining = int(rl)
 
-            if not result:
+                if resp.status_code == 200:
+                    data = resp.json()
+                    new_token = data.get('token', '')
+                    new_mailbox = data.get('mailbox', '')
+
+                    if new_token and new_mailbox and '@' in new_mailbox:
+                        self._jwt = new_token
+                        self._current_email = new_mailbox
+                        self._current_ts = int(time.time())
+
+                        with _tempmail_stats_lock:
+                            _tempail_stats["ok"] += 1
+                        _tempail_fail_count = 0
+
+                        return {
+                            'email': new_mailbox,
+                            'jwt': new_token,
+                            'provider': 'tempmail_org',
+                            'api_type': 'tempmail_org',
+                            'created_ts': self._current_ts,
+                        }
+
+                elif resp.status_code == 429:
+                    # Rate limited — نستنى شوية
+                    retry_after = int(resp.headers.get('retry-after', 60))
+                    print(f"  ⏳ temp-mail.org rate limit — نستنى {retry_after}s", flush=True)
+                    time.sleep(min(retry_after, 60))
+                    continue
+
+                elif resp.status_code in (403, 503):
+                    # Cloudflare أو حاجة
+                    if attempt < max_retries - 1:
+                        time.sleep(3)
+                        continue
+
+            except requests.exceptions.ConnectionError:
                 if attempt < max_retries - 1:
                     time.sleep(3)
                     continue
-                with _tempail_stats_lock:
-                    _tempail_stats["fail"] += 1
-                _tempail_fail_count += 1
-                return None
-
-            html, session, method = result
-            self._working_method = method
-
-            # ─── استخراج الإيميل ───
-            email = None
-            if method == 'playwright':
-                # الإيميل اتعمل من الـ page
-                email = self._extract_email(html)
-                page_obj = session.get('page')
-                if not email and page_obj:
-                    try:
-                        content = page_obj.content()
-                        email = self._extract_email(content)
-                    except Exception:
-                        pass
-            else:
-                email = self._extract_email(html)
-                if not email:
-                    email = self._try_ajax_get_email(session, html)
-
-            if not email:
-                if method == 'playwright':
-                    try:
-                        session.get('context').close()
-                    except Exception:
-                        pass
+            except requests.exceptions.Timeout:
                 if attempt < max_retries - 1:
                     time.sleep(2)
                     continue
-                with _tempail_stats_lock:
-                    _tempail_stats["fail"] += 1
-                _tempail_fail_count += 1
-                return None
-
-            # ─── فلتر الدومين ───
-            domain = email.split('@')[1] if '@' in email else ''
-            if self.domain_filter and domain.lower() != self.domain_filter:
-                if method == 'playwright':
-                    try:
-                        session.get('page').goto('https://tempail.top/delete', timeout=10000)
-                        time.sleep(2)
-                    except Exception:
-                        pass
-                    try:
-                        session.get('context').close()
-                    except Exception:
-                        pass
-                else:
-                    try:
-                        session.get('https://tempail.top/delete', timeout=10)
-                    except Exception:
-                        pass
+            except Exception as e:
                 if attempt < max_retries - 1:
-                    time.sleep(1)
+                    time.sleep(2)
                     continue
-                with _tempail_stats_lock:
-                    _tempail_stats["fail"] += 1
-                _tempail_fail_count += 1
-                return None
-
-            # ─── استخراج CSRF ───
-            csrf = self._extract_csrf(html)
-            if method == 'playwright':
-                csrf = session.get('csrf') or csrf
-
-            with _tempail_stats_lock:
-                _tempail_stats["ok"] += 1
-            _tempail_fail_count = 0
-
-            return {
-                'email': email,
-                'csrf': csrf,
-                'session': session,
-                'provider': 'tempail',
-                'api_type': 'tempail',
-                'method': method,
-            }
 
         with _tempail_stats_lock:
             _tempail_stats["fail"] += 1
@@ -480,239 +268,136 @@ class TempailProvider:
         return None
 
     def check_otp(self, mail_info, timeout=90):
-        """بتدور على OTP في صندوق tempail.top"""
-        session = mail_info.get('session')
-        method = mail_info.get('method', '')
-        csrf = mail_info.get('csrf')
+        """بتدور على OTP في صندوق temp-mail.org
+        
+        بنعمل polling كل 5 ثواني على GET /messages?after={ts}
+        """
+        jwt = mail_info.get('jwt')
+        created_ts = mail_info.get('created_ts', 0)
 
-        if method == 'playwright':
-            return self._check_otp_playwright(mail_info, timeout=timeout)
-
-        if not session:
+        if not jwt:
+            with _tempail_stats_lock:
+                _tempail_stats["otp_fail"] += 1
             return None
 
         deadline = time.time() + timeout
+        after_ts = created_ts
+
         while time.time() < deadline:
             try:
-                headers = {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                    'Referer': 'https://tempail.top/',
-                }
-                data = {}
-                if csrf:
-                    data['_token'] = csrf
-
-                resp = session.post(
-                    'https://tempail.top/messages',
+                headers = {'authorization': jwt}
+                resp = self._session.get(
+                    f'{TEMPMAIL_API}/messages',
+                    params={'after': after_ts},
                     headers=headers,
-                    data=data,
                     timeout=15,
                 )
 
                 if resp.status_code == 200:
-                    otp = self._parse_otp_from_response(resp.text, session)
-                    if otp:
-                        with _tempail_stats_lock:
-                            _tempail_stats["otp_ok"] += 1
-                        return otp
+                    data = resp.json()
+                    messages = data.get('messages', [])
+
+                    for msg in messages:
+                        # نحدث after_ts عشان ما نشوفش نفس الرسالة تاني
+                        received = msg.get('receivedAt', 0)
+                        if received > after_ts:
+                            after_ts = received
+
+                        # بنستخرج OTP من الـ subject
+                        subject = str(msg.get('subject', ''))
+                        otp = self._extract_otp(subject)
+                        if otp:
+                            with _tempail_stats_lock:
+                                _tempail_stats["otp_ok"] += 1
+                            return otp
+
+                        # بنستخرج OTP من الـ bodyPreview
+                        body_preview = str(msg.get('bodyPreview', ''))
+                        otp = self._extract_otp(body_preview)
+                        if otp:
+                            with _tempail_stats_lock:
+                                _tempail_stats["otp_ok"] += 1
+                            return otp
+
+                        # لو لسه مش لاقين OTP، نجيب الرسالة كاملة
+                        msg_id = msg.get('_id')
+                        if msg_id:
+                            from_email = str(msg.get('from', '')).lower()
+                            if 'teli' in from_email or 'verif' in subject.lower():
+                                full_otp = self._get_message_otp(msg_id, jwt)
+                                if full_otp:
+                                    with _tempail_stats_lock:
+                                        _tempail_stats["otp_ok"] += 1
+                                    return full_otp
+
+                elif resp.status_code == 401:
+                    # JWT منتهي
+                    break
 
             except Exception:
                 pass
+
             time.sleep(5)
 
-        with _tempail_stats_lock:
+        with _tempmail_stats_lock:
             _tempail_stats["otp_fail"] += 1
         return None
 
-    def _check_otp_playwright(self, mail_info, timeout=90):
-        """بتدور على OTP عبر Playwright page"""
-        session = mail_info.get('session')
-        if not session or session.get('type') != 'playwright':
-            return None
-
-        page = session.get('page')
-        csrf = session.get('csrf') or mail_info.get('csrf')
-
-        if not page:
-            return None
-
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            try:
-                # بنعمل AJAX request من داخل الـ page
-                result = page.evaluate('''(csrfToken) => {
-                    return new Promise((resolve) => {
-                        const data = csrfToken ? '_token=' + encodeURIComponent(csrfToken) : '';
-                        fetch('/messages?' + Date.now(), {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                                'X-Requested-With': 'XMLHttpRequest',
-                            },
-                            body: data,
-                        })
-                        .then(r => r.text())
-                        .then(text => resolve(text))
-                        .catch(err => resolve(''));
-                    });
-                }''', csrf or '')
-
-                if result:
-                    otp = self._parse_otp_from_response(result)
-                    if otp:
-                        with _tempail_stats_lock:
-                            _tempail_stats["otp_ok"] += 1
-                        return otp
-
-            except Exception:
-                pass
-            time.sleep(5)
-
-        with _tempail_stats_lock:
-            _tempail_stats["otp_fail"] += 1
-        return None
-
-    def delete_email(self, mail_info):
-        """تمسح الإيميل الحالي عشان نقدر نعمل واحد جديد"""
-        session = mail_info.get('session')
-        method = mail_info.get('method', '')
-
-        if method == 'playwright' and session:
-            try:
-                page = session.get('page')
-                if page:
-                    page.goto('https://tempail.top/delete', timeout=10000)
-                    time.sleep(1)
-            except Exception:
-                pass
-            try:
-                session.get('context').close()
-            except Exception:
-                pass
-        elif session:
-            try:
-                session.get('https://tempail.top/delete', timeout=10)
-            except Exception:
-                pass
-
-    # ─── Internal helpers ───
-
-    def _extract_email(self, html):
-        """بتستخرج الإيميل من HTML"""
-        m = re.search(r'id=["\']trsh_mail["\'][^>]*value=["\']([^"\']+@[^"\']+)["\']', html)
-        if m:
-            return m.group(1).strip()
-
-        m = re.search(r'value=["\']([^"\']+@[^"\']+)["\'][^>]*id=["\']trsh_mail["\']', html)
-        if m:
-            return m.group(1).strip()
-
-        m = re.search(r'class=["\']mail-address["\'][^>]*>([^<]+@[^<]+)<', html)
-        if m:
-            return m.group(1).strip()
-
-        m = re.search(r'[\w.+-]+@' + re.escape(self.domain_filter), html)
-        if m:
-            return m.group(0).strip()
-
-        m = re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', html)
-        if m:
-            email = m.group(0).strip()
-            if '@' in email and '.' in email.split('@')[1]:
-                return email
-
-        return None
-
-    def _extract_csrf(self, html):
-        """بتستخرج CSRF token من HTML"""
-        m = re.search(r'name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']', html)
-        if m:
-            return m.group(1)
-
-        m = re.search(r'name=["\']_token["\'][^>]*value=["\']([^"\']+)["\']', html)
-        if m:
-            return m.group(1)
-
-        m = re.search(r'content=["\']([^"\']+)["\'][^>]*name=["\']csrf-token["\']', html)
-        if m:
-            return m.group(1)
-
-        return None
-
-    def _try_ajax_get_email(self, session, html):
-        """بتجرب تجيب الإيميل عبر AJAX"""
-        csrf = self._extract_csrf(html)
+    def _get_message_otp(self, msg_id, jwt):
+        """بتجيب الرسالة كاملة وبتستخرج OTP من bodyHtml"""
         try:
-            headers = {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'Referer': 'https://tempail.top/',
-            }
-            data = {}
-            if csrf:
-                data['_token'] = csrf
-
-            resp = session.post('https://tempail.top/messages', headers=headers, data=data, timeout=15)
+            headers = {'authorization': jwt}
+            resp = self._session.get(
+                f'{TEMPMAIL_API}/messages/{msg_id}/',
+                headers=headers,
+                timeout=15,
+            )
             if resp.status_code == 200:
-                email = self._extract_email(resp.text)
-                if email:
-                    return email
-                try:
-                    result = resp.json()
-                    email = result.get('email', '')
-                    if email and '@' in email:
-                        return email
-                except Exception:
-                    pass
+                data = resp.json()
+                body_html = str(data.get('bodyHtml', ''))
+                subject = str(data.get('subject', ''))
+
+                # بنستخرج OTP من body
+                otp = self._extract_otp(body_html)
+                if otp:
+                    return otp
+
+                # بنستخرج من subject كمان
+                otp = self._extract_otp(subject)
+                if otp:
+                    return otp
+
         except Exception:
             pass
         return None
 
-    def _parse_otp_from_response(self, response_text, session=None):
-        """بتستخرج OTP من response"""
-        try:
-            data = json.loads(response_text)
-            messages = data.get('messages', [])
-
-            for msg in messages:
-                subject = str(msg.get('subject', ''))
-                m = re.search(r'\b(\d{6})\b', subject)
-                if m:
-                    return m.group(1)
-
-                body = str(msg.get('body', msg.get('html', '')))
-                m = re.search(r'\b(\d{6})\b', body)
-                if m:
-                    return m.group(1)
-
-                from_email = str(msg.get('from_email', ''))
-                if 'teli' in from_email.lower() or 'verif' in subject.lower():
-                    m = re.search(r'\b(\d{6})\b', subject + ' ' + body)
-                    if m:
-                        return m.group(1)
-
-                msg_id = msg.get('id')
-                if msg_id and not re.search(r'\b\d{6}\b', subject + ' ' + body) and session:
-                    try:
-                        view_resp = session.get(f'https://tempail.top/view/{msg_id}', timeout=15)
-                        if view_resp.status_code == 200:
-                            m = re.search(r'\b(\d{6})\b', view_resp.text)
-                            if m:
-                                return m.group(1)
-                    except Exception:
-                        pass
-
-        except json.JSONDecodeError:
-            m = re.search(r'\b(\d{6})\b', response_text)
-            if m:
-                return m.group(1)
-
+    def _extract_otp(self, text):
+        """بتستخرج OTP (6 أرقام) من نص"""
+        if not text:
+            return None
+        # بندور على 6 أرقام متتالية
+        m = re.search(r'\b(\d{6})\b', text)
+        if m:
+            return m.group(1)
         return None
+
+    def delete_email(self, mail_info):
+        """بتغيّر الإيميل الحالي عشان نقدر نعمل واحد جديد
+        
+        مفيش delete endpoint — بنعمل POST /mailbox عشان نعمل إيميل جديد
+        والقديم بيتمسح تلقائي
+        """
+        # بنعمل create_email جديد لو محتاجين
+        # الـ JWT بيتحدث تلقائي في create_email
+        pass
+
+    def change_mailbox(self):
+        """بتغيّر الإيميل الحالي — بتعمل POST /mailbox بالـ JWT الحالي"""
+        return self.create_email()
 
 
 # ─── Global provider instance ───
-_tempail_provider = None  # يتم تعيينه في main()
+_tempmail_provider = None  # يتم تعيينه في main()
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Email Pool ──────────────────────────────────────────────
@@ -724,18 +409,18 @@ _pool_stats = {"emails_created": 0, "sessions_created": 0}
 _pool_stats_lock = threading.Lock()
 
 def _email_pool_filler():
-    """خلفية: بيملا بول الإيميلات من tempail.top"""
+    """خلفية: بيملا بول الإيميلات من temp-mail.org"""
     global _tempail_fail_count
 
     while not _stop_flag.is_set():
         if _email_pool.qsize() < EMAIL_POOL_SIZE:
-            if _tempail_fail_count >= TEMPAIL_MAX_FAILS:
+            if _tempail_fail_count >= TEMPMAIL_MAX_FAILS:
                 time.sleep(10)
                 continue
 
             mail = None
-            if _tempail_provider:
-                mail = _tempail_provider.create_email()
+            if _tempmail_provider:
+                mail = _tempmail_provider.create_email()
 
             if mail:
                 try:
@@ -745,7 +430,7 @@ def _email_pool_filler():
                 except queue.Full:
                     pass
             else:
-                time.sleep(5)
+                time.sleep(3)
         else:
             time.sleep(0.5)
 
@@ -770,9 +455,9 @@ def get_email_from_pool():
     try:
         return _email_pool.get(timeout=15)
     except queue.Empty:
-        if _tempail_provider:
+        if _tempmail_provider:
             for attempt in range(5):
-                mail = _tempail_provider.create_email()
+                mail = _tempmail_provider.create_email()
                 if mail:
                     return mail
                 time.sleep(3)
@@ -805,8 +490,8 @@ def start_pools():
 # ─── Unified OTP getter ──────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 def get_otp_from_mail(mail_info, timeout=90):
-    if _tempail_provider:
-        return _tempail_provider.check_otp(mail_info, timeout=timeout)
+    if _tempmail_provider:
+        return _tempmail_provider.check_otp(mail_info, timeout=timeout)
     return None
 
 # ═══════════════════════════════════════════════════════════════
@@ -1185,9 +870,9 @@ def _try_one_phone(phone, duration, mode, tid):
     if not otp:
         print(f"[{tid}] ❌ OTP انتهى {phone} <- {email_short}", flush=True)
         update_stat("otp_fail")
-        # نمسح الإيميل ونعمل واحد جديد
-        if _tempail_provider:
-            _tempail_provider.delete_email(mail)
+        # نغيّر الإيميل عشان نعمل واحد جديد
+        if _tempmail_provider:
+            _tempmail_provider.change_mailbox()
         return 'retry'
 
     print(f"[{tid}] 🔢 OTP:{otp} {email_short}", flush=True)
@@ -1210,6 +895,10 @@ def _try_one_phone(phone, duration, mode, tid):
 
     total = save_account(email_addr, device, tok)
     print(f"[{tid}] ✅ حساب! {email_short} (#{total})", flush=True)
+
+    # نغيّر الإيميل عشان نعمل واحد جديد للمرة الجاية
+    if _tempmail_provider:
+        _tempmail_provider.change_mailbox()
 
     if mode == "create":
         update_stat("accounts_ok")
@@ -1288,23 +977,24 @@ def print_stats():
         time.sleep(30)
         with _stats_lock:
             s = dict(_stats)
-        with _tempail_stats_lock:
+        with _tempmail_stats_lock:
             ts = dict(_tempail_stats)
         elapsed = time.time() - _start_time if _start_time else 1
         rate = s['total'] / elapsed * 60 if elapsed > 0 else 0
+        rl = _tempmail_provider._rate_limit_remaining if _tempmail_provider else '?'
         print(f"\n  📊 Stats ({elapsed/60:.1f}min | {rate:.1f}/min):", flush=True)
         print(f"     إجمالي: {s['total']} | ✅ حسابات: {s['accounts_ok']} | 📞 مكالمات: {s['calls_ok']}", flush=True)
         print(f"     ❌ إيميل={s['email_fail']} جلسة={s['session_fail']} تحقق={s['verify_fail']} OTP={s['otp_fail']} تأكيد={s['confirm_fail']}", flush=True)
         print(f"     إيميل مسجل: {s['email_exists']} | دومين محظور: {s['domain_blocked']} | NO_BALANCE: {s['calls_no_balance']}", flush=True)
-        print(f"     tempail.top: ok={ts['ok']} fail={ts['fail']} OTP✅={ts['otp_ok']} OTP❌={ts['otp_fail']} (fails:{_tempail_fail_count}/{TEMPAIL_MAX_FAILS})", flush=True)
+        print(f"     temp-mail.org: ok={ts['ok']} fail={ts['fail']} OTP✅={ts['otp_ok']} OTP❌={ts['otp_fail']} (rate_limit:{rl})", flush=True)
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Main ─────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 def main():
-    global _start_time, _phone_queue, _tempail_provider
+    global _start_time, _phone_queue, _tempmail_provider
 
-    parser = argparse.ArgumentParser(description="Fox Caller v14.0 - Clean Domain Edition")
+    parser = argparse.ArgumentParser(description="Fox Caller v15.0 - TempMail.org Edition")
     parser.add_argument("file", help="ملف الأرقام (.xlsx أو .txt)")
     parser.add_argument("--mode", choices=["server", "create"], default="server",
                        help="server=اتصال عبر السيرفر | create=إنشاء حسابات بس")
@@ -1316,18 +1006,16 @@ def main():
                        help="عدد الأرقام الأقصى")
     parser.add_argument("--no-xrealip", action="store_true",
                        help="إلغاء x-real-ip header")
-    parser.add_argument("--domain", type=str, default=DEFAULT_DOMAIN,
-                       help=f"دومين الإيميل (افتراضي: {DEFAULT_DOMAIN})")
 
     args = parser.parse_args()
 
-    # ─── Initialize tempail provider ───
-    _tempail_provider = TempailProvider(domain_filter=args.domain)
+    # ─── Initialize temp-mail.org provider ───
+    _tempmail_provider = TempMailOrgProvider()
 
     print("\n" + "=" * 60, flush=True)
-    print(f"  Fox Caller v14.0 - Clean Domain Edition", flush=True)
-    print(f"  Email: tempail.top (@{args.domain}) via curl_cffi", flush=True)
-    print(f"  ❌ No DrissionPage | No Chrome | No SandVPN | No emailnator", flush=True)
+    print(f"  Fox Caller v15.0 - TempMail.org Edition", flush=True)
+    print(f"  Email: mob2.temp-mail.org (@snocv.com / @tixpad.com)", flush=True)
+    print(f"  ✅ requests عادي | لا Cloudflare | لا متصفح", flush=True)
     print("=" * 60, flush=True)
 
     numbers = read_numbers(args.file)
@@ -1346,47 +1034,24 @@ def main():
     print(f"  Threads:    {args.threads}", flush=True)
     print(f"  Duration:   {args.duration}s", flush=True)
     print(f"  Retries:    {MAX_RETRIES} per number", flush=True)
-    print(f"  Domain:     @{args.domain}", flush=True)
+    print(f"  Email API:  mob2.temp-mail.org (Temp Mail app)", flush=True)
 
     init_proxy_manager()
 
-    # ─── Diagnostic ───
-    print("\n  🔍 Diagnostic:", flush=True)
-
-    if HAS_PLAYWRIGHT:
-        print(f"  ✅ Playwright: متاح (أقوى حل — headless Chromium)", flush=True)
-    else:
-        print(f"  ⚠️ Playwright: مش متاح — يفضل تتسطبه (شوف تحت)", flush=True)
-
-    if HAS_CLOUDSCRAPER:
-        print(f"  ✅ cloudscraper: متاح", flush=True)
-    else:
-        print(f"  ⚠️ cloudscraper: مش متاح — pip3 install cloudscraper", flush=True)
-
-    if HAS_CURL_CFFI:
-        print(f"  ✅ curl_cffi: متاح ({len(_IMPERSONATE_PROFILES)} profiles)", flush=True)
-    else:
-        print(f"  ⚠️ curl_cffi: مش متاح — pip3 install curl_cffi", flush=True)
-
-    if not HAS_PLAYWRIGHT and not HAS_CURL_CFFI and not HAS_CLOUDSCRAPER:
-        print(f"  ❌ ولا مكتبة شغال! السكريبت مش هيشتغل!", flush=True)
-        print(f"  💡 شغل: pip3 install playwright cloudscraper curl_cffi", flush=True)
-        print(f"  💡 وبعدين: python3 -m playwright install chromium", flush=True)
-        sys.exit(1)
-
     # ─── Quick Test ───
-    print("\n  🔍 Quick Test: جرب tempail.top...", flush=True)
-    test_mail = _tempail_provider.create_email()
+    print("\n  🔍 Quick Test: جرب temp-mail.org API...", flush=True)
+    test_mail = _tempmail_provider.create_email()
     if test_mail:
-        method = test_mail.get('method', '?')
-        print(f"  ✅ tempail.top: {test_mail['email'][:30]}... @{test_mail['email'].split('@')[1]} [{method}]", flush=True)
+        test_email = test_mail['email']
+        test_domain = test_email.split('@')[1] if '@' in test_email else '?'
+        print(f"  ✅ temp-mail.org: {test_email} ({test_domain})", flush=True)
         try:
             _email_pool.put_nowait(test_mail)
         except queue.Full:
             pass
     else:
-        print(f"  ⚠️ tempail.top مش رد — Cloudflare ممكن يمنع curl_cffi", flush=True)
-        print(f"  💡 ممكن تحتاج تشغل السكريبت على سيرفر تاني أو تستخدم proxy", flush=True)
+        print(f"  ❌ temp-mail.org مش رد! السكريبت مش هيشتغل!", flush=True)
+        sys.exit(1)
 
     # Check server
     if args.mode == "server":
@@ -1428,7 +1093,7 @@ def main():
     elapsed = time.time() - _start_time if _start_time else 0
     with _stats_lock:
         s = dict(_stats)
-    with _tempail_stats_lock:
+    with _tempmail_stats_lock:
         ts = dict(_tempail_stats)
 
     print("\n" + "=" * 60, flush=True)
@@ -1437,7 +1102,7 @@ def main():
     print(f"  ⏱️  الوقت: {elapsed/60:.1f} دقيقة", flush=True)
     print(f"  📞 إجمالي: {s['total']} | ✅ حسابات: {s['accounts_ok']} | 📞 مكالمات: {s['calls_ok']}", flush=True)
     print(f"  ⚠️  NO_BALANCE: {s['calls_no_balance']} | ❌ فشل: {len(_failed_phones)}", flush=True)
-    print(f"  📧 tempail.top: ok={ts['ok']} fail={ts['fail']} OTP✅={ts['otp_ok']} OTP❌={ts['otp_fail']}", flush=True)
+    print(f"  📧 temp-mail.org: ok={ts['ok']} fail={ts['fail']} OTP✅={ts['otp_ok']} OTP❌={ts['otp_fail']}", flush=True)
 
     if _failed_phones:
         print(f"\n  ❌ أرقام فشلت:", flush=True)
