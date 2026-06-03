@@ -195,7 +195,7 @@ class TempMailOrgProvider:
         لو عندنا JWT فعلًا، بنعمل POST /mailbox عشان نغير الإيميل
         لو أول مرة، بنعمل POST /mailbox بدون JWT
         """
-        global _tempail_fail_count
+        global _tempmail_fail_count
 
         for attempt in range(max_retries):
             try:
@@ -225,8 +225,8 @@ class TempMailOrgProvider:
                         self._current_ts = int(time.time())
 
                         with _tempmail_stats_lock:
-                            _tempail_stats["ok"] += 1
-                        _tempail_fail_count = 0
+                            _tempmail_stats["ok"] += 1
+                        _tempmail_fail_count = 0
 
                         return {
                             'email': new_mailbox,
@@ -262,9 +262,9 @@ class TempMailOrgProvider:
                     time.sleep(2)
                     continue
 
-        with _tempail_stats_lock:
-            _tempail_stats["fail"] += 1
-        _tempail_fail_count += 1
+        with _tempmail_stats_lock:
+            _tempmail_stats["fail"] += 1
+        _tempmail_fail_count += 1
         return None
 
     def check_otp(self, mail_info, timeout=90):
@@ -276,8 +276,8 @@ class TempMailOrgProvider:
         created_ts = mail_info.get('created_ts', 0)
 
         if not jwt:
-            with _tempail_stats_lock:
-                _tempail_stats["otp_fail"] += 1
+            with _tempmail_stats_lock:
+                _tempmail_stats["otp_fail"] += 1
             return None
 
         deadline = time.time() + timeout
@@ -307,16 +307,16 @@ class TempMailOrgProvider:
                         subject = str(msg.get('subject', ''))
                         otp = self._extract_otp(subject)
                         if otp:
-                            with _tempail_stats_lock:
-                                _tempail_stats["otp_ok"] += 1
+                            with _tempmail_stats_lock:
+                                _tempmail_stats["otp_ok"] += 1
                             return otp
 
                         # بنستخرج OTP من الـ bodyPreview
                         body_preview = str(msg.get('bodyPreview', ''))
                         otp = self._extract_otp(body_preview)
                         if otp:
-                            with _tempail_stats_lock:
-                                _tempail_stats["otp_ok"] += 1
+                            with _tempmail_stats_lock:
+                                _tempmail_stats["otp_ok"] += 1
                             return otp
 
                         # لو لسه مش لاقين OTP، نجيب الرسالة كاملة
@@ -326,8 +326,8 @@ class TempMailOrgProvider:
                             if 'teli' in from_email or 'verif' in subject.lower():
                                 full_otp = self._get_message_otp(msg_id, jwt)
                                 if full_otp:
-                                    with _tempail_stats_lock:
-                                        _tempail_stats["otp_ok"] += 1
+                                    with _tempmail_stats_lock:
+                                        _tempmail_stats["otp_ok"] += 1
                                     return full_otp
 
                 elif resp.status_code == 401:
@@ -340,7 +340,7 @@ class TempMailOrgProvider:
             time.sleep(5)
 
         with _tempmail_stats_lock:
-            _tempail_stats["otp_fail"] += 1
+            _tempmail_stats["otp_fail"] += 1
         return None
 
     def _get_message_otp(self, msg_id, jwt):
@@ -410,11 +410,11 @@ _pool_stats_lock = threading.Lock()
 
 def _email_pool_filler():
     """خلفية: بيملا بول الإيميلات من temp-mail.org"""
-    global _tempail_fail_count
+    global _tempmail_fail_count
 
     while not _stop_flag.is_set():
         if _email_pool.qsize() < EMAIL_POOL_SIZE:
-            if _tempail_fail_count >= TEMPMAIL_MAX_FAILS:
+            if _tempmail_fail_count >= TEMPMAIL_MAX_FAILS:
                 time.sleep(10)
                 continue
 
@@ -978,7 +978,7 @@ def print_stats():
         with _stats_lock:
             s = dict(_stats)
         with _tempmail_stats_lock:
-            ts = dict(_tempail_stats)
+            ts = dict(_tempmail_stats)
         elapsed = time.time() - _start_time if _start_time else 1
         rate = s['total'] / elapsed * 60 if elapsed > 0 else 0
         rl = _tempmail_provider._rate_limit_remaining if _tempmail_provider else '?'
@@ -1094,7 +1094,7 @@ def main():
     with _stats_lock:
         s = dict(_stats)
     with _tempmail_stats_lock:
-        ts = dict(_tempail_stats)
+        ts = dict(_tempmail_stats)
 
     print("\n" + "=" * 60, flush=True)
     print("  📊 التقرير النهائي", flush=True)
