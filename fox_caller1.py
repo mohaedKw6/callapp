@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v9.0 - Zero-Error Edition
-=====================================
-مزود إيميل واحد فقط: emailnator (@gmail.com / @googlemail.com)
-  -> Telicall بيقبل @gmail.com/@googlemail.com فقط
-  -> كل دومينات temp-mail محظورة من Telicall
+Fox Caller v10.0 - Multi-Provider Edition
+==========================================
+مزودين إيميل: emailnator + tempail.top (@openlo.link)
+  -> Telicall بيقبل @gmail.com/@googlemail.com/@openlo.link
+  -> tempail.top بيدي @openlo.link - مش محظور من Telicall!
+  -> DrissionPage بيتخطى Cloudflare على tempail.top
 
-مميزات v9.0:
-  - emailnator فقط - لا temp-mail خالص
-  - إعادة محاولة تلقائية لكل رقم (3 محاولات)
+مميزات v10.0:
+  - مزودين إيميل: emailnator (@gmail.com) + tempail.top (@openlo.link)
+  - tempail.top بيدي إيميلات فريدة (مش مسجلة قبل كده!)
+  - إعادة محاولة تلقائية لكل رقم (8 محاولات)
   - كشف دومينات محظورة تلقائي + استبدال فوري
   - Email Pool + Session Pool
   - مكالمات عبر السيرفر (SIP)
@@ -57,7 +59,7 @@ SESSION_POOL_SIZE = 5     # عدد الجلسات الجاهزة في البول
 MAX_RETRIES       = 8     # عدد محاولات إعادة لكل رقم (email_exists شائع)
 
 # الدومينات الآمنة اللي Telicall بيقبلها
-SAFE_DOMAINS = frozenset(['gmail.com', 'googlemail.com'])
+SAFE_DOMAINS = frozenset(['gmail.com', 'googlemail.com', 'openlo.link'])
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Proxy Manager ────────────────────────────────────────────
@@ -153,7 +155,7 @@ def rand_eg_ip():
         return f"{a}.{b}.{c}.{d}"
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Email Provider: Emailnator ONLY (@gmail.com) ────────────
+# ─── Email Provider 1: Emailnator (@gmail.com) ──────────────
 # ═══════════════════════════════════════════════════════════════
 _emailnator_stats = {"ok": 0, "fail": 0}
 _emailnator_stats_lock = threading.Lock()
@@ -161,6 +163,15 @@ _emailnator_stats_lock = threading.Lock()
 # قائمة الدومينات المحظورة اللي اكتشفناها وقت التشغيل
 _blocklisted_domains = set()
 _blocklist_lock = threading.Lock()
+
+# ═══════════════════════════════════════════════════════════════
+# ─── Email Provider 2: tempail.top (@openlo.link) ────────────
+# ═══════════════════════════════════════════════════════════════
+_tempail_stats = {"ok": 0, "fail": 0}
+_tempail_stats_lock = threading.Lock()
+_tempail_lock = threading.Lock()       # serialize tempail access (1 browser)
+_tempail_page = None                    # shared DrissionPage instance
+_tempail_init_lock = threading.Lock()   # lock for browser init
 
 def _new_emailnator_session():
     """بيفتح session جديد مع emailnator"""
@@ -307,6 +318,168 @@ def check_emailnator_inbox(mail_info, timeout=90):
     return None
 
 # ═══════════════════════════════════════════════════════════════
+# ─── Email Provider 2: tempail.top (@openlo.link) ────────────
+# ═══════════════════════════════════════════════════════════════
+
+def _get_tempail_page():
+    """بيفتح أو بيرجع الـ browser page المشترك لـ tempail.top
+    DrissionPage بيتخطى Cloudflare challenge تلقائياً"""
+    global _tempail_page
+    with _tempail_init_lock:
+        if _tempail_page is not None:
+            try:
+                _tempail_page.title  # test if alive
+                return _tempail_page
+            except:
+                _tempail_page = None
+
+        try:
+            from DrissionPage import ChromiumPage, ChromiumOptions
+            co = ChromiumOptions()
+            co.headless()
+            co.set_browser_path('/home/z/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome')
+            co.set_argument('--no-sandbox')
+            co.set_argument('--disable-gpu')
+            co.set_argument('--disable-dev-shm-usage')
+            co.set_argument('--disable-blink-features=AutomationControlled')
+            co.set_user_agent('Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36')
+            co.auto_port()
+            _tempail_page = ChromiumPage(co)
+            return _tempail_page
+        except Exception as e:
+            print(f"  ⚠️ tempail: browser init فشل: {str(e)[:60]}", flush=True)
+            return None
+
+
+def create_tempail_mail(max_retries=2):
+    """tempail.top - بيدي @openlo.link (مش محظور من Telicall!)
+    بيستخدم DrissionPage عشان يتخطى Cloudflare
+    بيرجع dict زي emailnator أو None"""
+    with _tempail_lock:
+        page = _get_tempail_page()
+        if not page:
+            with _tempail_stats_lock:
+                _tempail_stats["fail"] += 1
+            return None
+
+        for attempt in range(max_retries):
+            try:
+                # Navigate - Cloudflare challenge بيتخطى تلقائياً
+                if attempt == 0:
+                    page.get('https://tempail.top')
+                else:
+                    # محاولة جديدة: delete + reload
+                    try:
+                        page.get('https://tempail.top/delete')
+                        time.sleep(2)
+                    except:
+                        pass
+                    page.get('https://tempail.top')
+
+                # استنى الإيميل يظهر (Cloudflare + page load)
+                email = None
+                for i in range(30):
+                    time.sleep(1)
+                    try:
+                        email_elem = page.ele('#trsh_mail')
+                        if email_elem:
+                            val = email_elem.value
+                            if val and '@' in val:
+                                email = val
+                                break
+                    except:
+                        pass
+
+                if not email:
+                    continue
+
+                domain = email.split('@')[1] if '@' in email else ''
+                if domain.lower() not in SAFE_DOMAINS:
+                    continue
+
+                with _tempail_stats_lock:
+                    _tempail_stats["ok"] += 1
+
+                return {
+                    'email': email,
+                    'api_type': 'tempail',
+                    'session': None,
+                    'xsrf_headers': None,
+                    'provider': 'tempail-openlo',
+                    'initial_msg_ids': set(),
+                    'page': page,  # reference for OTP polling
+                }
+            except:
+                continue
+
+        with _tempail_stats_lock:
+            _tempail_stats["fail"] += 1
+        return None
+
+
+def check_tempail_inbox(mail_info, timeout=90):
+    """بيدور على OTP في tempail.top عبر AJAX
+    بيستخدم JS execution في الـ browser page"""
+    page = mail_info.get('page')
+    if not page:
+        return None
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            result = page.run_js('''
+                return new Promise((resolve, reject) => {
+                    var csrf = document.querySelector('meta[name=csrf-token]');
+                    if (!csrf) { reject('no csrf'); return; }
+                    fetch('/messages?' + Date.now(), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: '_token=' + csrf.content,
+                    })
+                    .then(r => r.json())
+                    .then(data => resolve(JSON.stringify(data)))
+                    .catch(err => reject(err.toString()));
+                });
+            ''')
+
+            if result:
+                try:
+                    data = json.loads(result)
+                    messages = data.get('messages', [])
+                    for msg in messages:
+                        # OTP غالباً في الـ subject
+                        subject = msg.get('subject', '')
+                        m = re.search(r'\b(\d{6})\b', subject)
+                        if m:
+                            return m.group(1)
+
+                        # لو مش في subject، افتح الرسالة
+                        from_email = msg.get('from_email', '')
+                        msg_id = msg.get('id', '')
+                        if msg_id and ('teli' in from_email.lower() or 'verif' in subject.lower() or msg_id):
+                            current_url = page.url
+                            page.get(f'https://tempail.top/view/{msg_id}')
+                            time.sleep(2)
+                            body_text = page.run_js('return document.body.innerText')
+                            if body_text:
+                                m2 = re.search(r'\b(\d{6})\b', body_text)
+                                if m2:
+                                    return m2.group(1)
+                            # ارجع للصفحة الرئيسية
+                            page.get('https://tempail.top')
+                            time.sleep(1)
+                except:
+                    pass
+        except:
+            pass
+        time.sleep(5)
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
 # ─── Email Pool (بيجهز إيميلات مسبقاً) ─────────────────────
 # ═══════════════════════════════════════════════════════════════
 _email_pool = queue.Queue(maxsize=EMAIL_POOL_SIZE)
@@ -326,11 +499,20 @@ def _is_safe_email(email_addr: str) -> bool:
         return domain_lower not in _blocklisted_domains
 
 def _email_pool_filler():
-    """خلفية: بيملا بول الإيميلات - emailnator فقط (@gmail.com)
-    Telicall بيحظر كل دومينات temp-mail، فمش هنستخدمهم خالص"""
+    """خلفية: بيملا بول الإيميلات - emailnator + tempail.top
+    بيدور بين المزودين عشان يوزع الحمل"""
     while not _stop_flag.is_set():
         if _email_pool.qsize() < EMAIL_POOL_SIZE:
-            mail = create_emailnator_mail()
+            # جرب المزودين بالتناوب: emailnator (سريع) + tempail (openlo.link - فريد)
+            mail = None
+            # 70% emailnator, 30% tempail (tempail أبطأ بس إيميلات فريدة)
+            if random.random() < 0.7:
+                mail = create_emailnator_mail()
+            if not mail:
+                mail = create_tempail_mail()
+            if not mail:
+                mail = create_emailnator_mail()  # fallback
+
             if mail:
                 if _is_safe_email(mail['email']):
                     try:
@@ -343,7 +525,6 @@ def _email_pool_filler():
                     with _pool_stats_lock:
                         _pool_stats["emails_rejected"] += 1
             else:
-                # emailnator فشل - استنى شوية وحاول تاني
                 time.sleep(3)
         else:
             time.sleep(0.5)
@@ -368,13 +549,17 @@ def _session_pool_filler():
 
 def get_email_from_pool():
     """بيجيب إيميل من البول (جاهز) أو بيعمل واحد لو فاضي
-    استخدام emailnator فقط"""
+    بيجرب emailnator + tempail.top"""
     try:
         return _email_pool.get(timeout=10)
     except queue.Empty:
-        # البول فاضي - اعمل إيميل emailnator مباشرة
+        # البول فاضي - اعمل إيميل مباشرة
         for attempt in range(5):
+            # جرب المزودين
             mail = create_emailnator_mail()
+            if mail and _is_safe_email(mail['email']):
+                return mail
+            mail = create_tempail_mail()
             if mail and _is_safe_email(mail['email']):
                 return mail
             time.sleep(2)
@@ -413,7 +598,8 @@ def get_otp_from_mail(mail_info, proxy_dict=None, timeout=90):
     api_type = mail_info.get('api_type', '')
     if api_type == 'emailnator':
         return check_emailnator_inbox(mail_info, timeout=timeout)
-    # لا مزودين تانيين - emailnator فقط
+    elif api_type == 'tempail':
+        return check_tempail_inbox(mail_info, timeout=timeout)
     return None
 
 # ═══════════════════════════════════════════════════════════════
@@ -981,6 +1167,8 @@ def print_stats():
             s = dict(_stats)
         with _emailnator_stats_lock:
             es = dict(_emailnator_stats)
+        with _tempail_stats_lock:
+            ts = dict(_tempail_stats)
         with _pool_stats_lock:
             ps = dict(_pool_stats)
         with _blocklist_lock:
@@ -991,7 +1179,7 @@ def print_stats():
         print(f"     إجمالي: {s['total']} | ✅ ناجح: {s['accounts_ok']} | 📞 مكالمات: {s['calls_ok']}", flush=True)
         print(f"     ❌ أخطاء: إيميل={s['email_fail']} جلسة={s['session_fail']} تحقق={s['verify_fail']} OTP={s['otp_fail']} تأكيد={s['confirm_fail']}", flush=True)
         print(f"     إيميل مسجل: {s['email_exists']} | دومين محظور: {s['domain_blocked']} | NO_BALANCE: {s['calls_no_balance']} | إعادة محاولة: {s['retries']}", flush=True)
-        print(f"     Pool: إيميلات={_email_pool.qsize()} | Emailnator: ok={es['ok']} fail={es['fail']} | محظورين: {bl}", flush=True)
+        print(f"     Pool: إيميلات={_email_pool.qsize()} | Emailnator: ok={es['ok']} fail={es['fail']} | Tempail: ok={ts['ok']} fail={ts['fail']} | محظورين: {bl}", flush=True)
         print(f"     فشل نهائي: {len(_failed_phones)}", flush=True)
 
 # ═══════════════════════════════════════════════════════════════
@@ -1000,7 +1188,7 @@ def print_stats():
 def main():
     global _start_time, _phone_queue
 
-    parser = argparse.ArgumentParser(description="Fox Caller v9.0 - Zero-Error Edition")
+    parser = argparse.ArgumentParser(description="Fox Caller v10.0 - Multi-Provider Edition")
     parser.add_argument("file", help="ملف الأرقام (.xlsx أو .txt)")
     parser.add_argument("--mode", choices=["server", "create"], default="server",
                        help="server=إنشاء+مكالمة | create=إنشاء فقط")
@@ -1016,8 +1204,8 @@ def main():
     args = parser.parse_args()
 
     print("\n" + "=" * 60, flush=True)
-    print("  Fox Caller v9.0 - Zero-Error Edition", flush=True)
-    print("  emailnator ONLY (@gmail.com / @googlemail.com)", flush=True)
+    print("  Fox Caller v10.0 - Multi-Provider Edition", flush=True)
+    print("  emailnator (@gmail.com) + tempail.top (@openlo.link)", flush=True)
     print("=" * 60, flush=True)
 
     # Read numbers
@@ -1037,7 +1225,7 @@ def main():
     print(f"  Threads:    {args.threads}", flush=True)
     print(f"  Duration:   {args.duration}s", flush=True)
     print(f"  Retries:    {MAX_RETRIES} per number", flush=True)
-    print(f"  Email:      emailnator ONLY (@gmail.com)", flush=True)
+    print(f"  Email:      emailnator + tempail.top (@openlo.link)", flush=True)
 
     # Init proxy manager
     init_proxy_manager()
@@ -1054,18 +1242,29 @@ def main():
     start_pools()
 
     # Quick test - جرب تعمل إيميل واحد قبل ما تبدأ
-    print("\n  🔍 Quick Test: جرب emailnator...", flush=True)
+    print("\n  🔍 Quick Test: جرب المزودين...", flush=True)
     test_mail = create_emailnator_mail()
     if test_mail:
         test_domain = test_mail['email'].split('@')[1]
-        print(f"  ✅ إيميل تجريبي: {test_mail['email'][:20]}...@{test_domain}", flush=True)
-        # حطه في البول عشان مانضيعوش
+        print(f"  ✅ إيميل تجريبي (emailnator): {test_mail['email'][:20]}...@{test_domain}", flush=True)
         try:
             _email_pool.put_nowait(test_mail)
         except queue.Full:
             pass
     else:
-        print(f"  ⚠️ emailnator مش شغال دلوقتي! هنحاول تاني وقت التشغيل...", flush=True)
+        print(f"  ⚠️ emailnator مش شغال دلوقتي", flush=True)
+
+    # Test tempail too
+    test_mail2 = create_tempail_mail()
+    if test_mail2:
+        test_domain2 = test_mail2['email'].split('@')[1]
+        print(f"  ✅ إيميل تجريبي (tempail): {test_mail2['email'][:20]}...@{test_domain2}", flush=True)
+        try:
+            _email_pool.put_nowait(test_mail2)
+        except queue.Full:
+            pass
+    else:
+        print(f"  ⚠️ tempail.top مش شغال دلوقتي", flush=True)
 
     print(f"\n  🚀 بدء التشغيل...", flush=True)
     print("-" * 60, flush=True)
