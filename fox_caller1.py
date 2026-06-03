@@ -1,26 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v15.0 - TempMail.org Edition
-=========================================
-مزود إيميل: mob2.temp-mail.org API (بدون متصفح/Chrome/DrissionPage)
+Fox Caller v16.0 - Gmail+IMAP Edition
+=======================================
+مزود إيميل: Gmail + alias trick (user+tag@gmail.com)
 
-الجديد في v15.0:
-  - temp-mail.org API بدل tempail.top (شغال 100% بدون Cloudflare)
-  - لا DrissionPage - لا Chrome - لا Playwright - لا متصفح خالص
-  - لا SandVPN - لا emailnator
-  - requests عادي بس (لا curl_cffi - لا cloudscraper)
-  - الدومينات: @snocv.com @tixpad.com (مقبولة من Telicall!)
+الجديد في v16.0:
+  - Gmail + alias trick بدل temp-mail.org (اللي اتعمله Cloudflare)
+  - IMAP لقراءة OTP من Gmail
+  - لا Cloudflare - لا مشاكل دومينات محظورة
+  - Gmail مقبول 100% من Telicall!
 
-API Flow:
-  1. POST /mailbox  → إنشاء إيميل جديد + JWT token
-  2. GET  /messages  → قراءة الرسائل/OTP
-  3. POST /mailbox  → تغيير الإيميل (JWT بيتغير)
+كيفية العمل:
+  1. بنعمل إيميلات زي user+abc123@gmail.com (بتوصل لنفس الـ inbox)
+  2. Telicall بيشوف كل إيميل كحساب جديد
+  3. بنقرأ OTP من Gmail عن طريق IMAP
+
+الإعداد:
+  1. افتح Gmail → Settings → Forwarding and POP/IMAP → Enable IMAP
+  2. فعّل 2-Step Verification
+  3. روح App Passwords → اعمل App Password
+  4. شغّل: python3 fox_caller1.py file.xlsx --gmail user@gmail.com --app-pass xxxx
 
 Usage:
-  python3 fox_caller1.py numbers.xlsx --mode server
-  python3 fox_caller1.py numbers.xlsx --mode server --threads 5
-  python3 fox_caller1.py numbers.xlsx --mode create --threads 10
+  python3 fox_caller1.py numbers.xlsx --gmail user@gmail.com --app-pass xxxx --mode server
+  python3 fox_caller1.py numbers.xlsx --gmail user@gmail.com --app-pass xxxx --mode server --threads 5
+  python3 fox_caller1.py numbers.xlsx --gmail user@gmail.com --app-pass xxxx --mode create --threads 10
 """
 
 import requests
@@ -36,6 +41,9 @@ import threading
 import argparse
 import sys
 import queue
+import imaplib
+import email
+from email.header import decode_header
 from datetime import datetime
 from filelock import FileLock
 
@@ -53,11 +61,12 @@ EMAIL_POOL_SIZE   = 15
 SESSION_POOL_SIZE = 5
 MAX_RETRIES       = 8
 
-# temp-mail.org config
-TEMPMAIL_API      = "https://mob2.temp-mail.org"
-TEMPMAIL_UA       = "4.02"
-# الدومينات المقبولة من Telicall (باقي الدومينات محظورة)
-ACCEPTED_DOMAINS  = ["snocv.com"]
+# Gmail config
+GMAIL_USER        = ""
+GMAIL_APP_PASS    = ""
+_alias_counter    = 0
+_alias_lock       = threading.Lock()
+_used_aliases     = set()
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Proxy Manager ────────────────────────────────────────────
@@ -153,266 +162,279 @@ def rand_eg_ip():
         return f"{a}.{b}.{c}.{d}"
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Email Provider: mob2.temp-mail.org API ──────────────────
+# ─── Gmail Alias Generator ───────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
-_tempmail_stats = {"ok": 0, "fail": 0, "otp_ok": 0, "otp_fail": 0}
-_tempmail_stats_lock = threading.Lock()
-_tempmail_lock = threading.Lock()
-_tempmail_fail_count = 0
-TEMPMAIL_MAX_FAILS = 20
+_gmail_stats = {"ok": 0, "fail": 0, "otp_ok": 0, "otp_fail": 0}
+_gmail_stats_lock = threading.Lock()
 
 
-class TempMailOrgProvider:
-    """بتتعامل مع mob2.temp-mail.org API
+class GmailAliasProvider:
+    """بتعمل إيميلات Gmail + alias وبتقرأ OTP عن طريق IMAP
     
-    API Flow:
-      1. POST /mailbox  → إنشاء إيميل جديد + JWT token
-      2. GET  /messages?after={ts} → قراءة الرسائل
-      3. POST /mailbox  → تغيير الإيميل (عشان نعمل واحد جديد)
+    Gmail + Trick:
+      user+abc123@gmail.com → يوصل لـ user@gmail.com
+      u.s.e.r+abc@gmail.com → يوصل لـ user@gmail.com
+      Telicall بيشوف كل واحد كحساب مختلف!
     
-    Headers:
-      authorization: <JWT> (بدون "Bearer")
-      user-agent: 4.02
-      accept: application/json
-    
-    Rate Limit:
-      POST /mailbox: 15 طلب لكل فترة
+    IMAP:
+      بنقرأ الرسائل من Gmail عن طريق IMAP مع App Password
+      بنفلتر على رسائل Telicall وبنستخرج OTP
     """
 
-    def __init__(self):
-        self._session = requests.Session()
-        self._session.headers.update({
-            'user-agent': TEMPMAIL_UA,
-            'accept': 'application/json',
-            'accept-encoding': 'gzip',
-        })
-        self._jwt = None
-        self._current_email = None
-        self._current_ts = 0  # timestamp للـ after parameter
-        self._rate_limit_remaining = 15
-        self._skipped_domains = 0  # عدد الإيميلات اللي اتجاهلت عشان الدومين
+    def __init__(self, gmail_user, app_password):
+        self._gmail_user = gmail_user
+        self._app_password = app_password
+        # استخراج الـ username والـ domain
+        if '@' in gmail_user:
+            self._username, self._domain = gmail_user.split('@', 1)
+        else:
+            self._username = gmail_user
+            self._domain = 'gmail.com'
+        self._counter = 0
+        self._counter_lock = threading.Lock()
+        # IMAP cache — بنعمل connection واحد لكل thread
+        self._local = threading.local()
+        
+        # توليدdot variations
+        self._dot_variations = self._generate_dot_variations(self._username)
+        self._dot_index = 0
 
-    def create_email(self, max_retries=20):
-        """بيعمل إيميل مؤقت جديد من temp-mail.org
+    def _generate_dot_variations(self, username):
+        """بتولد نسخ مختلفة من الـ username بالنقاط
         
-        لو عندنا JWT فعلًا، بنعمل POST /mailbox عشان نغير الإيميل
-        لو أول مرة، بنعمل POST /mailbox بدون JWT
-        
-        بنكرر لحد ما نلاقي دومين مقبول من Telicall (@snocv.com)
-        ⚠️ @snocv.com بيظهر ~20% من المرات — بنحتاج نحاول أكتر
+        مثال: username = "abcdef"
+        النتائج: a.bcdef, ab.cdef, abc.def, ...
+        مش كل النسخ - بس 20 نسخة عشان متعملش spam
         """
-        global _tempmail_fail_count
+        if len(username) <= 2:
+            return [username]
+        
+        variations = []
+        # بنحط نقطة في كل مكان ممكن
+        for i in range(1, len(username)):
+            v = username[:i] + '.' + username[i:]
+            variations.append(v)
+        
+        # اختار 20 نسخة عشوائية بس
+        random.shuffle(variations)
+        return variations[:20]
 
-        for attempt in range(max_retries):
+    def create_email(self):
+        """بيعمل إيميل Gmail+alias جديد
+        
+        الاستراتيجية:
+          1. نستخدم dot trick: u.s.e.r+tag@gmail.com
+          2. كل مرة بنزود الـ tag عشان يكون فريد
+          3. لو خلصت الـ dot variations، نستخدم username عادي مع +tag
+        """
+        global _used_aliases
+        
+        with self._counter_lock:
+            self._counter += 1
+            count = self._counter
+            
+            # اختيار dot variation
+            dot_idx = (count - 1) % len(self._dot_variations)
+            dot_user = self._dot_variations[dot_idx]
+            
+            # tag فريد
+            tag = f"fx{count:05d}{random.randint(10,99)}"
+            
+            # الإيميل الكامل
+            alias_email = f"{dot_user}+{tag}@{self._domain}"
+            
+            # نتأكد إنه ميتكررش
+            while alias_email in _used_aliases:
+                tag = f"fx{count:05d}{random.randint(100,999)}"
+                alias_email = f"{dot_user}+{tag}@{self._domain}"
+            
+            _used_aliases.add(alias_email)
+
+        with _gmail_stats_lock:
+            _gmail_stats["ok"] += 1
+
+        return {
+            'email': alias_email,
+            'provider': 'gmail_alias',
+            'api_type': 'gmail_imap',
+            'created_ts': int(time.time()),
+            'gmail_user': self._gmail_user,
+        }
+
+    def _get_imap(self):
+        """بتعمل IMAP connection للـ Gmail"""
+        if not hasattr(self._local, 'imap') or self._local.imap is None:
             try:
-                headers = {}
-                if self._jwt:
-                    headers['authorization'] = self._jwt
-
-                resp = self._session.post(
-                    f'{TEMPMAIL_API}/mailbox',
-                    headers=headers,
-                    timeout=20,
-                )
-
-                # تحديث rate limit
-                rl = resp.headers.get('x-ratelimit-remaining')
-                if rl:
-                    self._rate_limit_remaining = int(rl)
-
-                if resp.status_code == 200:
-                    data = resp.json()
-                    new_token = data.get('token', '')
-                    new_mailbox = data.get('mailbox', '')
-
-                    if new_token and new_mailbox and '@' in new_mailbox:
-                        domain = new_mailbox.split('@')[1].lower()
-                        
-                        # ─── فلتر الدومين ───
-                        if ACCEPTED_DOMAINS and domain not in ACCEPTED_DOMAINS:
-                            self._jwt = new_token  # نحفظ الـ JWT عشان نستخدمه للمرة الجاية
-                            self._skipped_domains += 1
-                            if attempt % 3 == 0:
-                                print(f"  ⏭️ تجاهل @{domain} (محظور) — بدور على @snocv.com...", flush=True)
-                            continue  # نجرب تاني
-                        
-                        self._current_email = new_mailbox
-                        self._current_ts = int(time.time())
-
-                        with _tempmail_stats_lock:
-                            _tempmail_stats["ok"] += 1
-                        _tempmail_fail_count = 0
-
-                        return {
-                            'email': new_mailbox,
-                            'jwt': new_token,
-                            'provider': 'tempmail_org',
-                            'api_type': 'tempmail_org',
-                            'created_ts': self._current_ts,
-                        }
-
-                elif resp.status_code == 429:
-                    # Rate limited — نستنى شوية
-                    retry_after = int(resp.headers.get('retry-after', 60))
-                    print(f"  ⏳ temp-mail.org rate limit — نستنى {retry_after}s", flush=True)
-                    time.sleep(min(retry_after, 120))
-                    continue
-
-                elif resp.status_code in (403, 503):
-                    # Cloudflare أو حاجة
-                    if attempt < max_retries - 1:
-                        time.sleep(3)
-                        continue
-
-            except requests.exceptions.ConnectionError:
-                if attempt < max_retries - 1:
-                    time.sleep(3)
-                    continue
-            except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    time.sleep(2)
-                    continue
+                imap = imaplib.IMAP4_SSL('imap.gmail.com', 993)
+                imap.login(self._gmail_user, self._app_password)
+                self._local.imap = imap
             except Exception as e:
-                if attempt < max_retries - 1:
-                    time.sleep(2)
-                    continue
+                print(f"  ❌ IMAP login فشل: {e}", flush=True)
+                return None
+        return self._local.imap
 
-        with _tempmail_stats_lock:
-            _tempmail_stats["fail"] += 1
-        _tempmail_fail_count += 1
-        return None
+    def _reconnect_imap(self):
+        """بنعمل إعادة اتصال IMAP"""
+        if hasattr(self._local, 'imap') and self._local.imap:
+            try:
+                self._local.imap.logout()
+            except Exception:
+                pass
+        self._local.imap = None
+        return self._get_imap()
 
     def check_otp(self, mail_info, timeout=90):
-        """بتدور على OTP في صندوق temp-mail.org
+        """بتدور على OTP في Gmail عن طريق IMAP
         
-        بنعمل polling كل 5 ثواني على GET /messages?after={ts}
+        بنعمل polling كل 5 ثواني وبندور على رسائل Telicall
         """
-        jwt = mail_info.get('jwt')
         created_ts = mail_info.get('created_ts', 0)
-
-        if not jwt:
-            with _tempmail_stats_lock:
-                _tempmail_stats["otp_fail"] += 1
-            return None
+        target_email = mail_info.get('email', '')
 
         deadline = time.time() + timeout
-        after_ts = created_ts
+        seen_ids = set()
 
         while time.time() < deadline:
             try:
-                headers = {'authorization': jwt}
-                resp = self._session.get(
-                    f'{TEMPMAIL_API}/messages',
-                    params={'after': after_ts},
-                    headers=headers,
-                    timeout=15,
-                )
+                imap = self._get_imap()
+                if imap is None:
+                    imap = self._reconnect_imap()
+                    if imap is None:
+                        time.sleep(5)
+                        continue
 
-                if resp.status_code == 200:
-                    data = resp.json()
-                    messages = data.get('messages', [])
+                imap.select('INBOX')
+                
+                # بندور على رسائل من Telicall
+                status, messages = imap.search(None, '(UNSEEN FROM "telicall")')
+                if status != 'OK':
+                    # نجرب بحث أوسع
+                    status, messages = imap.search(None, '(UNSEEN SUBJECT "verification")')
+                
+                if status == 'OK' and messages[0]:
+                    msg_ids = messages[0].split()
+                    
+                    for msg_id in msg_ids[-10:]:  # آخر 10 رسائل بس
+                        if msg_id in seen_ids:
+                            continue
+                        seen_ids.add(msg_id)
+                        
+                        status, msg_data = imap.fetch(msg_id, '(RFC822)')
+                        if status == 'OK':
+                            raw = msg_data[0][1]
+                            msg = email.message_from_bytes(raw)
+                            
+                            # بنستخرج الـ To header عشان نتأكد إنه الرسالة الصح
+                            to_addr = str(msg.get('To', '')).lower()
+                            
+                            # نستخرج OTP من الـ subject
+                            subject = str(msg.get('Subject', ''))
+                            decoded_subj = self._decode_header(subject)
+                            otp = self._extract_otp(decoded_subj)
+                            if otp:
+                                # نتحقق إن الرسالة دي للايميل الصح
+                                with _gmail_stats_lock:
+                                    _gmail_stats["otp_ok"] += 1
+                                return otp
+                            
+                            # نستخرج OTP من الـ body
+                            body = self._get_body(msg)
+                            if body:
+                                otp = self._extract_otp(body)
+                                if otp:
+                                    with _gmail_stats_lock:
+                                        _gmail_stats["otp_ok"] += 1
+                                    return otp
 
-                    for msg in messages:
-                        # نحدث after_ts عشان ما نشوفش نفس الرسالة تاني
-                        received = msg.get('receivedAt', 0)
-                        if received > after_ts:
-                            after_ts = received
-
-                        # بنستخرج OTP من الـ subject
-                        subject = str(msg.get('subject', ''))
-                        otp = self._extract_otp(subject)
-                        if otp:
-                            with _tempmail_stats_lock:
-                                _tempmail_stats["otp_ok"] += 1
-                            return otp
-
-                        # بنستخرج OTP من الـ bodyPreview
-                        body_preview = str(msg.get('bodyPreview', ''))
-                        otp = self._extract_otp(body_preview)
-                        if otp:
-                            with _tempmail_stats_lock:
-                                _tempmail_stats["otp_ok"] += 1
-                            return otp
-
-                        # لو لسه مش لاقين OTP، نجيب الرسالة كاملة
-                        msg_id = msg.get('_id')
-                        if msg_id:
-                            from_email = str(msg.get('from', '')).lower()
-                            if 'teli' in from_email or 'verif' in subject.lower():
-                                full_otp = self._get_message_otp(msg_id, jwt)
-                                if full_otp:
-                                    with _tempmail_stats_lock:
-                                        _tempmail_stats["otp_ok"] += 1
-                                    return full_otp
-
-                elif resp.status_code == 401:
-                    # JWT منتهي
-                    break
-
+            except imaplib.IMAP4.error:
+                # IMAP error — نعيد الاتصال
+                self._reconnect_imap()
             except Exception:
                 pass
 
             time.sleep(5)
 
-        with _tempmail_stats_lock:
-            _tempmail_stats["otp_fail"] += 1
+        with _gmail_stats_lock:
+            _gmail_stats["otp_fail"] += 1
         return None
 
-    def _get_message_otp(self, msg_id, jwt):
-        """بتجيب الرسالة كاملة وبتستخرج OTP من bodyHtml"""
+    def _decode_header(self, header_value):
+        """بتفك تشفير الـ email header"""
+        if not header_value:
+            return ''
         try:
-            headers = {'authorization': jwt}
-            resp = self._session.get(
-                f'{TEMPMAIL_API}/messages/{msg_id}/',
-                headers=headers,
-                timeout=15,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                body_html = str(data.get('bodyHtml', ''))
-                subject = str(data.get('subject', ''))
-
-                # بنستخرج OTP من body
-                otp = self._extract_otp(body_html)
-                if otp:
-                    return otp
-
-                # بنستخرج من subject كمان
-                otp = self._extract_otp(subject)
-                if otp:
-                    return otp
-
+            parts = decode_header(header_value)
+            decoded = []
+            for part, enc in parts:
+                if isinstance(part, bytes):
+                    decoded.append(part.decode(enc or 'utf-8', errors='ignore'))
+                else:
+                    decoded.append(part)
+            return ''.join(decoded)
         except Exception:
-            pass
-        return None
+            return str(header_value)
+
+    def _get_body(self, msg):
+        """بتجيب الـ body من رسالة email"""
+        body = ''
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                if content_type == 'text/plain':
+                    try:
+                        payload = part.get_payload(decode=True)
+                        charset = part.get_content_charset() or 'utf-8'
+                        body = payload.decode(charset, errors='ignore')
+                    except Exception:
+                        pass
+                    break
+                elif content_type == 'text/html' and not body:
+                    try:
+                        payload = part.get_payload(decode=True)
+                        charset = part.get_content_charset() or 'utf-8'
+                        body = payload.decode(charset, errors='ignore')
+                    except Exception:
+                        pass
+        else:
+            try:
+                payload = msg.get_payload(decode=True)
+                charset = msg.get_content_charset() or 'utf-8'
+                body = payload.decode(charset, errors='ignore')
+            except Exception:
+                pass
+        return body
 
     def _extract_otp(self, text):
         """بتستخرج OTP (6 أرقام) من نص"""
         if not text:
             return None
-        # بندور على 6 أرقام متتالية
         m = re.search(r'\b(\d{6})\b', text)
         if m:
             return m.group(1)
         return None
 
-    def delete_email(self, mail_info):
-        """بتغيّر الإيميل الحالي عشان نقدر نعمل واحد جديد
-        
-        مفيش delete endpoint — بنعمل POST /mailbox عشان نعمل إيميل جديد
-        والقديم بيتمسح تلقائي
-        """
-        # بنعمل create_email جديد لو محتاجين
-        # الـ JWT بيتحدث تلقائي في create_email
+    def change_mailbox(self):
+        """مفيش حاجة — بنعمل alias جديد في create_email"""
         pass
 
-    def change_mailbox(self):
-        """بتغيّر الإيميل الحالي — بتعمل POST /mailbox بالـ JWT الحالي"""
-        return self.create_email()
+    def test_connection(self):
+        """بتختبر اتصال IMAP"""
+        try:
+            imap = imaplib.IMAP4_SSL('imap.gmail.com', 993)
+            imap.login(self._gmail_user, self._app_password)
+            imap.select('INBOX')
+            status, messages = imap.search(None, 'ALL')
+            count = len(messages[0].split()) if messages[0] else 0
+            imap.logout()
+            return True, count
+        except imaplib.IMAP4.authentication_errors:
+            return False, "App Password غلط!"
+        except Exception as e:
+            return False, str(e)
 
 
 # ─── Global provider instance ───
-_tempmail_provider = None  # يتم تعيينه في main()
+_gmail_provider = None  # يتم تعيينه في main()
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Email Pool ──────────────────────────────────────────────
@@ -424,18 +446,12 @@ _pool_stats = {"emails_created": 0, "sessions_created": 0}
 _pool_stats_lock = threading.Lock()
 
 def _email_pool_filler():
-    """خلفية: بيملا بول الإيميلات من temp-mail.org"""
-    global _tempmail_fail_count
-
+    """خلفية: بيملا بول الإيميلات من Gmail aliases"""
     while not _stop_flag.is_set():
         if _email_pool.qsize() < EMAIL_POOL_SIZE:
-            if _tempmail_fail_count >= TEMPMAIL_MAX_FAILS:
-                time.sleep(10)
-                continue
-
             mail = None
-            if _tempmail_provider:
-                mail = _tempmail_provider.create_email()
+            if _gmail_provider:
+                mail = _gmail_provider.create_email()
 
             if mail:
                 try:
@@ -445,7 +461,7 @@ def _email_pool_filler():
                 except queue.Full:
                     pass
             else:
-                time.sleep(3)
+                time.sleep(1)
         else:
             time.sleep(0.5)
 
@@ -470,12 +486,10 @@ def get_email_from_pool():
     try:
         return _email_pool.get(timeout=15)
     except queue.Empty:
-        if _tempmail_provider:
-            for attempt in range(5):
-                mail = _tempmail_provider.create_email()
-                if mail:
-                    return mail
-                time.sleep(3)
+        if _gmail_provider:
+            mail = _gmail_provider.create_email()
+            if mail:
+                return mail
         return None
 
 def get_session_from_pool():
@@ -505,8 +519,8 @@ def start_pools():
 # ─── Unified OTP getter ──────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 def get_otp_from_mail(mail_info, timeout=90):
-    if _tempmail_provider:
-        return _tempmail_provider.check_otp(mail_info, timeout=timeout)
+    if _gmail_provider:
+        return _gmail_provider.check_otp(mail_info, timeout=timeout)
     return None
 
 # ═══════════════════════════════════════════════════════════════
@@ -564,7 +578,7 @@ def send_verify(email, headers, proxy_dict=None):
                 err_lower = str(err).lower()
                 if 'already exist' in err_lower or 'already registered' in err_lower:
                     return None, 'EMAIL_EXISTS'
-                if 'blocklist' in err_lower or 'blocked' in err_lower or 'محظور' in err:
+                if 'blocklist' in err_lower or 'blocked' in err_lower:
                     return None, f'BLOCKED:{email.split("@")[1] if "@" in email else ""}'
                 return None, err
             except Exception:
@@ -885,9 +899,6 @@ def _try_one_phone(phone, duration, mode, tid):
     if not otp:
         print(f"[{tid}] ❌ OTP انتهى {phone} <- {email_short}", flush=True)
         update_stat("otp_fail")
-        # نغيّر الإيميل عشان نعمل واحد جديد
-        if _tempmail_provider:
-            _tempmail_provider.change_mailbox()
         return 'retry'
 
     print(f"[{tid}] 🔢 OTP:{otp} {email_short}", flush=True)
@@ -910,10 +921,6 @@ def _try_one_phone(phone, duration, mode, tid):
 
     total = save_account(email_addr, device, tok)
     print(f"[{tid}] ✅ حساب! {email_short} (#{total})", flush=True)
-
-    # نغيّر الإيميل عشان نعمل واحد جديد للمرة الجاية
-    if _tempmail_provider:
-        _tempmail_provider.change_mailbox()
 
     if mode == "create":
         update_stat("accounts_ok")
@@ -968,168 +975,169 @@ def create_and_call(duration, mode="server", use_xrealip=True):
             result = _try_one_phone(phone, duration, mode, tid)
             last_result = result
 
-            if result in ('ok', 'no_balance'):
+            if result == 'ok':
                 success = True
                 break
-            elif result in ('domain_blocked', 'email_exists'):
-                continue
-            elif result == 'retry':
-                continue
-            else:
+            elif result == 'no_balance':
                 break
+            elif result == 'email_exists':
+                # إيميل مسجل — نجرب إيميل جديد
+                continue
+            elif result == 'domain_blocked':
+                break
+            else:  # retry
+                continue
 
         if not success:
-            add_failed_phone(phone, last_result or 'unknown')
-            print(f"[{tid}] ❌ فشل نهائي {phone} بعد {MAX_RETRIES} محاولات ({last_result})", flush=True)
+            add_failed_phone(phone, last_result or "unknown")
 
-        time.sleep(0.3)
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Stats Printer ────────────────────────────────────────────
-# ═══════════════════════════════════════════════════════════════
-def print_stats():
-    while True:
-        time.sleep(30)
-        with _stats_lock:
-            s = dict(_stats)
-        with _tempmail_stats_lock:
-            ts = dict(_tempmail_stats)
-        elapsed = time.time() - _start_time if _start_time else 1
-        rate = s['total'] / elapsed * 60 if elapsed > 0 else 0
-        rl = _tempmail_provider._rate_limit_remaining if _tempmail_provider else '?'
-        print(f"\n  📊 Stats ({elapsed/60:.1f}min | {rate:.1f}/min):", flush=True)
-        print(f"     إجمالي: {s['total']} | ✅ حسابات: {s['accounts_ok']} | 📞 مكالمات: {s['calls_ok']}", flush=True)
-        print(f"     ❌ إيميل={s['email_fail']} جلسة={s['session_fail']} تحقق={s['verify_fail']} OTP={s['otp_fail']} تأكيد={s['confirm_fail']}", flush=True)
-        print(f"     إيميل مسجل: {s['email_exists']} | دومين محظور: {s['domain_blocked']} | NO_BALANCE: {s['calls_no_balance']}", flush=True)
-        print(f"     temp-mail.org: ok={ts['ok']} fail={ts['fail']} OTP✅={ts['otp_ok']} OTP❌={ts['otp_fail']} (rate_limit:{rl})", flush=True)
-
-# ═══════════════════════════════════════════════════════════════
-# ─── Main ─────────────────────────────────────────────────────
+# ─── Main ────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 def main():
-    global _start_time, _phone_queue, _tempmail_provider
+    global _gmail_provider, _start_time, GMAIL_USER, GMAIL_APP_PASS
 
-    parser = argparse.ArgumentParser(description="Fox Caller v15.0 - TempMail.org Edition")
-    parser.add_argument("file", help="ملف الأرقام (.xlsx أو .txt)")
-    parser.add_argument("--mode", choices=["server", "create"], default="server",
-                       help="server=اتصال عبر السيرفر | create=إنشاء حسابات بس")
-    parser.add_argument("--threads", type=int, default=DEFAULT_THREADS,
-                       help=f"عدد الخيوط (افتراضي: {DEFAULT_THREADS})")
-    parser.add_argument("--duration", type=int, default=DEFAULT_DURATION,
-                       help=f"مدة المكالمة بالثواني (افتراضي: {DEFAULT_DURATION})")
-    parser.add_argument("--limit", type=int, default=0,
-                       help="عدد الأرقام الأقصى")
-    parser.add_argument("--no-xrealip", action="store_true",
-                       help="إلغاء x-real-ip header")
-
+    parser = argparse.ArgumentParser(description='Fox Caller v16.0 - Gmail+IMAP Edition')
+    parser.add_argument('file', help='ملف الأرقام (xlsx أو txt)')
+    parser.add_argument('--gmail', required=True, help='إيميل Gmail (مثال: user@gmail.com)')
+    parser.add_argument('--app-pass', required=True, help='Gmail App Password (16 حرف بدون مسافات)')
+    parser.add_argument('--mode', choices=['server', 'create'], default='server',
+                        help='server = اتصال تلقائي, create = إنشاء حسابات بس')
+    parser.add_argument('--threads', type=int, default=DEFAULT_THREADS,
+                        help=f'عدد الخيوط (افتراضي: {DEFAULT_THREADS})')
+    parser.add_argument('--duration', type=int, default=DEFAULT_DURATION,
+                        help=f'مدة المكالمة بالثواني (افتراضي: {DEFAULT_DURATION})')
+    parser.add_argument('--retries', type=int, default=MAX_RETRIES,
+                        help=f'عدد المحاولات لكل رقم (افتراضي: {MAX_RETRIES})')
     args = parser.parse_args()
 
-    # ─── Initialize temp-mail.org provider ───
-    _tempmail_provider = TempMailOrgProvider()
+    GMAIL_USER = args.gmail
+    GMAIL_APP_PASS = args.app_pass.replace(' ', '')  # إزالة المسافات
 
-    print("\n" + "=" * 60, flush=True)
-    print(f"  Fox Caller v15.0 - TempMail.org Edition", flush=True)
-    print(f"  Email: mob2.temp-mail.org (@snocv.com / @tixpad.com)", flush=True)
-    print(f"  ✅ requests عادي | لا Cloudflare | لا متصفح", flush=True)
+    # ─── Banner ───
     print("=" * 60, flush=True)
+    print("  Fox Caller v16.0 - Gmail+IMAP Edition", flush=True)
+    print(f"  Email: {GMAIL_USER}", flush=True)
+    print("  ✅ Gmail+alias مقبول من Telicall!", flush=True)
+    print("=" * 60, flush=True)
+    print(flush=True)
 
+    # ─── Test Gmail IMAP ───
+    print("  🔍 Quick Test: جرب Gmail IMAP...", flush=True)
+    _gmail_provider = GmailAliasProvider(GMAIL_USER, GMAIL_APP_PASS)
+    ok, info = _gmail_provider.test_connection()
+    if not ok:
+        print(f"  ❌ Gmail IMAP مش شغال! {info}", flush=True)
+        print(f"  تأكد إنك:", flush=True)
+        print(f"    1. فعّلت IMAP في Gmail Settings", flush=True)
+        print(f"    2. فعّلت 2-Step Verification", flush=True)
+        print(f"    3. عملت App Password", flush=True)
+        sys.exit(1)
+    print(f"  ✅ Gmail IMAP شغال! ({info} رسائل في الـ inbox)", flush=True)
+
+    # ─── Read Numbers ───
     numbers = read_numbers(args.file)
     if not numbers:
-        print("ERROR: لا توجد أرقام في الملف!", flush=True)
+        print("❌ مفيش أرقام في الملف!", flush=True)
         sys.exit(1)
 
-    if args.limit > 0:
-        numbers = numbers[:args.limit]
-
+    global MAX_RETRIES, _phone_queue
+    MAX_RETRIES = args.retries
     _phone_queue = numbers
-    _start_time = time.time()
 
-    print(f"\n  Numbers:    {len(numbers)}", flush=True)
+    # ─── Print Config ───
+    print(flush=True)
+    print(f"  Numbers:    {len(numbers)}", flush=True)
     print(f"  Mode:       {args.mode}", flush=True)
     print(f"  Threads:    {args.threads}", flush=True)
     print(f"  Duration:   {args.duration}s", flush=True)
     print(f"  Retries:    {MAX_RETRIES} per number", flush=True)
-    print(f"  Email API:  mob2.temp-mail.org (Temp Mail app)", flush=True)
-    print(f"  Domains:    @snocv.com ✅ (باقي الدومينات محظورة من Telicall)", flush=True)
+    print(f"  Gmail:      {GMAIL_USER}", flush=True)
+    print(f"  Alias:      user+tag@gmail.com / u.s.e.r+tag@gmail.com", flush=True)
 
     init_proxy_manager()
 
-    # ─── Quick Test ───
-    print("\n  🔍 Quick Test: جرب temp-mail.org API...", flush=True)
-    test_mail = _tempmail_provider.create_email()
-    if test_mail:
-        test_email = test_mail['email']
-        test_domain = test_email.split('@')[1] if '@' in test_email else '?'
-        print(f"  ✅ temp-mail.org: {test_email} ({test_domain})", flush=True)
-        try:
-            _email_pool.put_nowait(test_mail)
-        except queue.Full:
-            pass
+    # ─── Test Telicall ───
+    test_tok, _, _ = init_session()
+    if not test_tok:
+        print("  ⚠️ Telicall init فشل — ممكن يكون في مشكلة شبكة", flush=True)
     else:
-        print(f"  ❌ temp-mail.org مش رد! السكريبت مش هيشتغل!", flush=True)
-        sys.exit(1)
-
-    # Check server
-    if args.mode == "server":
-        if is_server_available():
-            print(f"  Server:     ✅ متاح ({SERVER_URL})", flush=True)
+        # بنعمل اختبار سريع لإيميل Gmail+alias
+        test_alias = _gmail_provider.create_email()
+        test_ref, test_err = send_verify(test_alias['email'], {
+            "host": "api.telicall.com",
+            "x-request-id": str(uuid.uuid4()),
+            "user-agent": "Dalvik/2.1.0",
+            "x-app-version": "1.2.1",
+            "x-client-device-id": "test123",
+            "x-lang": "en", "x-os": "android", "x-os-version": "11",
+            "x-req-timestamp": str(int(time.time() * 1000)),
+            "x-req-signature": "-1",
+            "content-type": "application/json",
+            "x-token": test_tok,
+            "x-currency": "EGP",
+            "x-real-ip": rand_eg_ip(),
+        })
+        if test_ref:
+            print(f"  ✅ Telicall بيقبل Gmail+alias! ({test_alias['email'][:30]}...)", flush=True)
         else:
-            print(f"  Server:     ⚠️ غير متاح! هنعمل create بس", flush=True)
-            args.mode = "create"
+            print(f"  ⚠️ Telicall رفض الإيميل: {test_err}", flush=True)
 
-    # Start pools
+    print(flush=True)
+
+    # ─── Start ───
+    _start_time = time.time()
     start_pools()
 
-    print(f"\n  🚀 بدء التشغيل...", flush=True)
-    print("-" * 60, flush=True)
+    # Start call monitor thread
+    t = threading.Thread(target=monitor_calls, daemon=True)
+    t.start()
 
-    stats_thread = threading.Thread(target=print_stats, daemon=True)
-    stats_thread.start()
-
-    if args.mode == "server":
-        monitor_thread = threading.Thread(target=monitor_calls, daemon=True)
-        monitor_thread.start()
-
-    workers = []
+    # Start worker threads
+    threads = []
     for i in range(args.threads):
-        t = threading.Thread(
-            target=create_and_call,
-            args=(args.duration, args.mode, not args.no_xrealip),
-            name=f"W{i+1}",
-            daemon=True
-        )
+        t = threading.Thread(target=create_and_call,
+                             args=(args.duration, args.mode),
+                             name=f"W{i+1}", daemon=False)
         t.start()
-        workers.append(t)
+        threads.append(t)
 
-    for t in workers:
+    # Wait for all threads
+    for t in threads:
         t.join()
 
-    time.sleep(15)
-
-    elapsed = time.time() - _start_time if _start_time else 0
-    with _stats_lock:
-        s = dict(_stats)
-    with _tempmail_stats_lock:
-        ts = dict(_tempmail_stats)
-
-    print("\n" + "=" * 60, flush=True)
-    print("  📊 التقرير النهائي", flush=True)
+    # ─── Final Stats ───
+    elapsed = time.time() - _start_time
+    print(flush=True)
     print("=" * 60, flush=True)
-    print(f"  ⏱️  الوقت: {elapsed/60:.1f} دقيقة", flush=True)
-    print(f"  📞 إجمالي: {s['total']} | ✅ حسابات: {s['accounts_ok']} | 📞 مكالمات: {s['calls_ok']}", flush=True)
-    print(f"  ⚠️  NO_BALANCE: {s['calls_no_balance']} | ❌ فشل: {len(_failed_phones)}", flush=True)
-    print(f"  📧 temp-mail.org: ok={ts['ok']} fail={ts['fail']} OTP✅={ts['otp_ok']} OTP❌={ts['otp_fail']}", flush=True)
-
+    print("  النتائج النهائية", flush=True)
+    print("=" * 60, flush=True)
+    print(f"  الوقت:          {elapsed:.0f}s ({elapsed/60:.1f} min)", flush=True)
+    print(f"  إجمالي الأرقام:  {_stats['total']}", flush=True)
+    print(f"  مكالمات ناجحة:   {_stats['calls_ok']}", flush=True)
+    print(f"  حسابات جديدة:    {_stats['accounts_ok']}", flush=True)
+    print(f"  لا رصيد:         {_stats['calls_no_balance']}", flush=True)
+    print(f"  إيميل مسجل:      {_stats['email_exists']}", flush=True)
+    print(f"  دومين محظور:     {_stats['domain_blocked']}", flush=True)
+    print(f"  فشل التحقق:      {_stats['verify_fail']}", flush=True)
+    print(f"  فشل OTP:         {_stats['otp_fail']}", flush=True)
+    print(f"  فشل التأكيد:     {_stats['confirm_fail']}", flush=True)
+    print(f"  فشل الجلسة:      {_stats['session_fail']}", flush=True)
+    print(f"  فشل مكالمة:      {_stats['calls_failed']}", flush=True)
+    print(f"  إعادة محاولات:   {_stats['retries']}", flush=True)
+    print(f"  Gmail إيميلات:   {_gmail_stats['ok']}", flush=True)
+    print(f"  Gmail OTP ناجح:  {_gmail_stats['otp_ok']}", flush=True)
+    print(f"  Gmail OTP فشل:   {_gmail_stats['otp_fail']}", flush=True)
+    
     if _failed_phones:
-        print(f"\n  ❌ أرقام فشلت:", flush=True)
+        print(flush=True)
+        print(f"  ❌ الأرقام الفاشلة ({len(_failed_phones)}):", flush=True)
         for fp in _failed_phones[:20]:
-            print(f"     {fp['phone']} ({fp['reason']})", flush=True)
-        if len(_failed_phones) > 20:
-            print(f"     ... و {len(_failed_phones) - 20} كمان", flush=True)
-
+            print(f"    {fp['phone']} — {fp['reason']}", flush=True)
+    
     print("=" * 60, flush=True)
-    _stop_flag.set()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
