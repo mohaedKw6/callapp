@@ -172,6 +172,7 @@ class TempailProvider:
 
     def create_email(self, max_retries=3):
         """بتعمل إيميل مؤقت من tempail.top عبر HTTP فقط"""
+        global _tempail_fail_count
         if not HAS_CURL_CFFI:
             return None
 
@@ -227,7 +228,6 @@ class TempailProvider:
 
                 with _tempail_stats_lock:
                     _tempail_stats["ok"] += 1
-                global _tempail_fail_count
                 _tempail_fail_count = 0
 
                 return {
@@ -246,7 +246,6 @@ class TempailProvider:
 
         with _tempail_stats_lock:
             _tempail_stats["fail"] += 1
-        global _tempail_fail_count
         _tempail_fail_count += 1
         return None
 
