@@ -70,8 +70,13 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__fil
 # Must match the DATA_DIR used in callv2.py.
 # On Railway/cloud: set DATA_DIR env var to a mounted volume path (e.g. /app/data)
 # On local dev: defaults to ./data/ subdirectory
-DATA_DIR = os.environ.get("DATA_DIR", os.path.join(SCRIPT_DIR, "data"))
-os.makedirs(DATA_DIR, exist_ok=True)
+# ⚠️ Fix: if DATA_DIR is set but empty (e.g. DATA_DIR=""), use default instead
+DATA_DIR = os.environ.get("DATA_DIR", "").strip('"').strip("'").strip() or os.path.join(SCRIPT_DIR, "data")
+if DATA_DIR:
+    os.makedirs(DATA_DIR, exist_ok=True)
+else:
+    DATA_DIR = os.path.join(os.getcwd(), "data")
+    os.makedirs(DATA_DIR, exist_ok=True)
 
 CALL_LOGS_FILE = os.path.join(DATA_DIR, "call_logs.json")
 RECORDINGS_DIR = os.path.join(DATA_DIR, "recordings")

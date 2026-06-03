@@ -331,8 +331,14 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if os.path.abspath(__fil
 # On Railway/cloud: set DATA_DIR env var to a mounted volume path (e.g. /app/data)
 # On local dev: defaults to ./data/ subdirectory
 # This ensures data survives container restarts when a volume is attached.
-DATA_DIR = os.environ.get("DATA_DIR", os.path.join(SCRIPT_DIR, "data"))
-os.makedirs(DATA_DIR, exist_ok=True)
+# ⚠️ Fix: if DATA_DIR is set but empty (e.g. DATA_DIR=""), use default instead
+DATA_DIR = os.environ.get("DATA_DIR", "").strip('"').strip("'").strip() or os.path.join(SCRIPT_DIR, "data")
+if DATA_DIR:
+    os.makedirs(DATA_DIR, exist_ok=True)
+else:
+    # Fallback: should never reach here, but just in case
+    DATA_DIR = os.path.join(os.getcwd(), "data")
+    os.makedirs(DATA_DIR, exist_ok=True)
 
 # ─── Authorized Groups (for group bot feature) ──────────────────────────────
 AUTHORIZED_GROUPS_FILE = os.path.join(DATA_DIR, "authorized_groups.json")

@@ -1,0 +1,38 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Data files (contain user data, not code)
+data/*.json
+data/recordings/
+*.lock
+Dan.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node (fox-call)
+fox-call/node_modules/
+fox-call/.expo/
+fox-call/dist/
