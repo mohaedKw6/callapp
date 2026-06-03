@@ -155,7 +155,7 @@ def rand_eg_ip():
         return f"{a}.{b}.{c}.{d}"
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Email Provider: tempail.top API via curl_cffi ────────────
+# ─── Email Provider: tempail.top via cloudscraper/curl_cffi ───
 # ═══════════════════════════════════════════════════════════════
 _tempail_stats = {"ok": 0, "fail": 0, "otp_ok": 0, "otp_fail": 0}
 _tempail_stats_lock = threading.Lock()
@@ -163,86 +163,184 @@ _tempail_lock = threading.Lock()
 _tempail_fail_count = 0
 TEMPAIL_MAX_FAILS = 15
 
+# ─── Import cloudscraper (أقوى ضد Cloudflare) ───
+try:
+    import cloudscraper
+    HAS_CLOUDSCRAPER = True
+except ImportError:
+    HAS_CLOUDSCRAPER = False
+
+# ─── قائمة impersonation profiles للتجربة ───
+_IMPERSONATE_PROFILES = [
+    'chrome120', 'chrome116', 'chrome110', 'chrome107',
+    'chrome104', 'chrome101', 'chrome100',
+    'safari15_5', 'safari15_3', 'safari_15',
+    'edge101', 'edge99',
+]
+
+# ─── Browser headers حقيقية ───
+_BROWSER_HEADERS = {
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"Linux"',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1',
+}
+
 class TempailProvider:
-    """بتتعامل مع tempail.top عبر curl_cffi — بدون متصفح"""
+    """بتتعامل مع tempail.top — متعدد الطرق:
+    1. cloudscraper (أقوى ضد Cloudflare)
+    2. curl_cffi مع تجربة كل الـ profiles
+    3. requests عادي مع headers
+    """
 
     def __init__(self, domain_filter=None):
         self.domain_filter = (domain_filter or DEFAULT_DOMAIN).lower()
-        self.impersonate = 'safari15_5'
+        self._working_profile = None  # آخر profile اشتغل
+        self._working_method = None   # آخر method اشتغل
 
-    def create_email(self, max_retries=3):
-        """بتعمل إيميل مؤقت من tempail.top عبر HTTP فقط"""
-        global _tempail_fail_count
+    def _try_cloudscraper(self):
+        """طريقة 1: cloudscraper — مخصص لتخطي Cloudflare"""
+        if not HAS_CLOUDSCRAPER:
+            return None
+
+        try:
+            scraper = cloudscraper.create_scraper(
+                browser={'browser': 'chrome', 'platform': 'linux', 'desktop': True}
+            )
+            resp = scraper.get('https://tempail.top', timeout=30)
+            if resp.status_code == 200 and '@' in resp.text:
+                return resp.text, scraper, 'cloudscraper'
+        except Exception:
+            pass
+        return None
+
+    def _try_curl_cffi(self):
+        """طريقة 2: curl_cffi مع تجربة كل الـ impersonation profiles"""
         if not HAS_CURL_CFFI:
             return None
 
-        for attempt in range(max_retries):
+        # لو عندنا profile اشتغل قبل كده، نجربه الأول
+        profiles_to_try = list(_IMPERSONATE_PROFILES)
+        if self._working_profile:
+            profiles_to_try.insert(0, self._working_profile)
+
+        for profile in profiles_to_try:
             try:
-                session = cffi_requests.Session(impersonate=self.impersonate)
+                session = cffi_requests.Session(impersonate=profile)
+                resp = session.get('https://tempail.top', headers=_BROWSER_HEADERS, timeout=20)
+                if resp.status_code == 200 and '@' in resp.text:
+                    self._working_profile = profile
+                    return resp.text, session, f'cffi-{profile}'
+                elif resp.status_code == 403:
+                    continue
+                elif resp.status_code == 503:
+                    continue
+            except Exception:
+                continue
+        return None
 
-                # ─── Step 1: GET الصفحة الرئيسية ───
-                resp = session.get('https://tempail.top', timeout=30)
-                if resp.status_code == 403:
-                    # Cloudflare blocked
-                    if attempt < max_retries - 1:
-                        time.sleep(3)
-                        continue
-                    return None
+    def _try_requests(self):
+        """طريقة 3: requests عادي مع browser headers"""
+        try:
+            session = requests.Session()
+            session.headers.update(_BROWSER_HEADERS)
+            resp = session.get('https://tempail.top', timeout=20)
+            if resp.status_code == 200 and '@' in resp.text:
+                return resp.text, session, 'requests'
+        except Exception:
+            pass
+        return None
 
-                if resp.status_code != 200:
-                    if attempt < max_retries - 1:
-                        time.sleep(2)
-                        continue
-                    return None
+    def create_email(self, max_retries=4):
+        """بتعمل إيميل مؤقت من tempail.top — تجرب 3 طرق"""
+        global _tempail_fail_count
+        if not HAS_CURL_CFFI and not HAS_CLOUDSCRAPER:
+            return None
 
-                html = resp.text
+        for attempt in range(max_retries):
+            # ─── نجرب الطرق بالترتيب ───
+            result = None
 
-                # ─── Step 2: استخراج الإيميل ───
-                email = self._extract_email(html)
+            # لو عندنا method اشتغل قبل كده، نجربه الأول
+            if self._working_method == 'cloudscraper':
+                result = self._try_cloudscraper()
+            elif self._working_method and self._working_method.startswith('cffi-'):
+                result = self._try_curl_cffi()
 
-                if not email:
-                    # ممكن الإيميل بيتعمل عبر AJAX — نجرب endpoint تاني
-                    email = self._try_ajax_get_email(session, html)
+            # لو مش عارفين أو اللي اشتغل قبل كده فشل، نجرب الكل
+            if not result:
+                result = self._try_cloudscraper()
+            if not result:
+                result = self._try_curl_cffi()
+            if not result:
+                result = self._try_requests()
 
-                if not email:
-                    if attempt < max_retries - 1:
-                        time.sleep(2)
-                        continue
-                    return None
-
-                # ─── Step 3: فلتر الدومين ───
-                domain = email.split('@')[1] if '@' in email else ''
-                if self.domain_filter and domain.lower() != self.domain_filter:
-                    # إيميل على دومين مختلف — نمسحه ونحاول تاني
-                    try:
-                        session.get('https://tempail.top/delete', timeout=10)
-                    except Exception:
-                        pass
-                    if attempt < max_retries - 1:
-                        time.sleep(1)
-                        continue
-                    return None
-
-                # ─── Step 4: استخراج CSRF token ───
-                csrf = self._extract_csrf(html)
-
-                with _tempail_stats_lock:
-                    _tempail_stats["ok"] += 1
-                _tempail_fail_count = 0
-
-                return {
-                    'email': email,
-                    'csrf': csrf,
-                    'session': session,
-                    'provider': 'tempail',
-                    'api_type': 'tempail',
-                }
-
-            except Exception as e:
+            if not result:
                 if attempt < max_retries - 1:
                     time.sleep(3)
                     continue
+                with _tempail_stats_lock:
+                    _tempail_stats["fail"] += 1
+                _tempail_fail_count += 1
                 return None
+
+            html, session, method = result
+            self._working_method = method
+
+            # ─── استخراج الإيميل ───
+            email = self._extract_email(html)
+            if not email:
+                # نجرب AJAX
+                email = self._try_ajax_get_email(session, html)
+
+            if not email:
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                    continue
+                with _tempail_stats_lock:
+                    _tempail_stats["fail"] += 1
+                _tempail_fail_count += 1
+                return None
+
+            # ─── فلتر الدومين ───
+            domain = email.split('@')[1] if '@' in email else ''
+            if self.domain_filter and domain.lower() != self.domain_filter:
+                try:
+                    session.get('https://tempail.top/delete', timeout=10)
+                except Exception:
+                    pass
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                with _tempail_stats_lock:
+                    _tempail_stats["fail"] += 1
+                _tempail_fail_count += 1
+                return None
+
+            # ─── استخراج CSRF ───
+            csrf = self._extract_csrf(html)
+
+            with _tempail_stats_lock:
+                _tempail_stats["ok"] += 1
+            _tempail_fail_count = 0
+
+            return {
+                'email': email,
+                'csrf': csrf,
+                'session': session,
+                'provider': 'tempail',
+                'api_type': 'tempail',
+                'method': method,
+            }
 
         with _tempail_stats_lock:
             _tempail_stats["fail"] += 1
@@ -250,7 +348,7 @@ class TempailProvider:
         return None
 
     def check_otp(self, mail_info, timeout=90):
-        """بتدور على OTP في صندوق tempail.top عبر API"""
+        """بتدور على OTP في صندوق tempail.top"""
         session = mail_info.get('session')
         csrf = mail_info.get('csrf')
 
@@ -277,14 +375,11 @@ class TempailProvider:
                 )
 
                 if resp.status_code == 200:
-                    otp = self._parse_otp_from_response(resp.text)
+                    otp = self._parse_otp_from_response(resp.text, session)
                     if otp:
                         with _tempail_stats_lock:
                             _tempail_stats["otp_ok"] += 1
                         return otp
-                elif resp.status_code == 403:
-                    # Cloudflare block on messages endpoint
-                    pass
 
             except Exception:
                 pass
@@ -322,7 +417,7 @@ class TempailProvider:
         if m:
             return m.group(1).strip()
 
-        # Method 4: أي إيميل @openlo.link في الصفحة
+        # Method 4: أي إيميل @domain في الصفحة
         m = re.search(r'[\w.+-]+@' + re.escape(self.domain_filter), html)
         if m:
             return m.group(0).strip()
@@ -331,7 +426,6 @@ class TempailProvider:
         m = re.search(r'[\w.+-]+@[\w-]+\.[\w.]+', html)
         if m:
             email = m.group(0).strip()
-            # نتأكد إنه إيميل حقيقي مش مجرد مثال
             if '@' in email and '.' in email.split('@')[1]:
                 return email
 
@@ -339,17 +433,14 @@ class TempailProvider:
 
     def _extract_csrf(self, html):
         """بتستخرج CSRF token من HTML"""
-        # Method 1: meta csrf-token
         m = re.search(r'name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']', html)
         if m:
             return m.group(1)
 
-        # Method 2: _token input
         m = re.search(r'name=["\']_token["\'][^>]*value=["\']([^"\']+)["\']', html)
         if m:
             return m.group(1)
 
-        # Method 3: content then name
         m = re.search(r'content=["\']([^"\']+)["\'][^>]*name=["\']csrf-token["\']', html)
         if m:
             return m.group(1)
@@ -377,12 +468,10 @@ class TempailProvider:
             )
 
             if resp.status_code == 200:
-                # ممكن الإيميل يكون في الـ response
                 email = self._extract_email(resp.text)
                 if email:
                     return email
 
-                # ممكن يكون JSON
                 try:
                     result = resp.json()
                     email = result.get('email', '')
@@ -395,27 +484,23 @@ class TempailProvider:
 
         return None
 
-    def _parse_otp_from_response(self, response_text):
+    def _parse_otp_from_response(self, response_text, session=None):
         """بتستخرج OTP من response"""
-        # نحاول JSON أولاً
         try:
             data = json.loads(response_text)
             messages = data.get('messages', [])
 
             for msg in messages:
-                # Subject
                 subject = str(msg.get('subject', ''))
                 m = re.search(r'\b(\d{6})\b', subject)
                 if m:
                     return m.group(1)
 
-                # Body/HTML
                 body = str(msg.get('body', msg.get('html', '')))
                 m = re.search(r'\b(\d{6})\b', body)
                 if m:
                     return m.group(1)
 
-                # from_email check — Telicall
                 from_email = str(msg.get('from_email', ''))
                 if 'teli' in from_email.lower() or 'verif' in subject.lower():
                     m = re.search(r'\b(\d{6})\b', subject + ' ' + body)
@@ -424,9 +509,8 @@ class TempailProvider:
 
                 # Message ID — بنفتح الرسالة
                 msg_id = msg.get('id')
-                if msg_id and not re.search(r'\b\d{6}\b', subject + ' ' + body):
+                if msg_id and not re.search(r'\b\d{6}\b', subject + ' ' + body) and session:
                     try:
-                        session = cffi_requests.Session(impersonate=self.impersonate)
                         view_resp = session.get(
                             f'https://tempail.top/view/{msg_id}',
                             timeout=15,
@@ -439,7 +523,6 @@ class TempailProvider:
                         pass
 
         except json.JSONDecodeError:
-            # Response مش JSON — بنبحث عن OTP في النص
             m = re.search(r'\b(\d{6})\b', response_text)
             if m:
                 return m.group(1)
@@ -1089,18 +1172,27 @@ def main():
     # ─── Diagnostic ───
     print("\n  🔍 Diagnostic:", flush=True)
 
-    if HAS_CURL_CFFI:
-        print(f"  ✅ curl_cffi: متاح", flush=True)
+    if HAS_CLOUDSCRAPER:
+        print(f"  ✅ cloudscraper: متاح (أقوى ضد Cloudflare)", flush=True)
     else:
-        print(f"  ❌ curl_cffi: مش متاح! السكريبت مش هيشتغل!", flush=True)
-        print(f"  💡 pip3 install curl_cffi", flush=True)
+        print(f"  ⚠️ cloudscraper: مش متاح — يفضل تتسطبه: pip3 install cloudscraper", flush=True)
+
+    if HAS_CURL_CFFI:
+        print(f"  ✅ curl_cffi: متاح ({len(_IMPERSONATE_PROFILES)} profiles)", flush=True)
+    else:
+        print(f"  ⚠️ curl_cffi: مش متاح — pip3 install curl_cffi", flush=True)
+
+    if not HAS_CURL_CFFI and not HAS_CLOUDSCRAPER:
+        print(f"  ❌ ولا مكتبة شغال! السكريبت مش هيشتغل!", flush=True)
+        print(f"  💡 pip3 install cloudscraper curl_cffi", flush=True)
         sys.exit(1)
 
     # ─── Quick Test ───
-    print("\n  🔍 Quick Test: جرب tempail.top API...", flush=True)
+    print("\n  🔍 Quick Test: جرب tempail.top...", flush=True)
     test_mail = _tempail_provider.create_email()
     if test_mail:
-        print(f"  ✅ tempail.top: {test_mail['email'][:30]}... @{test_mail['email'].split('@')[1]}", flush=True)
+        method = test_mail.get('method', '?')
+        print(f"  ✅ tempail.top: {test_mail['email'][:30]}... @{test_mail['email'].split('@')[1]} [{method}]", flush=True)
         try:
             _email_pool.put_nowait(test_mail)
         except queue.Full:
