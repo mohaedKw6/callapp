@@ -353,51 +353,30 @@ _stop_flag = threading.Event()
 _pool_stats = {"emails_created": 0, "sessions_created": 0}
 _pool_stats_lock = threading.Lock()
 
+def _is_safe_email(email_addr: str) -> bool:
+    """بيتحقق إن الدومين مش محظور من Telicall"""
+    safe_domains = ('gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com')
+    domain = email_addr.split('@')[1] if '@' in email_addr else ''
+    return domain.lower() in safe_domains
+
 def _email_pool_filler():
-    """خلفية: بيملا بول الإيميلات باستخدام مزودين مختلفين"""
+    """خلفية: بيملا بول الإيميلات - emailnator فقط (@gmail.com)
+    ⚠️ Telicall بيحظر كل دومينات temp-mail، فمش هنستخدمهم خالص"""
     while not _stop_flag.is_set():
         if _email_pool.qsize() < EMAIL_POOL_SIZE:
-            # جرّب مزودين مختلفين بالتوازي
-            results = [None]
-            done = threading.Event()
-
-            def _try_emailnator():
-                mail = create_emailnator_mail()
-                if mail and not done.is_set():
-                    done.set()
-                    results[0] = mail
-
-            def _try_io():
-                mail = create_io_mail()
-                if mail and not done.is_set():
-                    done.set()
-                    results[0] = mail
-
-            def _try_mob2():
-                mail = create_mob2_mail()
-                if mail and not done.is_set():
-                    done.set()
-                    results[0] = mail
-
-            threads = [
-                threading.Thread(target=_try_emailnator),
-                threading.Thread(target=_try_io),
-                threading.Thread(target=_try_mob2),
-            ]
-            for t in threads:
-                t.start()
-            done.wait(timeout=15)
-            for t in threads:
-                t.join(timeout=1)
-
-            mail = results[0]
-            if mail:
+            # emailnator فقط - بيدي @gmail.com / @googlemail.com
+            # Telicall بيقبلهم ✅
+            mail = create_emailnator_mail()
+            if mail and _is_safe_email(mail['email']):
                 try:
                     _email_pool.put_nowait(mail)
                     with _pool_stats_lock:
                         _pool_stats["emails_created"] += 1
                 except queue.Full:
                     pass
+            else:
+                # emailnator فشل - استنى شوية وحاول تاني
+                time.sleep(2)
         else:
             time.sleep(0.5)
 
@@ -418,20 +397,17 @@ def _session_pool_filler():
             time.sleep(0.5)
 
 def get_email_from_pool():
-    """بيجيب إيميل من البول (جاهز) أو بيعمل واحد لو فاضي"""
+    """بيجيب إيميل من البول (جاهز) أو بيعمل واحد لو فاضي
+    ⚠️ استخدام emailnator فقط - temp-mail دومينات محظورة من Telicall"""
     try:
         return _email_pool.get(timeout=8)
     except queue.Empty:
-        # البول فاضي - اعمل إيميل مباشرة
-        mail = create_emailnator_mail()
-        if mail:
-            return mail
-        mail = create_io_mail()
-        if mail:
-            return mail
-        mail = create_mob2_mail()
-        if mail:
-            return mail
+        # البول فاضي - اعمل إيميل emailnator مباشرة
+        for attempt in range(3):
+            mail = create_emailnator_mail()
+            if mail and _is_safe_email(mail['email']):
+                return mail
+            time.sleep(1)
         return None
 
 def get_session_from_pool():
@@ -831,9 +807,15 @@ def create_and_call(duration, mode="direct", use_xrealip=True):
         email_short = email_addr.split('@')[0][:12]
         email_domain = email_addr.split('@')[1] if '@' in email_addr else '?'
         provider = mail.get('provider', mail.get('api_type', '?'))
-        is_safe = email_domain in ('gmail.com', 'googlemail.com', 'outlook.com')
-        tag = "✅" if is_safe else "⚠️"
-        print(f"[{tid}] 📧 {tag} {email_short}...@{email_domain} [{provider}] -> {phone}", flush=True)
+
+        # ⚠️ رفض فوري لأي إيميل مش @gmail.com/@googlemail.com
+        # Telicall بيحظر كل دومينات temp-mail
+        if not _is_safe_email(email_addr):
+            print(f"[{tid}] ❌ دومين محظور {email_domain} [{provider}] - تخطي {phone}", flush=True)
+            update_stat("verify_fail")
+            continue
+
+        print(f"[{tid}] 📧 ✅ {email_short}...@{email_domain} [{provider}] -> {phone}", flush=True)
 
         # ═══════ Step 2: Get Session (from pool or create) ═══════
         tok, device, headers, sess_proxy = get_session_from_pool()
