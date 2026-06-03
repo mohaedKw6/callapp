@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v8.2 - Call Launcher + Email Pool
-============================================
-مزودين إيميل متعددين + Email Pool + مكالمات عبر السيرفر
+Fox Caller v9.0 - Zero-Error Edition
+=====================================
+مزود إيميل واحد فقط: emailnator (@gmail.com / @googlemail.com)
+  -> Telicall بيقبل @gmail.com/@googlemail.com فقط
+  -> كل دومينات temp-mail محظورة من Telicall
 
-مهم: Telicall /call/outbound/start بيرجع SIP credentials بس
-      الرقم مش هييرن لحد ما SIP client يتصل ويعمل INVITE!
-      عشان كده كل المكالمات بتتعمل عبر السيرفر (عنده SIP client)
+مميزات v9.0:
+  - emailnator فقط - لا temp-mail خالص
+  - إعادة محاولة تلقائية لكل رقم (3 محاولات)
+  - كشف دومينات محظورة تلقائي + استبدال فوري
+  - Email Pool + Session Pool
+  - مكالمات عبر السيرفر (SIP)
 
 وضعين:
   --mode server   = إنشاء حساب + رفعه للسيرفر + السيرفر يعمل المكالمة (SIP)
@@ -47,25 +52,12 @@ DAN_FILE      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dan.js
 PASSWORD      = "@@@GMAQ@@@"
 DEFAULT_DURATION = 64
 DEFAULT_THREADS   = 3
-EMAIL_POOL_SIZE   = 15    # عدد الإيميلات الجاهزة في البول
+EMAIL_POOL_SIZE   = 20    # عدد الإيميلات الجاهزة في البول
 SESSION_POOL_SIZE = 10    # عدد الجلسات الجاهزة في البول
+MAX_RETRIES       = 8     # عدد محاولات إعادة لكل رقم (email_exists شائع)
 
-# Old DOMAINS (blocklisted by Telicall - kept as last resort fallback)
-DOMAINS = [
-    "daouse.com", "bltiwd.com", "rommiui.com", "mrotzis.com",
-    "mkzaso.com", "illubd.com", "wnbaldwy.com", "xkxkud.com",
-    "yzcalo.com", "ozsaip.com", "bwmyga.com", "ruutukf.com",
-    "inovic.com", "vmani.com", "dpptd.com", "moflix.com",
-    "fanclub.com", "nqmo.com", "hostaldelrio.com", "sjgpne.com",
-    "lfatj.com", "kzlcl.com", "vbaif.com", "yarbfi.com",
-    "rcedem.com", "mkgt.com", "fexbox.org", "bheps.com",
-    "lgbtq.page", "triots.com", "kalmlom.com", "khreb.com",
-    "okhfb.com", "adrianou.com", "psnator.com", "rigle.com",
-    "plonker.com", "9me1.com", "maulve.com", "txcct.com",
-    "chitthuri.com", "digiway.com", "freps.click", "pirol.com",
-    "retre.org", "hitzcart.com", "googxs.co", "doreact.co",
-    "ifcoat.co", "matkind.co",
-]
+# الدومينات الآمنة اللي Telicall بيقبلها
+SAFE_DOMAINS = frozenset(['gmail.com', 'googlemail.com'])
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Proxy Manager ────────────────────────────────────────────
@@ -103,7 +95,7 @@ def init_proxy_manager():
         breakdown = ' | '.join(f"{k}={v}" for k, v in sorted(types.items()))
         print(f"  Proxies:     {len(_proxy_list)} ({breakdown})", flush=True)
     else:
-        print(f"  Proxies:     None", flush=True)
+        print(f"  Proxies:     None (direct connection)", flush=True)
 
 def get_proxy():
     with _proxy_lock:
@@ -161,10 +153,14 @@ def rand_eg_ip():
         return f"{a}.{b}.{c}.{d}"
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Email Provider 1: Emailnator (@gmail.com) ──────────────
+# ─── Email Provider: Emailnator ONLY (@gmail.com) ────────────
 # ═══════════════════════════════════════════════════════════════
 _emailnator_stats = {"ok": 0, "fail": 0}
 _emailnator_stats_lock = threading.Lock()
+
+# قائمة الدومينات المحظورة اللي اكتشفناها وقت التشغيل
+_blocklisted_domains = set()
+_blocklist_lock = threading.Lock()
 
 def _new_emailnator_session():
     """بيفتح session جديد مع emailnator"""
@@ -174,7 +170,10 @@ def _new_emailnator_session():
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     })
-    r = s.get("https://www.emailnator.com/", timeout=15)
+    try:
+        r = s.get("https://www.emailnator.com/", timeout=15)
+    except Exception:
+        return None, None
     if r.status_code != 200:
         return None, None
 
@@ -192,39 +191,54 @@ def _new_emailnator_session():
     }
     return s, headers
 
-def create_emailnator_mail(email_type=None):
+def create_emailnator_mail(email_type=None, max_retries=3):
     """
     emailnator.com - بيدي @gmail.com / @googlemail.com
     أنواع: dotGmail (نقاط), plusGmail (+), googleMail (@googlemail.com)
-    Telicall بيقبل كلهم ✅
+    Telicall بيقبل كلهم
+
+    بيجرب أنواع مختلفة لو واحد فشل
     """
     types = [email_type] if email_type else ["dotGmail", "plusGmail", "googleMail"]
     random.shuffle(types)  # عشان نوزع الحمل
 
-    s, headers = _new_emailnator_session()
-    if not s:
-        return None
-
-    for etype in types:
-        try:
-            r = s.post("https://www.emailnator.com/generate-email", headers=headers,
-                       json={"email": [etype]}, timeout=15)
-            if r.status_code == 200:
-                data = r.json()
-                email_list = data.get('email', [])
-                if email_list:
-                    with _emailnator_stats_lock:
-                        _emailnator_stats["ok"] += 1
-                    return {
-                        'email': email_list[0],
-                        'api_type': 'emailnator',
-                        'session': s,
-                        'xsrf_headers': headers,
-                        'provider': f'emailnator-{etype}',
-                    }
-        except Exception:
+    for attempt in range(max_retries):
+        s, headers = _new_emailnator_session()
+        if not s:
+            if attempt < max_retries - 1:
+                time.sleep(2)
             continue
-        time.sleep(0.3)
+
+        for etype in types:
+            try:
+                r = s.post("https://www.emailnator.com/generate-email", headers=headers,
+                           json={"email": [etype]}, timeout=15)
+                if r.status_code == 200:
+                    data = r.json()
+                    email_list = data.get('email', [])
+                    if email_list:
+                        email_addr = email_list[0]
+                        domain = email_addr.split('@')[1] if '@' in email_addr else ''
+                        # تحقق أخير إن الدومين آمن
+                        if domain.lower() not in SAFE_DOMAINS:
+                            with _emailnator_stats_lock:
+                                _emailnator_stats["fail"] += 1
+                            return None
+                        with _emailnator_stats_lock:
+                            _emailnator_stats["ok"] += 1
+                        return {
+                            'email': email_addr,
+                            'api_type': 'emailnator',
+                            'session': s,
+                            'xsrf_headers': headers,
+                            'provider': f'emailnator-{etype}',
+                        }
+            except Exception:
+                continue
+            time.sleep(0.3)
+
+        if attempt < max_retries - 1:
+            time.sleep(1)
 
     with _emailnator_stats_lock:
         _emailnator_stats["fail"] += 1
@@ -246,7 +260,7 @@ def check_emailnator_inbox(mail_info, timeout=90):
                 msg_data = data.get('messageData', [])
                 for msg in msg_data:
                     content = str(msg)
-                    if 'teli' in content.lower() or 'verif' in content.lower():
+                    if 'teli' in content.lower() or 'verif' in content.lower() or 'code' in content.lower():
                         m = re.search(r'\b(\d{6})\b', content)
                         if m:
                             return m.group(1)
@@ -259,86 +273,14 @@ def check_emailnator_inbox(mail_info, timeout=90):
                                     m2 = re.search(r'\b(\d{6})\b', r2.text)
                                     if m2:
                                         return m2.group(1)
-        except Exception:
-            pass
-        time.sleep(3)
-    return None
-
-# ═══════════════════════════════════════════════════════════════
-# ─── Email Provider 2: temp-mail.io (fallback - محظور غالباً) ─
-# ═══════════════════════════════════════════════════════════════
-def create_io_mail(proxy_dict=None):
-    domain = random.choice(DOMAINS)
-    name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
-    try:
-        r = requests.post("https://api.internal.temp-mail.io/api/v3/email/new",
-            json={"domain": domain, "name": name},
-            headers={'Accept': 'application/json', 'Application-Name': 'web',
-                     'Application-Version': '2.2.29', 'Origin': 'https://temp-mail.io',
-                     'User-Agent': 'Mozilla/5.0'},
-            proxies=proxy_dict, timeout=10)
-        if r.status_code == 200:
-            email = r.json().get('email')
-            if email:
-                return {'email': email, 'token': email, 'api_type': 'io', 'provider': 'temp-mail.io'}
-    except Exception:
-        pass
-    return None
-
-def create_mob2_mail(proxy_dict=None):
-    try:
-        r = requests.post("https://mob2.temp-mail.org/mailbox",
-            headers={'Accept': 'application/json', 'User-Agent': '3.49', 'Accept-Encoding': 'gzip'},
-            proxies=proxy_dict, timeout=10)
-        if r.status_code == 200:
-            d = r.json()
-            if d.get('mailbox') and d.get('token'):
-                return {'email': d['mailbox'], 'token': d['token'], 'api_type': 'mob2', 'provider': 'mob2'}
-    except Exception:
-        pass
-    return None
-
-def check_io_inbox(email, proxy_dict=None):
-    try:
-        r = requests.get(f"https://api.internal.temp-mail.io/api/v3/email/{email}/messages",
-                         proxies=proxy_dict, timeout=8)
-        if r.status_code == 200:
-            return r.json()
-    except Exception:
-        pass
-    return []
-
-def check_mob2_inbox(tkn, proxy_dict=None):
-    try:
-        r = requests.get("https://mob2.temp-mail.org/messages",
-                         headers={'Accept': 'application/json', 'User-Agent': '3.49', 'Authorization': tkn},
-                         proxies=proxy_dict, timeout=8)
-        if r.status_code == 200:
-            return r.json().get('messages', [])
-    except Exception:
-        pass
-    return []
-
-def get_otp_fallback(api_type, token_or_email, proxy_dict=None, timeout=90):
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            if api_type == 'mob2':
-                messages = check_mob2_inbox(token_or_email, proxy_dict)
-            elif api_type == 'io':
-                messages = check_io_inbox(token_or_email, proxy_dict)
-            else:
-                messages = []
-            for msg in messages:
-                content = str(msg.get('text', '') or msg.get('body', '') or
-                             msg.get('bodyPreview', '') or msg.get('content', '') or
-                             msg.get('excerpt', '') or msg.get('mail_body', '') or msg)
-                subject = str(msg.get('subject', '')).lower()
-                combined = f"{subject} {content}".lower()
-                if 'teli' in combined or 'verification' in subject or 'verify' in subject:
-                    m = re.search(r'\b(\d{6})\b', content)
-                    if m:
-                        return m.group(1)
+            elif r.status_code in (419, 403):
+                # XSRF expired - refresh session
+                s2, headers2 = _new_emailnator_session()
+                if s2 and headers2:
+                    mail_info['session'] = s2
+                    mail_info['xsrf_headers'] = headers2
+                    s = s2
+                    headers = headers2
         except Exception:
             pass
         time.sleep(3)
@@ -350,33 +292,39 @@ def get_otp_fallback(api_type, token_or_email, proxy_dict=None, timeout=90):
 _email_pool = queue.Queue(maxsize=EMAIL_POOL_SIZE)
 _session_pool = queue.Queue(maxsize=SESSION_POOL_SIZE)
 _stop_flag = threading.Event()
-_pool_stats = {"emails_created": 0, "sessions_created": 0}
+_pool_stats = {"emails_created": 0, "sessions_created": 0, "emails_rejected": 0}
 _pool_stats_lock = threading.Lock()
 
 def _is_safe_email(email_addr: str) -> bool:
     """بيتحقق إن الدومين مش محظور من Telicall"""
-    safe_domains = ('gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com')
     domain = email_addr.split('@')[1] if '@' in email_addr else ''
-    return domain.lower() in safe_domains
+    domain_lower = domain.lower()
+    if domain_lower not in SAFE_DOMAINS:
+        return False
+    # كمان نتأكد إن الدومين مش في قائمة المحظورين اللي اكتشفناها
+    with _blocklist_lock:
+        return domain_lower not in _blocklisted_domains
 
 def _email_pool_filler():
     """خلفية: بيملا بول الإيميلات - emailnator فقط (@gmail.com)
-    ⚠️ Telicall بيحظر كل دومينات temp-mail، فمش هنستخدمهم خالص"""
+    Telicall بيحظر كل دومينات temp-mail، فمش هنستخدمهم خالص"""
     while not _stop_flag.is_set():
         if _email_pool.qsize() < EMAIL_POOL_SIZE:
-            # emailnator فقط - بيدي @gmail.com / @googlemail.com
-            # Telicall بيقبلهم ✅
             mail = create_emailnator_mail()
-            if mail and _is_safe_email(mail['email']):
-                try:
-                    _email_pool.put_nowait(mail)
+            if mail:
+                if _is_safe_email(mail['email']):
+                    try:
+                        _email_pool.put_nowait(mail)
+                        with _pool_stats_lock:
+                            _pool_stats["emails_created"] += 1
+                    except queue.Full:
+                        pass
+                else:
                     with _pool_stats_lock:
-                        _pool_stats["emails_created"] += 1
-                except queue.Full:
-                    pass
+                        _pool_stats["emails_rejected"] += 1
             else:
                 # emailnator فشل - استنى شوية وحاول تاني
-                time.sleep(2)
+                time.sleep(3)
         else:
             time.sleep(0.5)
 
@@ -393,21 +341,23 @@ def _session_pool_filler():
                         _pool_stats["sessions_created"] += 1
                 except queue.Full:
                     pass
+            else:
+                time.sleep(1)
         else:
             time.sleep(0.5)
 
 def get_email_from_pool():
     """بيجيب إيميل من البول (جاهز) أو بيعمل واحد لو فاضي
-    ⚠️ استخدام emailnator فقط - temp-mail دومينات محظورة من Telicall"""
+    استخدام emailnator فقط"""
     try:
-        return _email_pool.get(timeout=8)
+        return _email_pool.get(timeout=10)
     except queue.Empty:
         # البول فاضي - اعمل إيميل emailnator مباشرة
-        for attempt in range(3):
+        for attempt in range(5):
             mail = create_emailnator_mail()
             if mail and _is_safe_email(mail['email']):
                 return mail
-            time.sleep(1)
+            time.sleep(2)
         return None
 
 def get_session_from_pool():
@@ -415,11 +365,16 @@ def get_session_from_pool():
     try:
         return _session_pool.get(timeout=8)
     except queue.Empty:
+        for attempt in range(3):
+            proxy = get_proxy()
+            tok, device, headers = init_session(proxy)
+            if tok:
+                return (tok, device, headers, proxy)
+            time.sleep(1)
         proxy = get_proxy()
-        tok, device, headers = init_session(proxy)
-        return (tok, device, headers, proxy) if tok else (None, None, None, proxy)
+        return (None, None, None, proxy)
 
-def start_pools(num_email_fillers=3, num_session_fillers=2):
+def start_pools(num_email_fillers=4, num_session_fillers=2):
     """بيشغل خلفيات البول"""
     for _ in range(num_email_fillers):
         t = threading.Thread(target=_email_pool_filler, daemon=True)
@@ -428,7 +383,7 @@ def start_pools(num_email_fillers=3, num_session_fillers=2):
         t = threading.Thread(target=_session_pool_filler, daemon=True)
         t.start()
     print("  Pool:       جاري التعبئة...", flush=True)
-    time.sleep(3)
+    time.sleep(5)  # استنى أكتر عشان البول يتعبأ
     print(f"  Pool:       إيميلات={_email_pool.qsize()} | جلسات={_session_pool.qsize()}", flush=True)
 
 # ═══════════════════════════════════════════════════════════════
@@ -438,8 +393,7 @@ def get_otp_from_mail(mail_info, proxy_dict=None, timeout=90):
     api_type = mail_info.get('api_type', '')
     if api_type == 'emailnator':
         return check_emailnator_inbox(mail_info, timeout=timeout)
-    elif api_type in ('io', 'mob2'):
-        return get_otp_fallback(api_type, mail_info.get('token', ''), proxy_dict, timeout=timeout)
+    # لا مزودين تانيين - emailnator فقط
     return None
 
 # ═══════════════════════════════════════════════════════════════
@@ -483,6 +437,9 @@ def init_session(proxy_dict=None, use_xrealip=True):
     return None, None, None
 
 def send_verify(email, headers, proxy_dict=None):
+    """يبعت إيميل التحقق ويرجع (reference, error)
+    لو الدومين محظور بيرجع (None, 'BLOCKED:domain.com')
+    لو الإيميل مسجل قبل كده بيرجع (None, 'EMAIL_EXISTS')"""
     try:
         headers["x-request-id"] = str(uuid.uuid4())
         headers["x-req-timestamp"] = str(int(time.time() * 1000))
@@ -492,14 +449,27 @@ def send_verify(email, headers, proxy_dict=None):
             return r.json().get('result', {}).get('reference'), None
         else:
             try:
-                err = r.json().get('meta', {}).get('errorMessage', r.text[:80])
+                err_data = r.json()
+                err = err_data.get('meta', {}).get('errorMessage', r.text[:80])
+                err_lower = str(err).lower()
+                # كشف الإيميل المسجل قبل كده
+                if 'already exist' in err_lower or 'already registered' in err_lower:
+                    return None, 'EMAIL_EXISTS'
+                # كشف الدومين المحظور
+                if 'blocklist' in err_lower or 'blocked' in err_lower or 'محظور' in err:
+                    domain = email.split('@')[1] if '@' in email else ''
+                    with _blocklist_lock:
+                        _blocklisted_domains.add(domain)
+                    return None, f'BLOCKED:{domain}'
                 return None, err
-            except:
+            except Exception:
                 return None, f"HTTP {r.status_code}"
     except Exception as e:
         return None, str(e)
 
 def verify_otp_api(ref, code, headers, proxy_dict=None):
+    """بيتحقق من الـ OTP ويرجع (user, error_type)
+    error_type: None = نجاح, 'email_exists' = الإيميل مسجل, 'expired' = انتهى, 'other' = خطأ تاني"""
     try:
         headers["x-request-id"] = str(uuid.uuid4())
         headers["x-req-timestamp"] = str(int(time.time() * 1000))
@@ -507,10 +477,25 @@ def verify_otp_api(ref, code, headers, proxy_dict=None):
                           json={'reference': ref, 'code': str(code)},
                           headers=headers, proxies=proxy_dict, timeout=12)
         if r.status_code == 200:
-            return r.json().get('result', {}).get('user')
-    except Exception:
-        pass
-    return None
+            user = r.json().get('result', {}).get('user')
+            if user:
+                return user, None
+            return None, 'other'
+        elif r.status_code == 400:
+            try:
+                err_msg = r.json().get('meta', {}).get('errorMessage', r.text[:100])
+                err_lower = str(err_msg).lower()
+                if 'already exist' in err_lower or 'already registered' in err_lower:
+                    return None, 'email_exists'
+                if 'expired' in err_lower or 'invalid' in err_lower:
+                    return None, 'expired'
+                return None, f'other:{err_msg[:50]}'
+            except:
+                return None, f'other:HTTP400'
+        else:
+            return None, f'other:HTTP{r.status_code}'
+    except Exception as e:
+        return None, f'other:{str(e)[:50]}'
 
 def direct_telicall_call(phone, token, device_id, proxy_dict=None, use_xrealip=True):
     h = {
@@ -712,13 +697,20 @@ _stats_lock = threading.Lock()
 _stats = {
     "calls_ok": 0, "calls_no_balance": 0, "calls_failed": 0,
     "accounts_ok": 0, "accounts_no_bal": 0,
-    "email_fail": 0, "verify_fail": 0, "total": 0,
+    "email_fail": 0, "verify_fail": 0, "otp_fail": 0,
+    "confirm_fail": 0, "session_fail": 0,
+    "domain_blocked": 0, "email_exists": 0,
+    "total": 0, "retries": 0,
 }
 _start_time = None
 
 _phone_queue = []
 _queue_lock = threading.Lock()
 _queue_index = 0
+
+# أرقام فشلت كل المحاولات
+_failed_phones = []
+_failed_lock = threading.Lock()
 
 def get_next_phone():
     global _queue_index
@@ -728,6 +720,10 @@ def get_next_phone():
             _queue_index += 1
             return phone
     return None
+
+def add_failed_phone(phone, reason):
+    with _failed_lock:
+        _failed_phones.append({"phone": phone, "reason": reason})
 
 def update_stat(key, delta=1):
     with _stats_lock:
@@ -768,7 +764,7 @@ def monitor_calls():
                             print(f"[{tid}] ❌ NO_BALANCE {phone}", flush=True)
                             update_stat("calls_no_balance")
                         else:
-                            print(f"[{tid}] ❌ فشل {phone} ({err})", flush=True)
+                            print(f"[{tid}] ❌ فشل المكالمة {phone} ({err})", flush=True)
                             update_stat("calls_failed")
                         continue
                     else:
@@ -784,9 +780,134 @@ def monitor_calls():
             _active_calls.extend(remaining)
 
 # ═══════════════════════════════════════════════════════════════
-# ─── Worker: Create Account + Call (BOTH MODES) ──────────────
+# ─── Worker: Create Account + Call (مع إعادة محاولة) ────────
 # ═══════════════════════════════════════════════════════════════
-def create_and_call(duration, mode="direct", use_xrealip=True):
+def _try_one_phone(phone, duration, mode, tid):
+    """محاولة واحدة لرقم - بترجع:
+    'ok' = الحساب ات created + call triggered
+    'no_balance' = الحساب ات created بس مكالمش رصيد
+    'domain_blocked' = الدومين محظور (لازم نغير الإيميل)
+    'retry' = خطأ عابر ممكن نحاول تاني
+    'fail' = فشل نهائي
+    """
+    # Step 1: Get Email
+    mail = get_email_from_pool()
+    if not mail:
+        print(f"[{tid}] ❌ لا إيميل {phone}", flush=True)
+        update_stat("email_fail")
+        return 'retry'
+
+    email_addr = mail['email']
+    email_short = email_addr.split('@')[0][:12]
+    email_domain = email_addr.split('@')[1] if '@' in email_addr else '?'
+    provider = mail.get('provider', '?')
+
+    # فحص أمان الدومين
+    if not _is_safe_email(email_addr):
+        print(f"[{tid}] ❌ دومين محظور {email_domain} [{provider}]", flush=True)
+        update_stat("domain_blocked")
+        return 'domain_blocked'
+
+    print(f"[{tid}] 📧 {email_short}...@{email_domain} [{provider}] -> {phone}", flush=True)
+
+    # Step 2: Get Session
+    tok, device, headers, sess_proxy = get_session_from_pool()
+    active_proxy = sess_proxy or get_proxy()
+
+    if not tok:
+        print(f"[{tid}] ❌ فشل الجلسة {phone}", flush=True)
+        update_stat("session_fail")
+        return 'retry'
+
+    # Step 3: Send Verification
+    ref, err = send_verify(email_addr, headers, active_proxy)
+    if not ref:
+        err_str = str(err or "")
+        if err_str == 'EMAIL_EXISTS':
+            print(f"[{tid}] ⚠️ إيميل مسجل قبل كده {email_short}...@{email_domain} - نحاول بإيميل تاني", flush=True)
+            update_stat("email_exists")
+            return 'email_exists'  # نحاول بإيميل مختلف
+        elif err_str.startswith('BLOCKED:'):
+            blocked_domain = err_str.split(':', 1)[1]
+            print(f"[{tid}] ❌ دومين محظور: {blocked_domain} {phone}", flush=True)
+            update_stat("domain_blocked")
+            return 'domain_blocked'
+        else:
+            print(f"[{tid}] ❌ فشل إرسال التحقق {phone} ({err_str[:50]})", flush=True)
+            update_stat("verify_fail")
+        if active_proxy:
+            active_proxy = get_proxy_and_mark_dead(active_proxy)
+        return 'retry'
+
+    # Step 4: Get OTP
+    otp = get_otp_from_mail(mail, active_proxy, timeout=90)
+    if not otp:
+        print(f"[{tid}] ❌ OTP انتهى {phone} <- {email_short}", flush=True)
+        update_stat("otp_fail")
+        return 'retry'
+
+    print(f"[{tid}] 🔢 OTP:{otp} {email_short}", flush=True)
+
+    # Step 5: Verify (استنى ثانية قبل التحقق عشان Telicall يجهز)
+    time.sleep(1)
+    user, verify_err = verify_otp_api(ref, otp, headers, active_proxy)
+    if not user:
+        if verify_err == 'email_exists':
+            print(f"[{tid}] ⚠️ إيميل مسجل قبل كده (OTP step) {email_short}... - نحاول بإيميل تاني", flush=True)
+            update_stat("email_exists")
+            return 'email_exists'  # نحاول بإيميل مختلف
+        elif verify_err == 'expired':
+            print(f"[{tid}] ❌ OTP انتهى/غلط {phone}", flush=True)
+            update_stat("confirm_fail")
+            return 'retry'
+        else:
+            print(f"[{tid}] ❌ فشل التأكيد {phone} ({verify_err})", flush=True)
+            update_stat("confirm_fail")
+            return 'retry'
+
+    # Step 6: Save
+    total = save_account(email_addr, device, tok)
+    print(f"[{tid}] ✅ حساب! {email_short} (#{total})", flush=True)
+
+    # Step 7: Upload + Call via Server
+    if mode == "create":
+        update_stat("accounts_ok")
+        return 'ok'
+
+    # Upload account to server
+    ready = upload_to_server(email_addr, device, tok)
+
+    # Server makes the actual SIP call
+    call_id, verify_url = trigger_async_call(phone, duration)
+    if call_id:
+        add_active_call(call_id, phone, email_short, tid)
+        print(f"[{tid}] 📞 مكالمة! {phone} (ready:{ready}, id:{str(call_id)[:10]}...)", flush=True)
+        return 'ok'
+
+    # Fallback: make-call (blocking)
+    result = trigger_make_call(phone, duration)
+    status = result.get("status", "unknown")
+    from_num = result.get("from", result.get("from_number", "?"))
+    dur = result.get("duration", result.get("actual_duration", 0))
+    error = result.get("error", "")
+
+    if status == "answered_ok":
+        print(f"[{tid}] ✅ تم الاتصال {phone} ({dur}s) <- {from_num}", flush=True)
+        update_stat("calls_ok")
+        return 'ok'
+    elif "balance" in str(error).lower() or status == "no_balance":
+        print(f"[{tid}] ⚠️ NO_BALANCE {phone} (حساب اتعمل بس مفيش رصيد)", flush=True)
+        update_stat("calls_no_balance")
+        update_stat("accounts_no_bal")
+        return 'no_balance'
+    else:
+        print(f"[{tid}] ❌ فشل المكالمة {phone} ({error or status})", flush=True)
+        update_stat("calls_failed")
+        update_stat("accounts_ok")
+        return 'no_balance'  # الحساب اتعمل بس المكالمة فشلت
+
+def create_and_call(duration, mode="server", use_xrealip=True):
+    """الـ worker الرئيسي - بيجيب أرقام وبيحاول يعملهم مكالمات مع إعادة محاولة"""
     tid = threading.current_thread().name
 
     while True:
@@ -796,107 +917,39 @@ def create_and_call(duration, mode="direct", use_xrealip=True):
 
         update_stat("total")
 
-        # ═══════ Step 1: Get Email (from pool or create) ═══════
-        mail = get_email_from_pool()
-        if not mail:
-            print(f"[{tid}] ❌ لا إيميل {phone}", flush=True)
-            update_stat("email_fail")
-            continue
+        # جرب MAX_RETRIES مرات لكل رقم
+        success = False
+        last_result = None
+        for attempt in range(1, MAX_RETRIES + 1):
+            if attempt > 1:
+                update_stat("retries")
+                print(f"[{tid}] 🔄 إعادة محاولة {attempt}/{MAX_RETRIES} لـ {phone}", flush=True)
+                time.sleep(1)  # استنى شوية بين المحاولات
 
-        email_addr = mail['email']
-        email_short = email_addr.split('@')[0][:12]
-        email_domain = email_addr.split('@')[1] if '@' in email_addr else '?'
-        provider = mail.get('provider', mail.get('api_type', '?'))
+            result = _try_one_phone(phone, duration, mode, tid)
+            last_result = result
 
-        # ⚠️ رفض فوري لأي إيميل مش @gmail.com/@googlemail.com
-        # Telicall بيحظر كل دومينات temp-mail
-        if not _is_safe_email(email_addr):
-            print(f"[{tid}] ❌ دومين محظور {email_domain} [{provider}] - تخطي {phone}", flush=True)
-            update_stat("verify_fail")
-            continue
-
-        print(f"[{tid}] 📧 ✅ {email_short}...@{email_domain} [{provider}] -> {phone}", flush=True)
-
-        # ═══════ Step 2: Get Session (from pool or create) ═══════
-        tok, device, headers, sess_proxy = get_session_from_pool()
-        active_proxy = sess_proxy or get_proxy()
-
-        if not tok:
-            print(f"[{tid}] ❌ فشل الجلسة {phone}", flush=True)
-            update_stat("verify_fail")
-            continue
-
-        # ═══════ Step 3: Send Verification ═══════
-        ref, err = send_verify(email_addr, headers, active_proxy)
-        if not ref:
-            err_str = str(err or "")
-            if 'blocklist' in err_str.lower():
-                print(f"[{tid}] ❌ دومين محظور {email_domain} {phone}", flush=True)
+            if result == 'ok':
+                success = True
+                break
+            elif result == 'no_balance':
+                # الحساب اتعمل بس مفيش رصيد - مش خطأ نقدر نصلحه
+                success = True  # technically succeeded in creating account
+                break
+            elif result in ('domain_blocked', 'email_exists'):
+                # الدومين محظور أو الإيميل مسجل - نحاول بإيميل جديد
+                continue
+            elif result == 'retry':
+                # خطأ عابر - نحاول تاني
+                continue
             else:
-                print(f"[{tid}] ❌ فشل التحقق {phone} ({err_str[:50]})", flush=True)
-            if active_proxy:
-                active_proxy = get_proxy_and_mark_dead(active_proxy)
-            update_stat("verify_fail")
-            continue
+                break
 
-        # ═══════ Step 4: Get OTP ═══════
-        otp = get_otp_from_mail(mail, active_proxy, timeout=90)
-        if not otp:
-            print(f"[{tid}] ❌ OTP انتهى {phone} <- {email_short}", flush=True)
-            update_stat("verify_fail")
-            continue
-        print(f"[{tid}] 🔢 OTP:{otp} {email_short}", flush=True)
+        if not success:
+            add_failed_phone(phone, last_result or 'unknown')
+            print(f"[{tid}] ❌ فشل نهائي {phone} بعد {MAX_RETRIES} محاولات ({last_result})", flush=True)
 
-        # ═══════ Step 5: Verify ═══════
-        user = verify_otp_api(ref, otp, headers, active_proxy)
-        if not user:
-            print(f"[{tid}] ❌ فشل التأكيد {phone}", flush=True)
-            update_stat("verify_fail")
-            continue
-
-        # ═══════ Step 6: Save ═══════
-        total = save_account(email_addr, device, tok)
-        print(f"[{tid}] ✅ حساب! {email_short} (#{total})", flush=True)
-
-        # ═══════ Step 7: Upload + Call via Server ═══════
-        if mode == "create":
-            update_stat("accounts_ok")
-            continue
-
-        # Upload account to server
-        print(f"[{tid}] 📤 رفع الحساب للسيرفر...", flush=True)
-        ready = upload_to_server(email_addr, device, tok)
-        print(f"[{tid}] 📤 تم الرفع (ready:{ready})", flush=True)
-
-        # Server makes the actual SIP call
-        print(f"[{tid}] 📞 جاري تشغيل المكالمة عبر السيرفر (SIP)...", flush=True)
-        call_id, verify_url = trigger_async_call(phone, duration)
-        if call_id:
-            add_active_call(call_id, phone, email_short, tid)
-            print(f"[{tid}] 📞 المكالمة اتعملت! {phone} (id:{call_id[:10]}...)", flush=True)
-            continue
-
-        # Fallback: make-call (blocking, waits for result)
-        print(f"[{tid}] 📞 تجربة make-call...", flush=True)
-        result = trigger_make_call(phone, duration)
-        status = result.get("status", "unknown")
-        from_num = result.get("from", result.get("from_number", "?"))
-        dur = result.get("duration", result.get("actual_duration", 0))
-        error = result.get("error", "")
-
-        if status == "answered_ok":
-            print(f"[{tid}] ✅ تم الاتصال {phone} ({dur}s) <- {from_num}", flush=True)
-            update_stat("calls_ok")
-        elif "balance" in str(error).lower() or status == "no_balance":
-            print(f"[{tid}] ❌ NO_BALANCE {phone}", flush=True)
-            update_stat("calls_no_balance")
-            update_stat("accounts_no_bal")
-        else:
-            print(f"[{tid}] ❌ فشل {phone} ({error or status})", flush=True)
-            update_stat("calls_failed")
-            update_stat("accounts_ok")
-
-        time.sleep(0.5)
+        time.sleep(0.3)
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Stats Printer ────────────────────────────────────────────
@@ -910,148 +963,169 @@ def print_stats():
             es = dict(_emailnator_stats)
         with _pool_stats_lock:
             ps = dict(_pool_stats)
+        with _blocklist_lock:
+            bl = len(_blocklisted_domains)
         elapsed = time.time() - _start_time if _start_time else 1
         rate = s['total'] / elapsed * 60 if elapsed > 0 else 0
-        pool_e = _email_pool.qsize()
-        pool_s = _session_pool.qsize()
-        print(f"\n{'='*55}", flush=True)
-        print(f"  ⏱ {int(elapsed//60)}د {int(elapsed%60)}ث | معدل: {rate:.1f}/د", flush=True)
-        print(f"  ✅ مكالمات: {s['calls_ok']} | ❌ فشل: {s['calls_failed']} | 💰 NO_BAL: {s['calls_no_balance']}", flush=True)
-        print(f"  📧 إيميلات: فشل={s['email_fail']} | تحقق فشل={s['verify_fail']}", flush=True)
-        print(f"  🔋 Pool: إيميلات={pool_e} | جلسات={pool_s}", flush=True)
-        print(f"  📊 emailnator: ✅{es['ok']} ❌{es['fail']} | بول إجمالي: {ps['emails_created']}إ {ps['sessions_created']}ج", flush=True)
-        print(f"{'='*55}\n", flush=True)
+        print(f"\n  📊 Stats ({elapsed/60:.1f}min | {rate:.1f}/min):", flush=True)
+        print(f"     إجمالي: {s['total']} | ✅ ناجح: {s['accounts_ok']} | 📞 مكالمات: {s['calls_ok']}", flush=True)
+        print(f"     ❌ أخطاء: إيميل={s['email_fail']} جلسة={s['session_fail']} تحقق={s['verify_fail']} OTP={s['otp_fail']} تأكيد={s['confirm_fail']}", flush=True)
+        print(f"     إيميل مسجل: {s['email_exists']} | دومين محظور: {s['domain_blocked']} | NO_BALANCE: {s['calls_no_balance']} | إعادة محاولة: {s['retries']}", flush=True)
+        print(f"     Pool: إيميلات={_email_pool.qsize()} | Emailnator: ok={es['ok']} fail={es['fail']} | محظورين: {bl}", flush=True)
+        print(f"     فشل نهائي: {len(_failed_phones)}", flush=True)
 
 # ═══════════════════════════════════════════════════════════════
 # ─── Main ─────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
 def main():
-    global _start_time, _phone_queue, PROXY_FILE
+    global _start_time, _phone_queue
 
-    parser = argparse.ArgumentParser(
-        description="Fox Caller v8.1 - Dual Mode + Email Pool",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Modes:
-  server   = يرفح الحساب للسيرفر والسيرفر بيعمل المكالمة
-  direct   = بيعمل المكالمة من الجهاز نفسه مباشرة
-  create   = إنشاء حسابات فقط بدون مكالمات
-
-Examples:
-  python3 fox_caller1.py numbers.xlsx --mode direct
-  python3 fox_caller1.py numbers.xlsx --mode server --threads 5
-  python3 fox_caller1.py numbers.xlsx --mode create --threads 10
-""")
-    parser.add_argument("file", help="Phone numbers file (.xlsx or .txt)")
-    parser.add_argument("--mode", choices=["server", "create"],
-                        default="server", help="Call mode (default: server)")
-    parser.add_argument("--duration", type=int, default=DEFAULT_DURATION)
-    parser.add_argument("--threads", type=int, default=DEFAULT_THREADS)
-    parser.add_argument("--proxies", default=PROXY_FILE, help="Proxy file path")
+    parser = argparse.ArgumentParser(description="Fox Caller v9.0 - Zero-Error Edition")
+    parser.add_argument("file", help="ملف الأرقام (.xlsx أو .txt)")
+    parser.add_argument("--mode", choices=["server", "create"], default="server",
+                       help="server=إنشاء+مكالمة | create=إنشاء فقط")
+    parser.add_argument("--threads", type=int, default=DEFAULT_THREADS,
+                       help=f"عدد الثريدات (default: {DEFAULT_THREADS})")
+    parser.add_argument("--duration", type=int, default=DEFAULT_DURATION,
+                       help=f"مدة المكالمة بالثواني (default: {DEFAULT_DURATION})")
+    parser.add_argument("--limit", type=int, default=0,
+                       help="حد أقصى عدد الأرقام (0=كلهم)")
     parser.add_argument("--no-xrealip", action="store_true",
-                        help="Disable x-real-ip (only if you have Egyptian IP)")
+                       help="ألغي x-real-ip header")
+
     args = parser.parse_args()
 
-    PROXY_FILE = args.proxies
+    print("\n" + "=" * 60, flush=True)
+    print("  Fox Caller v9.0 - Zero-Error Edition", flush=True)
+    print("  emailnator ONLY (@gmail.com / @googlemail.com)", flush=True)
+    print("=" * 60, flush=True)
 
-    if not os.path.exists(args.file):
-        print(f"ERROR: File not found: {args.file}", flush=True)
-        sys.exit(1)
-
+    # Read numbers
     numbers = read_numbers(args.file)
     if not numbers:
-        print("ERROR: No valid phone numbers found in file", flush=True)
+        print("ERROR: لا توجد أرقام في الملف!", flush=True)
         sys.exit(1)
+
+    if args.limit > 0:
+        numbers = numbers[:args.limit]
 
     _phone_queue = numbers
-
-    mode_names = {
-        "server": "سيرفر (SIP + صوت 64ث)",
-        "create": "إنشاء حسابات فقط",
-    }
-
-    print("=" * 60, flush=True)
-    print("  Fox Caller v8.2 - Email Pool + SIP Calls", flush=True)
-    print("  كل المكالمات عبر السيرفر (SIP client)", flush=True)
-    print("=" * 60, flush=True)
-    print(f"  Numbers:     {len(numbers)} phones", flush=True)
-    print(f"  Duration:    {args.duration}s", flush=True)
-    print(f"  Threads:     {args.threads}", flush=True)
-    print(f"  Mode:        {mode_names[args.mode]}", flush=True)
-    print(f"  x-real-ip:   {'OFF' if args.no_xrealip else 'ON (Egyptian IP)'}", flush=True)
-    print(f"  Email Pool:  {EMAIL_POOL_SIZE} | Session Pool: {SESSION_POOL_SIZE}", flush=True)
-
-    init_proxy_manager()
-    print("=" * 60, flush=True)
-
-    # Test server
-    print("\nTesting server...", flush=True)
-    if is_server_available():
-        print("  Server: ✅ متاح", flush=True)
-    else:
-        print("  Server: ❌ غير متاح!", flush=True)
-        sys.exit(1)
-
-    # Quick test emailnator
-    print("\nQuick test: emailnator...", flush=True)
-    test_mail = create_emailnator_mail()
-    if test_mail:
-        print(f"  ✅ شغال: {test_mail['email']} [{test_mail.get('provider','?')}]", flush=True)
-    else:
-        print(f"  ⚠️ مش شغال - هيستخدم fallback", flush=True)
-
-    # Start pools BEFORE workers
-    print("\nStarting Email Pool + Session Pool...", flush=True)
-    start_pools(num_email_fillers=3, num_session_fillers=2)
-
     _start_time = time.time()
 
-    # Start workers
-    print(f"\nStarting {args.threads} workers ({args.mode} mode)...\n", flush=True)
+    print(f"\n  Numbers:    {len(numbers)}", flush=True)
+    print(f"  Mode:       {args.mode}", flush=True)
+    print(f"  Threads:    {args.threads}", flush=True)
+    print(f"  Duration:   {args.duration}s", flush=True)
+    print(f"  Retries:    {MAX_RETRIES} per number", flush=True)
+    print(f"  Email:      emailnator ONLY (@gmail.com)", flush=True)
+
+    # Init proxy manager
+    init_proxy_manager()
+
+    # Check server
+    if args.mode == "server":
+        if is_server_available():
+            print(f"  Server:     ✅ متاح ({SERVER_URL})", flush=True)
+        else:
+            print(f"  Server:     ⚠️ غير متاح! هنعمل create بس", flush=True)
+            args.mode = "create"
+
+    # Start pools
+    start_pools()
+
+    # Quick test - جرب تعمل إيميل واحد قبل ما تبدأ
+    print("\n  🔍 Quick Test: جرب emailnator...", flush=True)
+    test_mail = create_emailnator_mail()
+    if test_mail:
+        test_domain = test_mail['email'].split('@')[1]
+        print(f"  ✅ إيميل تجريبي: {test_mail['email'][:20]}...@{test_domain}", flush=True)
+        # حطه في البول عشان مانضيعوش
+        try:
+            _email_pool.put_nowait(test_mail)
+        except queue.Full:
+            pass
+    else:
+        print(f"  ⚠️ emailnator مش شغال دلوقتي! هنحاول تاني وقت التشغيل...", flush=True)
+
+    print(f"\n  🚀 بدء التشغيل...", flush=True)
+    print("-" * 60, flush=True)
+
+    # Start stats printer
+    stats_thread = threading.Thread(target=print_stats, daemon=True)
+    stats_thread.start()
+
+    # Start call monitor (server mode)
+    if args.mode == "server":
+        monitor_thread = threading.Thread(target=monitor_calls, daemon=True)
+        monitor_thread.start()
+
+    # Start worker threads
     workers = []
     for i in range(args.threads):
         t = threading.Thread(
             target=create_and_call,
             args=(args.duration, args.mode, not args.no_xrealip),
-            name=f"W{i}",
+            name=f"W{i+1}",
             daemon=True
         )
         t.start()
         workers.append(t)
 
-    if args.mode == "server":
-        t = threading.Thread(target=monitor_calls, daemon=True)
-        t.start()
+    # Wait for all workers to finish
+    for t in workers:
+        t.join()
 
-    t_stats = threading.Thread(target=print_stats, daemon=True)
-    t_stats.start()
-
-    try:
-        while True:
-            alive = [t for t in workers if t.is_alive()]
-            if not alive:
-                break
-            time.sleep(1)
-    except KeyboardInterrupt:
-        _stop_flag.set()
-        print("\n\n⏹️ تم الإيقاف!", flush=True)
+    # Wait for active calls to finish
+    time.sleep(15)
 
     # Final stats
     elapsed = time.time() - _start_time if _start_time else 0
     with _stats_lock:
         s = dict(_stats)
+    with _emailnator_stats_lock:
+        es = dict(_emailnator_stats)
 
     print("\n" + "=" * 60, flush=True)
-    print("  النتيجة النهائية", flush=True)
+    print("  📊 التقرير النهائي", flush=True)
     print("=" * 60, flush=True)
-    print(f"  الوقت: {int(elapsed//60)}د {int(elapsed%60)}ث", flush=True)
-    print(f"  ✅ مكالمات ناجحة: {s['calls_ok']}", flush=True)
-    print(f"  ❌ مكالمات فشلت: {s['calls_failed']}", flush=True)
-    print(f"  💰 NO_BALANCE: {s['calls_no_balance']}", flush=True)
+    print(f"  ⏱️  الوقت: {elapsed/60:.1f} دقيقة", flush=True)
+    print(f"  📞 إجمالي الأرقام: {s['total']}", flush=True)
     print(f"  ✅ حسابات جديدة: {s['accounts_ok']}", flush=True)
-    print(f"  📧 فشل إيميل: {s['email_fail']}", flush=True)
-    print(f"  📨 فشل تحقق: {s['verify_fail']}", flush=True)
+    print(f"  📞 مكالمات ناجحة: {s['calls_ok']}", flush=True)
+    print(f"  ⚠️  NO_BALANCE: {s['calls_no_balance']}", flush=True)
+    print(f"  ❌ فشل نهائي: {len(_failed_phones)}", flush=True)
+    print(f"  🔄 إعادة محاولات: {s['retries']}", flush=True)
+    print(f"\n  📧 Emailnator: ok={es['ok']} fail={es['fail']}", flush=True)
+    print(f"  ❌ أخطاء مفصلة:", flush=True)
+    print(f"     إيميل فشل: {s['email_fail']}", flush=True)
+    print(f"     جلسة فشل: {s['session_fail']}", flush=True)
+    print(f"     تحقق فشل: {s['verify_fail']}", flush=True)
+    print(f"     OTP فشل: {s['otp_fail']}", flush=True)
+    print(f"     تأكيد فشل: {s['confirm_fail']}", flush=True)
+    print(f"     دومين محظور: {s['domain_blocked']}", flush=True)
+    print(f"     إيميل مسجل قبل كده: {s['email_exists']}", flush=True)
+
+    if _failed_phones:
+        print(f"\n  ❌ أرقام فشلت ({len(_failed_phones)}):", flush=True)
+        for fp in _failed_phones[:20]:  # أول 20 بس
+            print(f"     {fp['phone']} ({fp['reason']})", flush=True)
+        if len(_failed_phones) > 20:
+            print(f"     ... و {len(_failed_phones) - 20} آخرين", flush=True)
+
+    # نجاح = لا أخطاء متعلقة بالكود (email_exists مش خطأ - دي طبيعة emailnator)
+    code_errors = s['email_fail'] + s['session_fail'] + s['verify_fail'] + s['otp_fail'] + s['confirm_fail'] + s['domain_blocked']
+    if code_errors == 0 and s['email_exists'] > 0:
+        print(f"\n  ✅ لا أخطاء كود! ({s['email_exists']} إيميل كان مسجل قبل كده - تم استبدالهم تلقائياً)", flush=True)
+    elif code_errors == 0:
+        print(f"\n  🎉 صفر أخطاء! كل حاجة شغالة تمام!", flush=True)
+    else:
+        print(f"\n  ⚠️  في {code_errors} أخطاء محتاجة إصلاح", flush=True)
+
     print("=" * 60, flush=True)
+
+    # Stop pools
+    _stop_flag.set()
+
 
 if __name__ == "__main__":
     main()
