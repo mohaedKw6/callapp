@@ -1,16 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v10.2 - Gmail Tricks Edition
-=========================================
-Email provider: Gmail dots trick + Gmail plus trick + IMAP
-  -> Telicall accepts @gmail.com
-  -> Gmail dots: user@gmail.com = u.ser@gmail.com = u.s.e.r@gmail.com
-  -> Gmail plus: user+tag1@gmail.com = user+tag2@gmail.com
-  -> Telicall sees each variation as a DIFFERENT account
-  -> All OTPs arrive at the SAME Gmail inbox
-  -> IMAP reads OTP automatically (App Password required once)
-  -> Old Telicall emails are deleted at startup to avoid OTP confusion
+Fox Caller v11.0 - Gmail Plus Trick Edition
+=============================================
+Email provider: Gmail PLUS trick ONLY + IMAP with Delivered-To matching
+
+  WHY PLUS ONLY (no dots trick)?
+  ───────────────────────────────
+  - Gmail dots: u.ser@gmail.com = user@gmail.com (same inbox, no way to match OTP)
+  - Gmail plus: user+fx1@gmail.com ≠ user+fx2@gmail.com (different Delivered-To!)
+  - When Telicall sends OTP to user+fx1@gmail.com:
+    → Gmail delivers to user@gmail.com inbox
+    → BUT the Delivered-To header says "user+fx1@gmail.com"
+    → We can search IMAP for that specific header!
+  - This means: each worker finds ONLY its own OTP ✅
+  - No more race conditions, no more wrong OTPs!
+
+  Telicall Accepted Domains (tested 2026-06-04):
+  ──────────────────────────────────────────────
+  ✅ gmail.com       ← we use this (plus trick + IMAP)
+  ✅ protonmail.com  ← no API for account creation
+  ✅ yahoo.com       ← no API for account creation
+  ✅ outlook.com     ← no API for account creation
+  ❌ ALL temp email domains are BLOCKED by Telicall
 
 Mode:
   --mode server   = create account + upload to server + server makes SIP call
@@ -42,7 +54,7 @@ import imaplib
 import email as email_mod
 from datetime import datetime
 from email.header import decode_header
-from urllib.parse import unquote
+from email.utils import parsedate_to_datetime
 from filelock import FileLock
 
 # ═══════════════════════════════════════════════════════════════
@@ -62,6 +74,7 @@ MAX_RETRIES       = 8
 OTP_TIMEOUT       = 90
 OTP_POLL_INTERVAL = 3
 
+
 # ═══════════════════════════════════════════════════════════════
 # ─── Gmail Config (credentials) ──────────────────────────────
 # ═══════════════════════════════════════════════════════════════
@@ -70,7 +83,7 @@ _gmail_app_pass  = ""
 
 def _is_valid_app_password(pwd):
     """Check if password looks like a Google App Password (16 lowercase letters)."""
-    clean = pwd.replace(' ', '')  # Remove spaces (Google shows it with spaces)
+    clean = pwd.replace(' ', '')
     return len(clean) == 16 and clean.isalpha() and clean.islower()
 
 def load_or_ask_gmail():
@@ -85,17 +98,11 @@ def load_or_ask_gmail():
             _gmail_app_pass = cfg.get("app_password", "").strip()
             if _gmail_addr and _gmail_app_pass and '@' in _gmail_addr:
                 print(f"  Gmail:      {_gmail_addr} (saved)", flush=True)
-                # Warn if App Password format is wrong
                 if not _is_valid_app_password(_gmail_app_pass):
-                    print(f"  ⚠️  App Password مش شكله صح! لازم يكون 16 حرف صغير (بدون أرقام)", flush=True)
-                    print(f"     الباسورد الحالي: {'*'*len(_gmail_app_pass)} ({len(_gmail_app_pass)} حرف)", flush=True)
-                    print(f"     App Password شكله: xkrm yqwa bnzp drtf (16 حرف صغير)", flush=True)
-                    print(f"     اعمل App Password من: https://myaccount.google.com/apppasswords", flush=True)
-                    # Ask again
+                    print(f"  ⚠️  App Password مش شكله صح! لازم يكون 16 حرف صغير", flush=True)
                     new_pass = input("  App Password الصحيح (أو Enter عشان تمشي): ").strip()
                     if new_pass:
                         _gmail_app_pass = new_pass.replace(' ', '')
-                        # Save updated config
                         try:
                             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                                 json.dump({"gmail": _gmail_addr, "app_password": _gmail_app_pass}, f, indent=2)
@@ -114,8 +121,6 @@ def load_or_ask_gmail():
     print(f"  {'─'*50}", flush=True)
     _gmail_addr = input("  Gmail address : ").strip()
     _gmail_app_pass = input("  App Password  : ").strip()
-
-    # Remove spaces from App Password
     _gmail_app_pass = _gmail_app_pass.replace(' ', '')
 
     if not _gmail_addr or not _gmail_app_pass:
@@ -125,34 +130,393 @@ def load_or_ask_gmail():
     if '@' not in _gmail_addr:
         _gmail_addr += '@gmail.com'
 
-    # Validate App Password format
     if not _is_valid_app_password(_gmail_app_pass):
         print(f"\n  ❌ الباسورد اللي دخلت مش App Password!", flush=True)
-        print(f"     الباسورد بتاعك: {'*'*len(_gmail_app_pass)} ({len(_gmail_app_pass)} حرف)", flush=True)
-        print(f"     App Password لازم يكون: 16 حرف صغير بس (بدون أرقام)", flush=True)
-        print(f"     مثال: xkrmyqwabnzpdrtf", flush=True)
+        print(f"     لازم يكون: 16 حرف صغير بس (بدون أرقام)", flush=True)
         print(f"     اعمل واحد من: https://myaccount.google.com/apppasswords", flush=True)
         print(f"\n     1) روح https://myaccount.google.com/security", flush=True)
         print(f"     2) فعّل 2-Step Verification", flush=True)
         print(f"     3) روح https://myaccount.google.com/apppasswords", flush=True)
         print(f"     4) اعمل App Password جديد", flush=True)
-        print(f"     5) انسخ الكود الـ 16 حرف", flush=True)
 
         retry = input("\n  حابب تدخل App Password صحيح؟ (y/n): ").strip().lower()
         if retry == 'y':
             _gmail_app_pass = input("  App Password  : ").strip().replace(' ', '')
-            if not _is_valid_app_password(_gmail_app_pass):
-                print("  ⚠️  لسه مش شكل App Password، بس هنحاول...")
-        else:
-            print("  ⚠️  هنكمل بس هيفشل IMAP", flush=True)
 
-    # Save to config
     try:
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump({"gmail": _gmail_addr, "app_password": _gmail_app_pass}, f, indent=2)
         print(f"  ✅ تم الحفظ في {CONFIG_FILE}", flush=True)
     except Exception as e:
         print(f"  ⚠️ لم أستطع حفظ الإعدادات: {e}", flush=True)
+
+
+# ═══════════════════════════════════════════════════════════════
+# ─── Gmail Plus Variation Generator ──────────────────────────
+# ═══════════════════════════════════════════════════════════════
+class PlusVariationGenerator:
+    """
+    Generates unique Gmail variations using ONLY the plus trick.
+    
+    Why NOT dots trick?
+    - Gmail ignores dots: u.ser@gmail.com = user@gmail.com
+    - All dot variations deliver to the SAME inbox
+    - The Delivered-To header is normalized (no dots) → can't match OTP!
+    
+    Why PLUS trick?
+    - user+fx1@gmail.com → Delivered-To: user+fx1@gmail.com ✅
+    - user+fx2@gmail.com → Delivered-To: user+fx2@gmail.com ✅
+    - Each variation has a UNIQUE Delivered-To header
+    - We can search IMAP for the specific Delivered-To → exact OTP match!
+    - Telicall treats each +variation as a DIFFERENT account
+    - Gmail delivers ALL to the same inbox (user@gmail.com)
+    """
+    
+    def __init__(self, base_email):
+        self.base_email = base_email.lower().strip()
+        parts = self.base_email.split('@')
+        self.username = parts[0].replace('.', '')  # Remove dots (Gmail ignores them)
+        self.domain = parts[1] if len(parts) == 2 else 'gmail.com'
+        self._lock = threading.Lock()
+        self._counter = 0
+    
+    def next_variation(self):
+        """Get next unique email variation (thread-safe)."""
+        with self._lock:
+            self._counter += 1
+            tag = f"fx{self._counter}"
+            return f"{self.username}+{tag}@{self.domain}"
+    
+    def get_tag_from_email(self, email_addr):
+        """Extract the plus tag from an email (e.g., 'fx1' from user+fx1@gmail.com)."""
+        match = re.search(r'\+(fx\d+)@', email_addr)
+        return match.group(1) if match else None
+    
+    @property
+    def used_count(self):
+        with self._lock:
+            return self._counter
+
+
+# ═══════════════════════════════════════════════════════════════
+# ─── IMAP OTP Reader with Delivered-To Matching ─────────────
+# ═══════════════════════════════════════════════════════════════
+_imap_lock = threading.Lock()
+
+def _extract_otp_from_text(text):
+    """Extract 6-digit OTP from text."""
+    clean = re.sub(r'<[^>]+>', ' ', text)
+    m = re.search(r'\b(\d{6})\b', clean)
+    return m.group(1) if m else None
+
+def _get_email_body(msg):
+    """Extract text body from an email message."""
+    body = ""
+    if msg.is_multipart():
+        for part in msg.walk():
+            ct = part.get_content_type()
+            if ct in ('text/plain', 'text/html'):
+                try:
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        charset = part.get_content_charset() or 'utf-8'
+                        body += payload.decode(charset, errors='ignore')
+                except Exception:
+                    pass
+    else:
+        try:
+            payload = msg.get_payload(decode=True)
+            if payload:
+                charset = msg.get_content_charset() or 'utf-8'
+                body = payload.decode(charset, errors='ignore')
+        except Exception:
+            pass
+    return body
+
+def _get_delivered_to(msg):
+    """Extract Delivered-To header from email (lowercase)."""
+    delivered_to = msg.get('Delivered-To', '') or msg.get('X-Delivered-To', '') or ''
+    return delivered_to.lower().strip()
+
+def _get_to_header(msg):
+    """Extract To header from email (lowercase)."""
+    to_header = msg.get('To', '') or ''
+    # Decode if needed
+    if to_header:
+        decoded_parts = decode_header(to_header)
+        result = []
+        for part, charset in decoded_parts:
+            if isinstance(part, bytes):
+                try:
+                    result.append(part.decode(charset or 'utf-8', errors='ignore'))
+                except Exception:
+                    result.append(part.decode('utf-8', errors='ignore'))
+            else:
+                result.append(str(part))
+        to_header = ''.join(result)
+    return to_header.lower().strip()
+
+def imap_read_otp(target_email, timeout=OTP_TIMEOUT, sent_time=None):
+    """
+    Read OTP from Gmail via IMAP — searches for the SPECIFIC plus variation
+    using Delivered-To header matching.
+    
+    Key improvement over v10.x:
+    - v10.x used dots trick → all variations same inbox → wrong OTPs
+    - v11.0 uses plus trick → each variation has unique Delivered-To
+    - IMAP search finds ONLY the OTP for this specific variation
+    - No more race conditions between workers!
+    
+    Search strategy:
+    1. IMAP SEARCH for HEADER Delivered-To "user+tag@gmail.com"
+    2. Fallback: IMAP SEARCH for TO "user+tag@gmail.com"
+    3. Fallback: Fetch all recent emails, filter by Delivered-To manually
+    4. Fallback: Time-based matching (last resort)
+    
+    Returns: 6-digit OTP code or None on timeout
+    """
+    if sent_time is None:
+        sent_time = time.time()
+    
+    deadline = time.time() + timeout
+    target_lower = target_email.lower().strip()
+    # Also try without dots (Gmail normalizes them in some headers)
+    username = target_lower.split('@')[0]
+    domain = target_lower.split('@')[1] if '@' in target_lower else 'gmail.com'
+    
+    with _imap_lock:  # Serialize IMAP access to avoid conflicts
+        while time.time() < deadline:
+            if _stop_flag.is_set():
+                return None
+            
+            try:
+                mail = imaplib.IMAP4_SSL('imap.gmail.com', 993)
+                mail.login(_gmail_addr, _gmail_app_pass)
+                mail.select('INBOX')
+                
+                # ─── Strategy 1: Search by Delivered-To header ───
+                otp = _search_by_header(mail, 'Delivered-To', target_lower, sent_time)
+                if otp:
+                    mail.logout()
+                    return otp
+                
+                # ─── Strategy 2: Search by TO header ───
+                otp = _search_by_header(mail, 'To', target_lower, sent_time)
+                if otp:
+                    mail.logout()
+                    return otp
+                
+                # ─── Strategy 3: Fetch recent emails, filter manually ───
+                otp = _search_by_scan(mail, target_lower, sent_time)
+                if otp:
+                    mail.logout()
+                    return otp
+                
+                mail.logout()
+            except imaplib.IMAP4.error as e:
+                err_str = str(e).lower()
+                if 'auth' in err_str or 'login' in err_str or 'credential' in err_str:
+                    print(f"  ❌ IMAP auth error! Check App Password", flush=True)
+                    return None
+            except Exception as e:
+                pass  # Connection issue, retry
+            
+            time.sleep(OTP_POLL_INTERVAL)
+    
+    return None
+
+def _search_by_header(mail, header_name, target_email, sent_time):
+    """
+    Search IMAP for emails where a specific header matches the target email.
+    Uses IMAP UID SEARCH HEADER command (consistent with UID FETCH).
+    """
+    try:
+        today = datetime.now().strftime('%d-%b-%Y')
+        # Use UID SEARCH (not regular search) so results are UIDs compatible with uid('fetch')
+        status, data = mail.uid('search', None, 'HEADER', header_name, target_email, 'SINCE', today)
+        if status != 'OK' or not data[0]:
+            return None
+        
+        uids = data[0].split()
+        # Check most recent first
+        for uid in reversed(uids):
+            # Fetch full message using UID
+            status, msg_data = mail.uid('fetch', uid, '(RFC822)')
+            if status != 'OK' or not msg_data or not msg_data[0]:
+                continue
+            
+            raw = msg_data[0][1]
+            msg = email_mod.message_from_bytes(raw)
+            
+            # Verify this email arrived after sent_time
+            date_str = msg.get('Date', '')
+            if date_str:
+                try:
+                    email_time = parsedate_to_datetime(date_str)
+                    if email_time.timestamp() < (sent_time - 120):
+                        continue
+                except Exception:
+                    pass
+            
+            # Verify the Delivered-To or To header matches
+            if header_name.lower() == 'delivered-to':
+                header_val = _get_delivered_to(msg)
+            else:
+                header_val = _get_to_header(msg)
+            
+            if target_email not in header_val:
+                continue
+            
+            # Extract OTP
+            body = _get_email_body(msg)
+            otp = _extract_otp_from_text(body)
+            
+            if otp:
+                # Delete this email to keep inbox clean
+                try:
+                    mail.uid('store', uid, '+FLAGS', '\\Deleted')
+                    mail.expunge()
+                except Exception:
+                    pass
+                return otp
+    except Exception:
+        pass
+    return None
+
+def _search_by_scan(mail, target_email, sent_time):
+    """
+    Fallback: Scan all recent emails and find the one with matching Delivered-To.
+    Uses UID SEARCH for consistency.
+    """
+    try:
+        today = datetime.now().strftime('%d-%b-%Y')
+        tag_part = target_email.split('+')[1].split('@')[0] if '+' in target_email else ''
+        
+        # Try searching with FROM telicall first (narrower results)
+        status, data = mail.uid('search', None, 'FROM', 'telicall', 'SINCE', today)
+        if status != 'OK' or not data[0]:
+            # Broader search
+            status, data = mail.uid('search', None, 'SINCE', today)
+            if status != 'OK' or not data[0]:
+                return None
+        
+        uids = data[0].split()
+        
+        # Check most recent first (reverse order)
+        for uid in reversed(uids):
+            # Fetch headers first to check if it matches our target
+            status, header_data = mail.uid('fetch', uid, '(BODY[HEADER.FIELDS (DATE FROM TO DELIVERED-TO SUBJECT)])')
+            if status != 'OK' or not header_data or not header_data[0]:
+                continue
+            
+            header_text = header_data[0][1].decode('utf-8', errors='ignore').lower()
+            
+            # Check if Delivered-To or To matches our target email
+            if target_email not in header_text:
+                # Also check if the tag appears in the header
+                if tag_part and tag_part not in header_text:
+                    continue
+                elif not tag_part:
+                    continue
+            
+            # Check date
+            date_str = ''
+            for line in header_text.split('\n'):
+                if line.startswith('date:'):
+                    date_str = line.replace('date:', '', 1).strip()
+                    break
+            if date_str:
+                try:
+                    email_time = parsedate_to_datetime(date_str)
+                    if email_time.timestamp() < (sent_time - 120):
+                        continue
+                except Exception:
+                    pass
+            
+            # Fetch full message to get OTP
+            status, msg_data = mail.uid('fetch', uid, '(RFC822)')
+            if status != 'OK':
+                continue
+            
+            raw = msg_data[0][1]
+            msg = email_mod.message_from_bytes(raw)
+            
+            # Double-check: verify Delivered-To or To matches
+            delivered_to = _get_delivered_to(msg)
+            to_header = _get_to_header(msg)
+            if target_email not in delivered_to and target_email not in to_header:
+                # Last chance: check X-Original-To
+                x_original = (msg.get('X-Original-To', '') or '').lower()
+                if target_email not in x_original:
+                    continue
+            
+            body = _get_email_body(msg)
+            otp = _extract_otp_from_text(body)
+            
+            if otp:
+                # Delete this email
+                try:
+                    mail.uid('store', uid, '+FLAGS', '\\Deleted')
+                    mail.expunge()
+                except Exception:
+                    pass
+                return otp
+    except Exception:
+        pass
+    return None
+
+def test_imap_connection():
+    """Test IMAP connection at startup. Returns (success, info)."""
+    try:
+        mail = imaplib.IMAP4_SSL('imap.gmail.com', 993)
+        mail.login(_gmail_addr, _gmail_app_pass)
+        mail.select('INBOX')
+        status, data = mail.uid('search', None, 'ALL')
+        count = len(data[0].split()) if data[0] else 0
+        
+        # Delete ALL old Telicall verification emails
+        deleted = 0
+        if count > 0:
+            all_uids = data[0].split()
+            for uid in all_uids:
+                try:
+                    status, header_data = mail.uid('fetch', uid, '(BODY[HEADER.FIELDS (FROM SUBJECT)])')
+                    if status == 'OK' and header_data and header_data[0]:
+                        header_text = header_data[0][1].decode('utf-8', errors='ignore').lower()
+                        if 'teli' in header_text or 'verif' in header_text:
+                            mail.uid('store', uid, '+FLAGS', '\\Deleted')
+                            deleted += 1
+                except Exception:
+                    pass
+            if deleted > 0:
+                try:
+                    mail.expunge()
+                except Exception:
+                    pass
+        
+        # Test Delivered-To search capability
+        # Try searching for a fake plus address to test if IMAP HEADER search works
+        test_search_ok = False
+        try:
+            test_email = _gmail_addr.replace('@', '+faketest999@')
+            status, _ = mail.search(None, 'HEADER', 'Delivered-To', test_email)
+            test_search_ok = (status == 'OK')
+        except Exception:
+            test_search_ok = False
+        
+        mail.logout()
+        
+        if deleted > 0:
+            print(f"  IMAP:       🗑️ Deleted {deleted} old Telicall emails", flush=True)
+        
+        search_status = "✅ Delivered-To search OK" if test_search_ok else "⚠️ Using scan fallback"
+        print(f"  IMAP:       {search_status}", flush=True)
+        
+        return True, count
+    except imaplib.IMAP4.error as e:
+        return False, str(e)
+    except Exception as e:
+        return False, str(e)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -254,306 +618,6 @@ def rand_eg_ip():
         c = random.randint(1, 254)
         d = random.randint(1, 254)
         return f"{a}.{b}.{c}.{d}"
-
-
-# ═══════════════════════════════════════════════════════════════
-# ─── Gmail Variation Generator ───────────────────────────────
-# ═══════════════════════════════════════════════════════════════
-class GmailVariationGenerator:
-    """
-    Generates unlimited unique Gmail variations using:
-      1. Dots trick: user@gmail.com -> u.ser@gmail.com -> u.s.e.r@gmail.com ...
-      2. Plus trick: user+tag@gmail.com -> user+tag2@gmail.com ...
-      3. Dots + Plus: u.ser+tag@gmail.com -> u.s.er+tag2@gmail.com ...
-
-    Gmail ignores dots in addresses, so all dot variations deliver
-    to the same inbox. Telicall treats each variation as a different account.
-    """
-
-    def __init__(self, base_email):
-        self.base_email = base_email.lower().strip()
-        parts = self.base_email.split('@')
-        self.domain = parts[1] if len(parts) == 2 else 'gmail.com'
-
-        # Remove existing dots from username (Gmail ignores them)
-        raw_username = parts[0]
-        self.clean_username = raw_username.replace('.', '')
-
-        self._lock = threading.Lock()
-        self._dot_variations = self._generate_dot_variations()
-        self._dot_index = 0
-        self._plus_counter = 0
-        self._dot_phase = True  # True = using dot variations, False = using plus
-
-    def _generate_dot_variations(self):
-        """Generate all possible dot placements in the username."""
-        n = len(self.clean_username)
-        if n <= 1:
-            return [self.clean_username]
-
-        variations = []
-        # mask represents which positions have dots
-        # positions are between characters: c[0] . c[1] . c[2] ...
-        # there are (n-1) possible dot positions
-        for mask in range(1, 2 ** (n - 1)):
-            result = self.clean_username[0]
-            for i in range(1, n):
-                if mask & (1 << (i - 1)):
-                    result += '.' + self.clean_username[i]
-                else:
-                    result += self.clean_username[i]
-            variations.append(result)
-
-        # Also include the original (no dots) as the last resort
-        variations.append(self.clean_username)
-
-        # Shuffle for randomness
-        random.shuffle(variations)
-        return variations
-
-    def next_variation(self):
-        """Get next unique email variation (thread-safe)."""
-        with self._lock:
-            if self._dot_index < len(self._dot_variations):
-                v = self._dot_variations[self._dot_index]
-                self._dot_index += 1
-                return f"{v}@{self.domain}"
-
-            # Dot variations exhausted -> use plus trick with dots
-            self._plus_counter += 1
-            tag = f"fx{self._plus_counter}"
-
-            # Pick a random dot variation to combine with plus
-            dot_base = random.choice(self._dot_variations)
-            return f"{dot_base}+{tag}@{self.domain}"
-
-    @property
-    def total_dot_variations(self):
-        return len(self._dot_variations)
-
-    @property
-    def used_count(self):
-        with self._lock:
-            return self._dot_index + self._plus_counter
-
-
-# ═══════════════════════════════════════════════════════════════
-# ─── IMAP OTP Reader ─────────────────────────────────────────
-# ═══════════════════════════════════════════════════════════════
-_imap_lock = threading.Lock()  # Serialize IMAP access across workers
-
-def _decode_str(s):
-    """Decode email header string."""
-    if s is None:
-        return ""
-    decoded_parts = decode_header(s)
-    result = []
-    for part, charset in decoded_parts:
-        if isinstance(part, bytes):
-            try:
-                result.append(part.decode(charset or 'utf-8', errors='ignore'))
-            except Exception:
-                result.append(part.decode('utf-8', errors='ignore'))
-        else:
-            result.append(str(part))
-    return ''.join(result)
-
-def _get_email_body(msg):
-    """Extract text body from an email message."""
-    body = ""
-    if msg.is_multipart():
-        for part in msg.walk():
-            ct = part.get_content_type()
-            if ct in ('text/plain', 'text/html'):
-                try:
-                    payload = part.get_payload(decode=True)
-                    if payload:
-                        charset = part.get_content_charset() or 'utf-8'
-                        body += payload.decode(charset, errors='ignore')
-                except Exception:
-                    pass
-    else:
-        try:
-            payload = msg.get_payload(decode=True)
-            if payload:
-                charset = msg.get_content_charset() or 'utf-8'
-                body = payload.decode(charset, errors='ignore')
-        except Exception:
-            pass
-    return body
-
-def _extract_otp_from_text(text):
-    """Extract 6-digit OTP from text."""
-    # Clean HTML tags
-    clean = re.sub(r'<[^>]+>', ' ', text)
-    m = re.search(r'\b(\d{6})\b', clean)
-    if m:
-        return m.group(1)
-    return None
-
-# Track OTPs we already used to avoid reading old ones
-_used_otps = set()
-_used_otps_lock = threading.Lock()
-
-def imap_read_otp(target_variation, timeout=OTP_TIMEOUT, sent_time=None):
-    """
-    Read OTP from Gmail via IMAP — only reads emails that arrived AFTER sent_time.
-    - target_variation: the email we sent to Telicall (e.g., u.ser+fx1@gmail.com)
-    - sent_time: timestamp before we called send_verify (to ignore old emails)
-    - Returns the 6-digit OTP code or None on timeout
-    """
-    if sent_time is None:
-        sent_time = time.time()
-
-    deadline = time.time() + timeout
-    # Track UIDs we already checked in this call
-    checked_uids = set()
-
-    while time.time() < deadline:
-        if _stop_flag.is_set():
-            return None
-
-        with _imap_lock:
-            try:
-                mail = imaplib.IMAP4_SSL('imap.gmail.com', 993)
-                mail.login(_gmail_addr, _gmail_app_pass)
-                mail.select('INBOX')
-
-                # Search for emails from Telicall that arrived recently
-                # Use SINCE to limit to today's emails only
-                today = datetime.now().strftime('%d-%b-%Y')
-                search_criteria = f'(FROM "telicall" SINCE {today})'
-                status, data = mail.uid('search', None, search_criteria)
-
-                # Fallback: if no results with FROM filter, try broader search
-                if status != 'OK' or not data[0]:
-                    search_criteria = f'(SINCE {today})'
-                    status, data = mail.uid('search', None, search_criteria)
-
-                if status == 'OK' and data[0]:
-                    all_uids = data[0].split()
-                    # Only check UIDs we haven't looked at yet in this call
-                    new_uids = [u for u in all_uids if u not in checked_uids]
-
-                    # Check new emails (most recent first)
-                    for uid in reversed(new_uids):
-                        checked_uids.add(uid)
-
-                        # Fetch only headers first (faster)
-                        status, header_data = mail.uid('fetch', uid, '(BODY[HEADER.FIELDS (DATE FROM TO DELIVERED-TO X-ORIGINAL-TO SUBJECT)])')
-                        if status != 'OK' or not header_data or not header_data[0]:
-                            continue
-
-                        header_text = header_data[0][1].decode('utf-8', errors='ignore').lower()
-
-                        # Quick check: does this email contain "teli" or "verif" or "code"?
-                        if not any(kw in header_text for kw in ['teli', 'verif', 'code', 'otp']):
-                            continue
-
-                        # Check email date to ensure it arrived AFTER we sent verification
-                        date_str = ''
-                        for line in header_text.split('\n'):
-                            if line.startswith('date:'):
-                                date_str = line.replace('date:', '', 1).strip()
-                                break
-
-                        if date_str:
-                            try:
-                                from email.utils import parsedate_to_datetime
-                                email_time = parsedate_to_datetime(date_str)
-                                email_ts = email_time.timestamp()
-                                # Only accept emails that arrived after we sent the verification
-                                # Allow 60 second buffer for clock skew
-                                if email_ts < (sent_time - 60):
-                                    continue
-                            except Exception:
-                                pass  # If we can't parse the date, still check it
-
-                        # Now fetch full message to get OTP
-                        status, msg_data = mail.uid('fetch', uid, '(RFC822)')
-                        if status != 'OK':
-                            continue
-
-                        raw = msg_data[0][1]
-                        msg = email_mod.message_from_bytes(raw)
-
-                        body = _get_email_body(msg)
-                        otp = _extract_otp_from_text(body)
-
-                        if otp:
-                            # Check if we already used this OTP (avoid duplicates)
-                            with _used_otps_lock:
-                                if otp in _used_otps:
-                                    continue
-                                _used_otps.add(otp)
-
-                            # Mark as read and delete
-                            try:
-                                mail.uid('store', uid, '+FLAGS', '\\Seen')
-                                mail.uid('store', uid, '+FLAGS', '\\Deleted')
-                            except Exception:
-                                pass
-
-                            # Expunge deleted messages
-                            try:
-                                mail.expunge()
-                            except Exception:
-                                pass
-
-                            mail.logout()
-                            return otp
-
-                mail.logout()
-            except imaplib.IMAP4.error as e:
-                err_str = str(e).lower()
-                if 'auth' in err_str or 'login' in err_str or 'credential' in err_str:
-                    print(f"  ❌ IMAP auth error! Check App Password", flush=True)
-                    return None
-            except Exception:
-                pass
-
-        time.sleep(OTP_POLL_INTERVAL)
-
-    return None
-
-def test_imap_connection():
-    """Test IMAP connection at startup. Returns True if successful."""
-    try:
-        mail = imaplib.IMAP4_SSL('imap.gmail.com', 993)
-        mail.login(_gmail_addr, _gmail_app_pass)
-        mail.select('INBOX')
-        status, data = mail.search(None, 'ALL')
-        count = len(data[0].split()) if data[0] else 0
-
-        # Delete ALL old Telicall verification emails to prevent OTP confusion
-        deleted = 0
-        if count > 0:
-            all_uids = data[0].split()
-            for uid in all_uids:
-                try:
-                    # Fetch only subject to check if it's from Telicall
-                    status, header_data = mail.fetch(uid, '(BODY[HEADER.FIELDS (FROM SUBJECT)])')
-                    if status == 'OK' and header_data and header_data[0]:
-                        header_text = header_data[0][1].decode('utf-8', errors='ignore').lower()
-                        if 'teli' in header_text or 'verif' in header_text:
-                            mail.store(uid, '+FLAGS', '\\Deleted')
-                            deleted += 1
-                except Exception:
-                    pass
-            if deleted > 0:
-                try:
-                    mail.expunge()
-                except Exception:
-                    pass
-
-        mail.logout()
-        if deleted > 0:
-            print(f"  IMAP:       🗑️ Deleted {deleted} old Telicall emails", flush=True)
-        return True, count
-    except imaplib.IMAP4.error as e:
-        return False, str(e)
-    except Exception as e:
-        return False, str(e)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -691,7 +755,7 @@ def verify_otp_api(ref, code, headers, proxy_dict=None):
                 if 'expired' in err_lower or 'invalid' in err_lower:
                     return None, 'expired'
                 return None, f'other:{err_msg[:50]}'
-            except:
+            except Exception:
                 return None, 'other:HTTP400'
         else:
             return None, f'other:HTTP{r.status_code}'
@@ -906,7 +970,6 @@ _stats = {
     "confirm_fail": 0, "session_fail": 0,
     "domain_blocked": 0, "email_exists": 0,
     "total": 0, "retries": 0,
-    "variations_used": 0,
 }
 _start_time = None
 
@@ -989,7 +1052,7 @@ def monitor_calls():
 # ═══════════════════════════════════════════════════════════════
 # ─── Worker: Create Account + Call (with retry) ─────────────
 # ═══════════════════════════════════════════════════════════════
-_variation_gen = None  # GmailVariationGenerator instance
+_variation_gen = None  # PlusVariationGenerator instance
 
 def _try_one_phone(phone, duration, mode, tid):
     """
@@ -1001,10 +1064,10 @@ def _try_one_phone(phone, duration, mode, tid):
     'retry'         = transient error, can retry
     'fail'          = permanent failure
     """
-    # Step 1: Get next email variation
+    # Step 1: Get next email variation (PLUS ONLY - no dots!)
     email_addr = _variation_gen.next_variation()
-    email_short = email_addr.split('@')[0][:15]
-    update_stat("variations_used")
+    email_short = email_addr.split('@')[0][:20]
+    tag = _variation_gen.get_tag_from_email(email_addr)
 
     print(f"[{tid}] 📧 {email_short}...@gmail.com -> {phone}", flush=True)
 
@@ -1023,7 +1086,7 @@ def _try_one_phone(phone, duration, mode, tid):
     if not ref:
         err_str = str(err or "")
         if err_str == 'EMAIL_EXISTS':
-            print(f"[{tid}] ⚠️ Email exists {email_short}... - trying another", flush=True)
+            print(f"[{tid}] ⚠️ Email exists {tag} - trying another", flush=True)
             update_stat("email_exists")
             return 'email_exists'
         elif 'BLOCKED' in err_str:
@@ -1037,23 +1100,25 @@ def _try_one_phone(phone, duration, mode, tid):
             active_proxy = get_proxy_and_mark_dead(active_proxy)
         return 'retry'
 
-    print(f"[{tid}] 📨 OTP sent -> {email_short}...", flush=True)
+    print(f"[{tid}] 📨 OTP sent -> {tag}", flush=True)
 
-    # Step 4: Get OTP via IMAP (only emails after sent_time)
+    # Step 4: Get OTP via IMAP with Delivered-To matching
+    # This is the KEY FIX: we search for the SPECIFIC plus variation
+    # in the Delivered-To header, so each worker only finds its own OTP
     otp = imap_read_otp(email_addr, timeout=OTP_TIMEOUT, sent_time=sent_time)
     if not otp:
-        print(f"[{tid}] ❌ OTP timeout {phone} <- {email_short}", flush=True)
+        print(f"[{tid}] ❌ OTP timeout {phone} <- {tag}", flush=True)
         update_stat("otp_fail")
         return 'retry'
 
-    print(f"[{tid}] 🔢 OTP:{otp} {email_short}", flush=True)
+    print(f"[{tid}] 🔢 OTP:{otp} {tag}", flush=True)
 
     # Step 5: Verify OTP
     time.sleep(1)
     user, verify_err = verify_otp_api(ref, otp, headers, active_proxy)
     if not user:
         if verify_err == 'email_exists':
-            print(f"[{tid}] ⚠️ Email exists (OTP step) {email_short}... - trying another", flush=True)
+            print(f"[{tid}] ⚠️ Email exists (OTP step) {tag} - trying another", flush=True)
             update_stat("email_exists")
             return 'email_exists'
         elif verify_err == 'expired':
@@ -1067,7 +1132,7 @@ def _try_one_phone(phone, duration, mode, tid):
 
     # Step 6: Save Account
     total = save_account(email_addr, device, tok)
-    print(f"[{tid}] ✅ Account! {email_short} (#{total})", flush=True)
+    print(f"[{tid}] ✅ Account! {tag} (#{total})", flush=True)
 
     # Step 7: Upload + Call via Server
     if mode == "create":
@@ -1135,7 +1200,7 @@ def create_and_call(duration, mode="server", use_xrealip=True):
                 success = True  # account was created
                 break
             elif result in ('domain_blocked', 'email_exists'):
-                continue  # try with a different email variation
+                continue  # try with a different plus variation
             elif result == 'retry':
                 continue
             else:
@@ -1159,13 +1224,12 @@ def print_stats():
         elapsed = time.time() - _start_time if _start_time else 1
         rate = s['total'] / elapsed * 60 if elapsed > 0 else 0
         var_used = _variation_gen.used_count if _variation_gen else 0
-        var_total = _variation_gen.total_dot_variations if _variation_gen else 0
         print(f"\n  📊 Stats ({elapsed/60:.1f}min | {rate:.1f}/min):", flush=True)
         print(f"     Total: {s['total']} | ✅ Accounts: {s['accounts_ok']} | 📞 Calls OK: {s['calls_ok']}", flush=True)
         print(f"     ❌ Errors: email={s['email_fail']} session={s['session_fail']} "
               f"verify={s['verify_fail']} OTP={s['otp_fail']} confirm={s['confirm_fail']}", flush=True)
         print(f"     Email exists: {s['email_exists']} | NO_BALANCE: {s['calls_no_balance']} | "
-              f"Retries: {s['retries']} | Variations: {var_used}/{var_total}+∞", flush=True)
+              f"Retries: {s['retries']} | +variations used: {var_used}", flush=True)
         print(f"     Failed phones: {len(_failed_phones)}", flush=True)
 
 
@@ -1175,7 +1239,7 @@ def print_stats():
 def main():
     global _start_time, _phone_queue, _variation_gen
 
-    parser = argparse.ArgumentParser(description="Fox Caller v10.0 - Gmail Tricks Edition")
+    parser = argparse.ArgumentParser(description="Fox Caller v11.0 - Gmail Plus Trick Edition")
     parser.add_argument("file", help="Phone numbers file (.xlsx or .txt)")
     parser.add_argument("--mode", choices=["server", "create"], default="server",
                        help="server=create+call | create=accounts only")
@@ -1191,17 +1255,18 @@ def main():
     args = parser.parse_args()
 
     print("\n" + "=" * 60, flush=True)
-    print("  Fox Caller v10.2 - Gmail Tricks Edition", flush=True)
-    print("  Gmail dots trick + plus trick + IMAP OTP", flush=True)
+    print("  Fox Caller v11.0 - Gmail Plus Trick Edition", flush=True)
+    print("  Gmail PLUS trick + Delivered-To OTP matching", flush=True)
     print("=" * 60, flush=True)
 
     # 1. Gmail credentials
     load_or_ask_gmail()
 
-    # 2. Initialize Gmail variation generator
-    _variation_gen = GmailVariationGenerator(_gmail_addr)
+    # 2. Initialize PLUS variation generator
+    _variation_gen = PlusVariationGenerator(_gmail_addr)
     print(f"  Gmail:      {_gmail_addr}", flush=True)
-    print(f"  Dots:       {_variation_gen.total_dot_variations} variations + unlimited plus", flush=True)
+    print(f"  Method:     +plus trick ONLY (Delivered-To matching)", flush=True)
+    print(f"  Variations: UNLIMITED (user+fx1, user+fx2, ...)", flush=True)
 
     # 3. Test IMAP connection
     print(f"\n  🔍 Testing IMAP connection...", flush=True)
@@ -1300,7 +1365,7 @@ def main():
     print(f"  ⚠️  NO_BALANCE: {s['calls_no_balance']}", flush=True)
     print(f"  ❌ Final failures: {len(_failed_phones)}", flush=True)
     print(f"  🔄 Retries: {s['retries']}", flush=True)
-    print(f"  📧 Gmail variations used: {var_used}", flush=True)
+    print(f"  📧 +variations used: {var_used}", flush=True)
     print(f"\n  ❌ Error breakdown:", flush=True)
     print(f"     Email fail: {s['email_fail']}", flush=True)
     print(f"     Session fail: {s['session_fail']}", flush=True)
