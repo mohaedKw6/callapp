@@ -90,6 +90,8 @@ def tempmail_create_inbox(prefix=None, domain=None):
     API: POST /v2/inbox/create
     Body: {"domain": "...", "prefix": "..."}  (both optional)
     Response 201: {"address": "...", "token": "..."}
+    
+    Also tries GET method as fallback (tempmail.lol supports both).
     """
     body = {}
     if domain:
@@ -97,20 +99,55 @@ def tempmail_create_inbox(prefix=None, domain=None):
     if prefix:
         body["prefix"] = prefix
     
+    # Try POST method first
     headers = {"Content-Type": "application/json"}
     if TEMPMAIL_API_KEY:
         headers["Authorization"] = f"Bearer {TEMPMAIL_API_KEY}"
     
     try:
         r = requests.post(f"{TEMPMAIL_API_BASE}/v2/inbox/create",
-                          headers=headers, json=body, timeout=15)
+                          headers=headers, json=body, timeout=20)
         if r.status_code == 201:
             data = r.json()
-            return data.get("address"), data.get("token")
-        else:
-            return None, None
+            addr = data.get("address")
+            tok = data.get("token")
+            if addr and tok:
+                return addr, tok
+        # If POST failed, try GET as fallback
+    except requests.exceptions.ConnectionError:
+        pass  # Will try GET below
+    except requests.exceptions.Timeout:
+        pass  # Will try GET below
     except Exception:
-        return None, None
+        pass
+    
+    # Fallback: Try GET method (tempmail.lol supports this for legacy)
+    try:
+        r = requests.get(f"{TEMPMAIL_API_BASE}/v2/inbox/create", timeout=20)
+        if r.status_code == 201:
+            data = r.json()
+            addr = data.get("address")
+            tok = data.get("token")
+            if addr and tok:
+                return addr, tok
+    except Exception:
+        pass
+    
+    # Fallback: Try without auth header
+    try:
+        r = requests.post(f"{TEMPMAIL_API_BASE}/v2/inbox/create",
+                          headers={"Content-Type": "application/json"},
+                          json=body, timeout=20)
+        if r.status_code == 201:
+            data = r.json()
+            addr = data.get("address")
+            tok = data.get("token")
+            if addr and tok:
+                return addr, tok
+    except Exception:
+        pass
+    
+    return None, None
 
 
 def tempmail_get_emails(inbox_token):
@@ -125,7 +162,7 @@ def tempmail_get_emails(inbox_token):
     """
     try:
         r = requests.get(f"{TEMPMAIL_API_BASE}/v2/inbox",
-                         params={"token": inbox_token}, timeout=15)
+                         params={"token": inbox_token}, timeout=20)
         if r.status_code == 200:
             data = r.json()
             return data.get("emails", [])
@@ -186,14 +223,31 @@ def _extract_otp(text):
 
 
 def test_tempmail_connection():
-    """Test tempmail.lol API at startup. Returns (success, domain_used)."""
-    addr, token = tempmail_create_inbox(domain=TEMPMAIL_DOMAIN or None)
-    if addr and token:
-        domain = addr.split('@')[1] if '@' in addr else '?'
-        # Also test reading emails
-        emails = tempmail_get_emails(token)
-        read_ok = isinstance(emails, list)
-        return True, domain, read_ok
+    """Test tempmail.lol API at startup. Returns (success, domain_used, read_ok)."""
+    # Try multiple times
+    for attempt in range(3):
+        try:
+            addr, token = tempmail_create_inbox(domain=TEMPMAIL_DOMAIN or None)
+            if addr and token:
+                domain = addr.split('@')[1] if '@' in addr else '?'
+                # Also test reading emails
+                emails = tempmail_get_emails(token)
+                read_ok = isinstance(emails, list)
+                return True, domain, read_ok
+            else:
+                print(f"    Attempt {attempt+1}/3: inbox creation returned None", flush=True)
+        except Exception as e:
+            print(f"    Attempt {attempt+1}/3: {type(e).__name__}: {e}" , flush=True)
+        if attempt < 2:
+            time.sleep(2)
+    
+    # Last resort: try raw connection test
+    try:
+        r = requests.get(TEMPMAIL_API_BASE, timeout=10)
+        print(f"    Raw connection to {TEMPMAIL_API_BASE}: HTTP {r.status_code}", flush=True)
+    except Exception as e:
+        print(f"    Cannot reach {TEMPMAIL_API_BASE}: {type(e).__name__}: {e}" , flush=True)
+    
     return False, None, False
 
 
