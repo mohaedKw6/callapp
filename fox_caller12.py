@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v12.0 - tempmail.lol Edition
+Fox Caller v12.1 - tempmail.lol Edition
 ========================================
 Email provider: tempmail.lol API ONLY
   - No Gmail, No IMAP, No App Password needed!
@@ -26,6 +26,13 @@ Email provider: tempmail.lol API ONLY
   gmail.com, protonmail.com, yahoo.com, outlook.com
   + any custom domain not on their blocklist
 
+  xlsx Reading:
+  ──────────────
+  - Reads phone numbers from any column in xlsx
+  - Handles Egyptian numbers: 0101234567 → +200101234567
+  - Handles: +20..., 0020..., 20..., 01... formats
+  - Shows found numbers before starting
+
 Mode:
   --mode server   = create account + upload to server + server makes SIP call
   --mode create   = create accounts only (no calls)
@@ -35,6 +42,7 @@ Usage:
   python3 fox_caller12.py numbers.xlsx --mode server --threads 5
   python3 fox_caller12.py numbers.xlsx --domain mydomain.com
   python3 fox_caller12.py numbers.xlsx --api-key YOUR_KEY
+  python3 fox_caller12.py file.xlsx --country eg   (auto-add +20)
 """
 
 import requests
@@ -706,9 +714,65 @@ def check_call_status(call_id):
 # ═══════════════════════════════════════════════════════════════
 # ─── Read Numbers from File ──────────────────────────────────
 # ═══════════════════════════════════════════════════════════════
-def read_numbers(filepath):
+def _normalize_phone(num, country='eg'):
+    """
+    Normalize a phone number to international format.
+    Handles Egyptian numbers in all common formats:
+      0101234567   → +200101234567
+      100101234567  → +200101234567
+      20101234567   → +20101234567
+      0020101234567 → +20101234567
+      +20101234567  → +20101234567
+      +200101234567 → +200101234567
+    """
+    # Remove formatting characters
+    num = num.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+    num = num.replace('\u202a', '').replace('\u202c', '')  # LTR/RTL marks
+    
+    # Remove any non-digit except leading +
+    if not num.startswith('+'):
+        num = '+' + num if num.isdigit() else num
+    
+    # Strip to digits only for analysis
+    digits = num.lstrip('+')
+    
+    if not digits.isdigit() or len(digits) < 8:
+        return None
+    
+    # Egyptian number normalization
+    if country == 'eg':
+        # 01012345678 (local format with leading 0) → +201012345678
+        if digits.startswith('0') and len(digits) == 11:
+            return '+20' + digits[1:]  # Drop leading 0, add +20
+        # 0101234567 (10-digit local with leading 0) → +20101234567
+        elif digits.startswith('01') and len(digits) == 10:
+            return '+20' + digits[1:]  # Drop leading 0
+        # 1012345678 (without leading 0, local mobile prefix) → +201012345678
+        elif digits.startswith('1') and len(digits) == 10:
+            return '+20' + digits
+        # 201012345678 (with country code 20 already) → +201012345678
+        elif digits.startswith('20') and len(digits) >= 11:
+            return '+' + digits
+        # 0020101234567 (00 international prefix) → +20101234567
+        elif digits.startswith('00'):
+            return '+' + digits[2:]
+    
+    # Generic handling for other countries
+    if digits.startswith('00'):
+        return '+' + digits[2:]
+    
+    if len(digits) >= 10:
+        return '+' + digits
+    
+    return None
+
+
+def read_numbers(filepath, country='eg'):
+    """Read phone numbers from xlsx or txt file, normalize to international format."""
     numbers = []
-    if filepath.endswith('.xlsx'):
+    raw_count = 0
+    
+    if filepath.endswith(('.xlsx', '.xls')):
         try:
             import openpyxl
             wb = openpyxl.load_workbook(filepath, read_only=True)
@@ -716,38 +780,51 @@ def read_numbers(filepath):
             for row in ws.iter_rows(values_only=True):
                 for cell in row:
                     if cell is not None:
-                        num = str(cell).strip()
-                        num = num.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
-                        if num.startswith('00'):
-                            num = '+' + num[2:]
-                        if num.startswith('+') and len(num) >= 10:
-                            numbers.append(num)
-                        elif len(num) >= 10 and num.isdigit():
-                            numbers.append('+' + num)
+                        raw = str(cell).strip()
+                        if not raw:
+                            continue
+                        raw_count += 1
+                        normalized = _normalize_phone(raw, country)
+                        if normalized:
+                            numbers.append(normalized)
             wb.close()
         except ImportError:
             print("ERROR: openpyxl not installed. Run: pip3 install openpyxl", flush=True)
             sys.exit(1)
+        except Exception as e:
+            print(f"ERROR reading xlsx: {e}", flush=True)
+            sys.exit(1)
     else:
         try:
-            with open(filepath, 'r') as f:
+            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 for line in f:
-                    num = line.strip().replace(' ', '').replace('-', '')
-                    if num.startswith('00'):
-                        num = '+' + num[2:]
-                    if num.startswith('+') and len(num) >= 10:
-                        numbers.append(num)
-                    elif len(num) >= 10 and num.isdigit():
-                        numbers.append('+' + num)
+                    raw = line.strip()
+                    if not raw:
+                        continue
+                    raw_count += 1
+                    normalized = _normalize_phone(raw, country)
+                    if normalized:
+                        numbers.append(normalized)
         except Exception as e:
             print(f"ERROR reading file: {e}", flush=True)
             sys.exit(1)
+    
+    # Deduplicate
     seen = set()
     unique = []
     for n in numbers:
         if n not in seen:
             seen.add(n)
             unique.append(n)
+    
+    if unique:
+        print(f"\n  Numbers found: {len(unique)} unique (from {raw_count} raw entries)", flush=True)
+        # Show first 5 as examples
+        for i, n in enumerate(unique[:5]):
+            print(f"    [{i+1}] {n}", flush=True)
+        if len(unique) > 5:
+            print(f"    ... and {len(unique)-5} more", flush=True)
+    
     return unique
 
 
@@ -981,6 +1058,8 @@ def _try_one_phone(phone, duration, mode, tid):
         update_stat("accounts_ok")
         return 'no_balance'
 
+_call_delay = 2.0  # Will be set from args
+
 def create_and_call(duration, mode="server", use_xrealip=True):
     """Main worker - gets phone numbers and tries to make calls with retry."""
     tid = threading.current_thread().name
@@ -1020,7 +1099,8 @@ def create_and_call(duration, mode="server", use_xrealip=True):
             add_failed_phone(phone, last_result or 'unknown')
             print(f"[{tid}] Final fail {phone} after {MAX_RETRIES} attempts ({last_result})", flush=True)
         
-        time.sleep(0.3)
+        # Delay between calls to avoid rate limiting
+        time.sleep(_call_delay)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1048,7 +1128,7 @@ def print_stats():
 def main():
     global _start_time, _phone_queue, TEMPMAIL_API_KEY, TEMPMAIL_DOMAIN
     
-    parser = argparse.ArgumentParser(description="Fox Caller v12.0 - tempmail.lol Edition")
+    parser = argparse.ArgumentParser(description="Fox Caller v12.1 - tempmail.lol Edition")
     parser.add_argument("file", help="Phone numbers file (.xlsx or .txt)")
     parser.add_argument("--mode", choices=["server", "create"], default="server",
                        help="server=create+call | create=accounts only")
@@ -1064,6 +1144,10 @@ def main():
                        help="tempmail.lol API key")
     parser.add_argument("--domain", type=str, default="",
                        help="Custom domain for tempmail.lol (e.g. mydomain.com)")
+    parser.add_argument("--country", type=str, default="eg",
+                       help="Country code for number normalization (default: eg)")
+    parser.add_argument("--delay", type=float, default=2.0,
+                       help="Delay between calls in seconds (default: 2.0)")
     
     args = parser.parse_args()
     
@@ -1074,7 +1158,7 @@ def main():
         TEMPMAIL_DOMAIN = args.domain
     
     print("\n" + "=" * 60, flush=True)
-    print("  Fox Caller v12.0 - tempmail.lol Edition", flush=True)
+    print("  Fox Caller v12.1 - tempmail.lol Edition", flush=True)
     print("  Temp email via API - No Gmail, No IMAP!", flush=True)
     print("=" * 60, flush=True)
     
@@ -1110,7 +1194,7 @@ def main():
     print(f"  Method:     tempmail.lol API (no Gmail, no IMAP!)", flush=True)
     
     # 4. Read numbers
-    numbers = read_numbers(args.file)
+    numbers = read_numbers(args.file, country=args.country)
     if not numbers:
         print("ERROR: No numbers in file!", flush=True)
         sys.exit(1)
@@ -1122,9 +1206,11 @@ def main():
     _start_time = time.time()
     
     print(f"\n  Numbers:    {len(numbers)}", flush=True)
+    print(f"  Country:    {args.country.upper()}", flush=True)
     print(f"  Mode:       {args.mode}", flush=True)
     print(f"  Threads:    {args.threads}", flush=True)
     print(f"  Duration:   {args.duration}s", flush=True)
+    print(f"  Delay:      {args.delay}s between calls", flush=True)
     print(f"  Retries:    {MAX_RETRIES} per number", flush=True)
     
     # 5. Init proxy manager
@@ -1162,6 +1248,10 @@ def main():
         monitor_thread.start()
     
     # 11. Start worker threads
+    # Set global call delay
+    global _call_delay
+    _call_delay = args.delay
+    
     workers = []
     for i in range(args.threads):
         t = threading.Thread(
