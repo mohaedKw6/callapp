@@ -67,6 +67,11 @@ OTP_POLL_INTERVAL = 3
 _gmail_addr      = ""
 _gmail_app_pass  = ""
 
+def _is_valid_app_password(pwd):
+    """Check if password looks like a Google App Password (16 lowercase letters)."""
+    clean = pwd.replace(' ', '')  # Remove spaces (Google shows it with spaces)
+    return len(clean) == 16 and clean.isalpha() and clean.islower()
+
 def load_or_ask_gmail():
     """Load Gmail credentials from config file, or ask once and save."""
     global _gmail_addr, _gmail_app_pass
@@ -79,6 +84,22 @@ def load_or_ask_gmail():
             _gmail_app_pass = cfg.get("app_password", "").strip()
             if _gmail_addr and _gmail_app_pass and '@' in _gmail_addr:
                 print(f"  Gmail:      {_gmail_addr} (saved)", flush=True)
+                # Warn if App Password format is wrong
+                if not _is_valid_app_password(_gmail_app_pass):
+                    print(f"  ⚠️  App Password مش شكله صح! لازم يكون 16 حرف صغير (بدون أرقام)", flush=True)
+                    print(f"     الباسورد الحالي: {'*'*len(_gmail_app_pass)} ({len(_gmail_app_pass)} حرف)", flush=True)
+                    print(f"     App Password شكله: xkrm yqwa bnzp drtf (16 حرف صغير)", flush=True)
+                    print(f"     اعمل App Password من: https://myaccount.google.com/apppasswords", flush=True)
+                    # Ask again
+                    new_pass = input("  App Password الصحيح (أو Enter عشان تمشي): ").strip()
+                    if new_pass:
+                        _gmail_app_pass = new_pass.replace(' ', '')
+                        # Save updated config
+                        try:
+                            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                                json.dump({"gmail": _gmail_addr, "app_password": _gmail_app_pass}, f, indent=2)
+                        except Exception:
+                            pass
                 return
         except Exception:
             pass
@@ -86,8 +107,15 @@ def load_or_ask_gmail():
     print(f"\n  {'─'*50}", flush=True)
     print(f"  إعداد Gmail (مرة واحدة فقط)", flush=True)
     print(f"  {'─'*50}", flush=True)
+    print(f"  ⚠️  App Password مش الباسورد العادي!", flush=True)
+    print(f"     اعمل واحد من: https://myaccount.google.com/apppasswords", flush=True)
+    print(f"     شكله: xkrm yqwa bnzp drtf (16 حرف صغير)", flush=True)
+    print(f"  {'─'*50}", flush=True)
     _gmail_addr = input("  Gmail address : ").strip()
     _gmail_app_pass = input("  App Password  : ").strip()
+
+    # Remove spaces from App Password
+    _gmail_app_pass = _gmail_app_pass.replace(' ', '')
 
     if not _gmail_addr or not _gmail_app_pass:
         print("  ERROR: يجب إدخال Gmail و App Password!", flush=True)
@@ -95,6 +123,27 @@ def load_or_ask_gmail():
 
     if '@' not in _gmail_addr:
         _gmail_addr += '@gmail.com'
+
+    # Validate App Password format
+    if not _is_valid_app_password(_gmail_app_pass):
+        print(f"\n  ❌ الباسورد اللي دخلت مش App Password!", flush=True)
+        print(f"     الباسورد بتاعك: {'*'*len(_gmail_app_pass)} ({len(_gmail_app_pass)} حرف)", flush=True)
+        print(f"     App Password لازم يكون: 16 حرف صغير بس (بدون أرقام)", flush=True)
+        print(f"     مثال: xkrmyqwabnzpdrtf", flush=True)
+        print(f"     اعمل واحد من: https://myaccount.google.com/apppasswords", flush=True)
+        print(f"\n     1) روح https://myaccount.google.com/security", flush=True)
+        print(f"     2) فعّل 2-Step Verification", flush=True)
+        print(f"     3) روح https://myaccount.google.com/apppasswords", flush=True)
+        print(f"     4) اعمل App Password جديد", flush=True)
+        print(f"     5) انسخ الكود الـ 16 حرف", flush=True)
+
+        retry = input("\n  حابب تدخل App Password صحيح؟ (y/n): ").strip().lower()
+        if retry == 'y':
+            _gmail_app_pass = input("  App Password  : ").strip().replace(' ', '')
+            if not _is_valid_app_password(_gmail_app_pass):
+                print("  ⚠️  لسه مش شكل App Password، بس هنحاول...")
+        else:
+            print("  ⚠️  هنكمل بس هيفشل IMAP", flush=True)
 
     # Save to config
     try:
