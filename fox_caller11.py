@@ -390,27 +390,23 @@ def _extract_otp_from_text(text):
         return m.group(1)
     return None
 
-def imap_read_otp(target_variation, timeout=OTP_TIMEOUT):
+# Track OTPs we already used to avoid reading old ones
+_used_otps = set()
+_used_otps_lock = threading.Lock()
+
+def imap_read_otp(target_variation, timeout=OTP_TIMEOUT, sent_time=None):
     """
-    Read OTP from Gmail via IMAP for a specific email variation.
-    - target_variation: the email address we sent to Telicall (e.g., u.ser+fx1@gmail.com)
+    Read OTP from Gmail via IMAP — only reads emails that arrived AFTER sent_time.
+    - target_variation: the email we sent to Telicall (e.g., u.ser+fx1@gmail.com)
+    - sent_time: timestamp before we called send_verify (to ignore old emails)
     - Returns the 6-digit OTP code or None on timeout
     """
-    deadline = time.time() + timeout
-    seen_uids = set()
+    if sent_time is None:
+        sent_time = time.time()
 
-    # Get current UIDs to know what's already there
-    with _imap_lock:
-        try:
-            mail = imaplib.IMAP4_SSL('imap.gmail.com', 993)
-            mail.login(_gmail_addr, _gmail_app_pass)
-            mail.select('INBOX')
-            status, data = mail.uid('search', None, 'ALL')
-            if status == 'OK' and data[0]:
-                seen_uids = set(data[0].split())
-            mail.logout()
-        except Exception:
-            pass
+    deadline = time.time() + timeout
+    # Track UIDs we already checked in this call
+    checked_uids = set()
 
     while time.time() < deadline:
         if _stop_flag.is_set():
@@ -422,14 +418,57 @@ def imap_read_otp(target_variation, timeout=OTP_TIMEOUT):
                 mail.login(_gmail_addr, _gmail_app_pass)
                 mail.select('INBOX')
 
-                # Search for ALL recent emails
-                status, data = mail.uid('search', None, 'ALL')
+                # Search for emails from Telicall that arrived recently
+                # Use SINCE to limit to today's emails only
+                today = datetime.now().strftime('%d-%b-%Y')
+                search_criteria = f'(FROM "telicall" SINCE {today})'
+                status, data = mail.uid('search', None, search_criteria)
+
+                # Fallback: if no results with FROM filter, try broader search
+                if status != 'OK' or not data[0]:
+                    search_criteria = f'(SINCE {today})'
+                    status, data = mail.uid('search', None, search_criteria)
+
                 if status == 'OK' and data[0]:
                     all_uids = data[0].split()
-                    new_uids = [u for u in all_uids if u not in seen_uids]
+                    # Only check UIDs we haven't looked at yet in this call
+                    new_uids = [u for u in all_uids if u not in checked_uids]
 
                     # Check new emails (most recent first)
                     for uid in reversed(new_uids):
+                        checked_uids.add(uid)
+
+                        # Fetch only headers first (faster)
+                        status, header_data = mail.uid('fetch', uid, '(BODY[HEADER.FIELDS (DATE FROM TO DELIVERED-TO X-ORIGINAL-TO SUBJECT)])')
+                        if status != 'OK' or not header_data or not header_data[0]:
+                            continue
+
+                        header_text = header_data[0][1].decode('utf-8', errors='ignore').lower()
+
+                        # Quick check: does this email contain "teli" or "verif" or "code"?
+                        if not any(kw in header_text for kw in ['teli', 'verif', 'code', 'otp']):
+                            continue
+
+                        # Check email date to ensure it arrived AFTER we sent verification
+                        date_str = ''
+                        for line in header_text.split('\n'):
+                            if line.startswith('date:'):
+                                date_str = line.replace('date:', '', 1).strip()
+                                break
+
+                        if date_str:
+                            try:
+                                from email.utils import parsedate_to_datetime
+                                email_time = parsedate_to_datetime(date_str)
+                                email_ts = email_time.timestamp()
+                                # Only accept emails that arrived after we sent the verification
+                                # Allow 60 second buffer for clock skew
+                                if email_ts < (sent_time - 60):
+                                    continue
+                            except Exception:
+                                pass  # If we can't parse the date, still check it
+
+                        # Now fetch full message to get OTP
                         status, msg_data = mail.uid('fetch', uid, '(RFC822)')
                         if status != 'OK':
                             continue
@@ -437,49 +476,37 @@ def imap_read_otp(target_variation, timeout=OTP_TIMEOUT):
                         raw = msg_data[0][1]
                         msg = email_mod.message_from_bytes(raw)
 
-                        # Get the "To" header to match our variation
-                        to_header = _decode_str(msg.get('To', '')).lower()
-                        delivered_to = _decode_str(msg.get('Delivered-To', '')).lower()
-                        x_original_to = _decode_str(msg.get('X-Original-To', '')).lower()
+                        body = _get_email_body(msg)
+                        otp = _extract_otp_from_text(body)
 
-                        # Check if this email is for our variation
-                        # Gmail may normalize dots in Delivered-To, so we check multiple headers
-                        target_lower = target_variation.lower()
-                        match = (
-                            target_lower in to_header or
-                            target_lower in delivered_to or
-                            target_lower in x_original_to or
-                            # Also check normalized (dots removed) version
-                            target_lower.replace('.', '') in to_header.replace('.', '') or
-                            target_lower.replace('.', '') in delivered_to.replace('.', '')
-                        )
+                        if otp:
+                            # Check if we already used this OTP (avoid duplicates)
+                            with _used_otps_lock:
+                                if otp in _used_otps:
+                                    continue
+                                _used_otps.add(otp)
 
-                        if match:
-                            body = _get_email_body(msg)
-                            otp = _extract_otp_from_text(body)
-                            if otp:
-                                # Mark as read and delete
-                                try:
-                                    mail.uid('store', uid, '+FLAGS', '\\Seen')
-                                    mail.uid('store', uid, '+FLAGS', '\\Deleted')
-                                except Exception:
-                                    pass
-                                mail.logout()
-                                return otp
+                            # Mark as read and delete
+                            try:
+                                mail.uid('store', uid, '+FLAGS', '\\Seen')
+                                mail.uid('store', uid, '+FLAGS', '\\Deleted')
+                            except Exception:
+                                pass
 
-                        seen_uids.add(uid)
+                            # Expunge deleted messages
+                            try:
+                                mail.expunge()
+                            except Exception:
+                                pass
 
-                # Expunge deleted messages
-                try:
-                    mail.expunge()
-                except Exception:
-                    pass
+                            mail.logout()
+                            return otp
 
                 mail.logout()
             except imaplib.IMAP4.error as e:
                 err_str = str(e).lower()
                 if 'auth' in err_str or 'login' in err_str or 'credential' in err_str:
-                    print(f"  ❌ IMAP خطأ مصادقة! تأكد من App Password", flush=True)
+                    print(f"  ❌ IMAP auth error! Check App Password", flush=True)
                     return None
             except Exception:
                 pass
@@ -965,7 +992,8 @@ def _try_one_phone(phone, duration, mode, tid):
         update_stat("session_fail")
         return 'retry'
 
-    # Step 3: Send Verification
+    # Step 3: Send Verification (record time BEFORE sending)
+    sent_time = time.time()
     ref, err = send_verify(email_addr, headers, active_proxy)
     if not ref:
         err_str = str(err or "")
@@ -986,8 +1014,8 @@ def _try_one_phone(phone, duration, mode, tid):
 
     print(f"[{tid}] 📨 OTP sent -> {email_short}...", flush=True)
 
-    # Step 4: Get OTP via IMAP
-    otp = imap_read_otp(email_addr, timeout=OTP_TIMEOUT)
+    # Step 4: Get OTP via IMAP (only emails after sent_time)
+    otp = imap_read_otp(email_addr, timeout=OTP_TIMEOUT, sent_time=sent_time)
     if not otp:
         print(f"[{tid}] ❌ OTP timeout {phone} <- {email_short}", flush=True)
         update_stat("otp_fail")
