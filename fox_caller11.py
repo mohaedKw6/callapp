@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fox Caller v10.0 - Gmail Tricks Edition
+Fox Caller v10.2 - Gmail Tricks Edition
 =========================================
 Email provider: Gmail dots trick + Gmail plus trick + IMAP
   -> Telicall accepts @gmail.com
@@ -10,6 +10,7 @@ Email provider: Gmail dots trick + Gmail plus trick + IMAP
   -> Telicall sees each variation as a DIFFERENT account
   -> All OTPs arrive at the SAME Gmail inbox
   -> IMAP reads OTP automatically (App Password required once)
+  -> Old Telicall emails are deleted at startup to avoid OTP confusion
 
 Mode:
   --mode server   = create account + upload to server + server makes SIP call
@@ -523,7 +524,31 @@ def test_imap_connection():
         mail.select('INBOX')
         status, data = mail.search(None, 'ALL')
         count = len(data[0].split()) if data[0] else 0
+
+        # Delete ALL old Telicall verification emails to prevent OTP confusion
+        deleted = 0
+        if count > 0:
+            all_uids = data[0].split()
+            for uid in all_uids:
+                try:
+                    # Fetch only subject to check if it's from Telicall
+                    status, header_data = mail.fetch(uid, '(BODY[HEADER.FIELDS (FROM SUBJECT)])')
+                    if status == 'OK' and header_data and header_data[0]:
+                        header_text = header_data[0][1].decode('utf-8', errors='ignore').lower()
+                        if 'teli' in header_text or 'verif' in header_text:
+                            mail.store(uid, '+FLAGS', '\\Deleted')
+                            deleted += 1
+                except Exception:
+                    pass
+            if deleted > 0:
+                try:
+                    mail.expunge()
+                except Exception:
+                    pass
+
         mail.logout()
+        if deleted > 0:
+            print(f"  IMAP:       🗑️ Deleted {deleted} old Telicall emails", flush=True)
         return True, count
     except imaplib.IMAP4.error as e:
         return False, str(e)
@@ -1166,7 +1191,7 @@ def main():
     args = parser.parse_args()
 
     print("\n" + "=" * 60, flush=True)
-    print("  Fox Caller v10.0 - Gmail Tricks Edition", flush=True)
+    print("  Fox Caller v10.2 - Gmail Tricks Edition", flush=True)
     print("  Gmail dots trick + plus trick + IMAP OTP", flush=True)
     print("=" * 60, flush=True)
 
